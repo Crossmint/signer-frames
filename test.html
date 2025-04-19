@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Iframe Test Page</title>
+    <title>CrossmintVault Test Page</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -12,7 +12,7 @@
             background-color: #f5f5f5;
         }
         .container {
-            max-width: 800px;
+            max-width: 1000px;
             margin: 0 auto;
             background-color: white;
             padding: 20px;
@@ -28,6 +28,7 @@
         }
         .controls button {
             margin-right: 10px;
+            margin-bottom: 10px;
             padding: 8px 16px;
             background-color: #4CAF50;
             color: white;
@@ -37,6 +38,29 @@
         }
         .controls button:hover {
             background-color: #45a049;
+        }
+        .controls label {
+            display: block;
+            margin-top: 10px;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .controls input, .controls textarea, .controls select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .controls textarea {
+            height: 100px;
+            font-family: monospace;
+        }
+        .event-section {
+            margin-top: 20px;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
         }
         .response {
             border: 1px solid #ddd;
@@ -61,26 +85,129 @@
             border-left: 3px solid #2196F3;
             border-radius: 2px;
         }
+        .message-sent {
+            background-color: #e9f7fd;
+            border-left-color: #2196F3;
+        }
+        .message-received {
+            background-color: #f1f8e9;
+            border-left-color: #4CAF50;
+        }
+        .btn-event {
+            background-color: #3f51b5;
+        }
+        .btn-event:hover {
+            background-color: #303f9f;
+        }
+        .two-columns {
+            display: flex;
+            gap: 20px;
+        }
+        .column {
+            flex: 1;
+        }
+        .event-params {
+            padding: 10px;
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Iframe Communication Test</h1>
+        <h1>CrossmintVault Test Console</h1>
         
-        <div class="controls">
-            <button id="sendMessage">Send Test Message</button>
-            <button id="sendCustom">Send Custom Message</button>
-            <input type="text" id="customMessage" placeholder="Enter custom message...">
+        <div class="two-columns">
+            <div class="column">
+                <h2>Request Events</h2>
+                <div class="controls">
+                    <label for="eventType">Select Request Event:</label>
+                    <select id="eventType">
+                        <option value="request:sign-message">Sign Message</option>
+                        <option value="request:sign-transaction">Sign Transaction</option>
+                        <option value="request:attestation">Attestation</option>
+                        <option value="request:send-otp">Send OTP</option>
+                        <option value="request:create-signer">Create Signer</option>
+                        <option value="custom">Custom Event</option>
+                    </select>
+                    
+                    <div id="customEventField" style="display: none;">
+                        <label for="customEventType">Custom Event Type:</label>
+                        <input type="text" id="customEventType" placeholder="Enter custom event type...">
+                    </div>
+                    
+                    <label for="eventParams">Event Parameters (JSON):</label>
+                    <textarea id="eventParams" placeholder='{\n  "key": "value"\n}'></textarea>
+                    
+                    <div class="event-params">
+                        <strong>Parameter Templates:</strong>
+                        <ul>
+                            <li><a href="#" class="param-template" data-event="request:sign-message">Sign Message</a></li>
+                            <li><a href="#" class="param-template" data-event="request:sign-transaction">Sign Transaction</a></li>
+                            <li><a href="#" class="param-template" data-event="request:attestation">Attestation</a></li>
+                            <li><a href="#" class="param-template" data-event="request:send-otp">Send OTP</a></li>
+                            <li><a href="#" class="param-template" data-event="request:create-signer">Create Signer</a></li>
+                        </ul>
+                    </div>
+                    
+                    <button id="sendEvent" class="btn-event">Send Event</button>
+                </div>
+                
+                <div class="event-section">
+                    <h2>Simple Test Messages</h2>
+                    <div class="controls">
+                        <button id="sendMessage">Send Test Message</button>
+                        <button id="sendCustom">Send Custom Message</button>
+                        <input type="text" id="customMessage" placeholder="Enter custom message...">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="column">
+                <h2>Response Messages</h2>
+                <div id="responseArea" class="response">
+                    <p>Response messages will appear here...</p>
+                </div>
+            </div>
         </div>
         
-        <div id="responseArea" class="response">
-            <p>Response messages will appear here...</p>
-        </div>
-        
+        <h2>CrossmintVault Iframe</h2>
         <iframe id="targetFrame" src="http://localhost:8080/"></iframe>
     </div>
     
     <script>
+        // Event parameter templates
+        const paramTemplates = {
+            'request:sign-message': {
+                message: 'Hello, World!',
+                signerAddress: '0x1234567890abcdef1234567890abcdef12345678',
+                chainId: 1
+            },
+            'request:sign-transaction': {
+                transaction: {
+                    to: '0x1234567890abcdef1234567890abcdef12345678',
+                    value: '0.01',
+                    data: '0x',
+                    chainId: 1
+                },
+                signerAddress: '0x1234567890abcdef1234567890abcdef12345678'
+            },
+            'request:attestation': {
+                type: 'email',
+                value: 'user@example.com'
+            },
+            'request:send-otp': {
+                destination: 'user@example.com',
+                type: 'email'
+            },
+            'request:create-signer': {
+                type: 'eoa', 
+                chain: 'ethereum'
+            }
+        };
+        
         // Generate a unique ID for each message
         function generateId() {
             return 'msg_' + Math.random().toString(36).substr(2, 9);
@@ -89,20 +216,77 @@
         // Add a message to the response area
         function addMessage(text, isIncoming = false) {
             const messageElement = document.createElement('div');
-            messageElement.className = 'message';
-            messageElement.textContent = (isIncoming ? 'Received: ' : 'Sent: ') + text;
+            messageElement.className = `message ${isIncoming ? 'message-received' : 'message-sent'}`;
+            
+            // Format JSON if possible
+            try {
+                const jsonObj = typeof text === 'object' ? text : JSON.parse(text);
+                const formatted = JSON.stringify(jsonObj, null, 2);
+                const direction = isIncoming ? 'Received' : 'Sent';
+                const time = new Date().toLocaleTimeString();
+                
+                messageElement.innerHTML = `<strong>${time} - ${direction}:</strong><pre>${formatted}</pre>`;
+            } catch (e) {
+                messageElement.textContent = (isIncoming ? 'Received: ' : 'Sent: ') + text;
+            }
             
             const responseArea = document.getElementById('responseArea');
-            responseArea.appendChild(messageElement);
-            responseArea.scrollTop = responseArea.scrollHeight;
+            
+            // Remove the instruction text if it exists
+            const instructionText = responseArea.querySelector('p');
+            if (instructionText && instructionText.textContent === 'Response messages will appear here...') {
+                responseArea.removeChild(instructionText);
+            }
+            
+            // Add message to top for better visibility of new messages
+            if (responseArea.firstChild) {
+                responseArea.insertBefore(messageElement, responseArea.firstChild);
+            } else {
+                responseArea.appendChild(messageElement);
+            }
         }
         
         // Set up event listeners once the DOM is fully loaded
         document.addEventListener('DOMContentLoaded', function() {
             const sendButton = document.getElementById('sendMessage');
             const sendCustomButton = document.getElementById('sendCustom');
+            const sendEventButton = document.getElementById('sendEvent');
             const customMessageInput = document.getElementById('customMessage');
+            const eventTypeSelect = document.getElementById('eventType');
+            const customEventField = document.getElementById('customEventField');
+            const customEventType = document.getElementById('customEventType');
+            const eventParams = document.getElementById('eventParams');
             const iframe = document.getElementById('targetFrame');
+            
+            // Handle event type changes
+            eventTypeSelect.addEventListener('change', function() {
+                if (this.value === 'custom') {
+                    customEventField.style.display = 'block';
+                } else {
+                    customEventField.style.display = 'none';
+                    
+                    // Set default parameter template
+                    if (paramTemplates[this.value]) {
+                        eventParams.value = JSON.stringify(paramTemplates[this.value], null, 2);
+                    }
+                }
+            });
+            
+            // Set initial parameter template
+            eventParams.value = JSON.stringify(paramTemplates[eventTypeSelect.value], null, 2);
+            
+            // Parameter template links
+            document.querySelectorAll('.param-template').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const eventType = this.getAttribute('data-event');
+                    if (paramTemplates[eventType]) {
+                        eventTypeSelect.value = eventType;
+                        customEventField.style.display = 'none';
+                        eventParams.value = JSON.stringify(paramTemplates[eventType], null, 2);
+                    }
+                });
+            });
             
             // Send a test message to the iframe
             sendButton.addEventListener('click', function() {
@@ -114,7 +298,7 @@
                 };
                 
                 iframe.contentWindow.postMessage(message, 'http://localhost:8080/');
-                addMessage(JSON.stringify(message));
+                addMessage(message);
             });
             
             // Send a custom message to the iframe
@@ -130,15 +314,48 @@
                 };
                 
                 iframe.contentWindow.postMessage(message, 'http://localhost:8080/');
-                addMessage(JSON.stringify(message));
+                addMessage(message);
                 customMessageInput.value = '';
+            });
+            
+            // Send an event to the iframe
+            sendEventButton.addEventListener('click', function() {
+                let eventType = eventTypeSelect.value;
+                
+                // If custom event is selected, use the custom event type
+                if (eventType === 'custom') {
+                    eventType = customEventType.value.trim();
+                    if (!eventType) {
+                        alert('Please enter a custom event type');
+                        return;
+                    }
+                }
+                
+                // Parse event parameters
+                let paramsObj;
+                try {
+                    paramsObj = JSON.parse(eventParams.value);
+                } catch (e) {
+                    alert('Invalid JSON in event parameters');
+                    return;
+                }
+                
+                const messageId = generateId();
+                const message = {
+                    id: messageId,
+                    type: eventType,
+                    data: paramsObj
+                };
+                
+                iframe.contentWindow.postMessage(message, 'http://localhost:8080/');
+                addMessage(message);
             });
             
             // Listen for messages from the iframe
             window.addEventListener('message', function(event) {
                 // Security check - only accept messages from our iframe's origin
                 if (event.origin === 'http://localhost:8080') {
-                    addMessage(JSON.stringify(event.data), true);
+                    addMessage(event.data, true);
                 }
             });
         });

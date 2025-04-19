@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crossmint Signers</title>
+    <title>CrossmintVault</title>
     <link rel="stylesheet" href="css/styles.css">
     <!-- For production use: -->
     <script src="dist/bundle.min.js"></script>
@@ -24,174 +24,229 @@
 </head>
 <body>
     <div class="container">
-        <h1>Crossmint Signers</h1>
+        <h1>CrossmintVault</h1>
         <div class="status" id="status">Initialized...</div>
         
         <div class="demo-section">
-            <h2>Base58 Encoding/Decoding</h2>
-            <form id="base58-form">
-                <div class="form-group">
-                    <label for="hex-input">Hex Input:</label>
-                    <input type="text" id="hex-input" placeholder="Enter hex string..." />
-                    <button type="button" id="encode-btn">Encode to Base58</button>
+            <h2>Keys Storage</h2>
+            
+            <div class="storage-controls">
+                <button class="refresh-button" id="refresh-storage">Refresh</button>
+            </div>
+            
+            <div id="keys-container" class="storage-container">
+                <div id="keys-table">
+                    <p>Loading data...</p>
                 </div>
-                <div class="form-group">
-                    <label for="base58-input">Base58 Input:</label>
-                    <input type="text" id="base58-input" placeholder="Enter Base58 string..." />
-                    <button type="button" id="decode-btn">Decode to Hex</button>
-                </div>
-                <div class="form-group">
-                    <label for="result">Result:</label>
-                    <input type="text" id="result" readonly />
-                </div>
-            </form>
+            </div>
         </div>
         
         <div class="demo-section">
-            <h2>IndexedDB Storage</h2>
-            <form id="storage-form">
-                <div class="form-group">
-                    <label for="storage-id">ID:</label>
-                    <input type="text" id="storage-id" required />
+            <div class="event-box">
+                <div class="event-box-header">
+                    <h3>Event Log</h3>
+                    <button class="clear-events" id="clear-events">Clear</button>
                 </div>
-                <div class="form-group">
-                    <label for="storage-data">Data (JSON):</label>
-                    <textarea id="storage-data" rows="5" placeholder='{"key": "value"}'></textarea>
+                <div class="event-box-body" id="event-log">
+                    <div class="event-item event-info">Waiting for events...</div>
                 </div>
-                <div class="form-group">
-                    <button type="button" id="store-btn">Store</button>
-                    <button type="button" id="retrieve-btn">Retrieve</button>
-                    <button type="button" id="list-btn">List All</button>
-                    <button type="button" id="delete-btn">Delete</button>
-                </div>
-            </form>
-            <div id="storage-result" class="storage-result"></div>
+            </div>
         </div>
     </div>
     
     <div class="footer">
-        Crossmint Signers | <span class="version">v1.0.0</span>
+        Crossmint Vault | <span class="version">v1.0.0</span>
     </div>
 
     <!-- Initialize demo -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // Define constants
+            const KEYS_STORE = 'keys';
+            
             // Initialize the XMIF framework
             if (window.XMIF) {
+                // Add Storage constants if they don't exist
+                if (!XMIF.Storage) {
+                    XMIF.Storage = {
+                        KEYS_STORE: KEYS_STORE
+                    };
+                }
+                
                 window.XMIF.init({
                     environment: window.ENV.ENVIRONMENT,
                     apiUrl: window.ENV.API_URL,
                     storagePrefix: window.ENV.STORAGE_PREFIX
                 })
-                    .then(() => {
-                        console.log('XMIF framework initialized');
-                        document.getElementById('status').textContent = 'Ready';
-                        
-                        // Show version number in footer
-                        document.querySelector('.version').textContent = `v${XMIF.version || window.ENV.APP_VERSION}`;
-                        
-                        // Apply theme
-                        document.body.classList.add(`theme-${window.ENV.THEME || 'default'}`);
-                        
-                        // Set up Base58 demo
-                        document.getElementById('encode-btn').addEventListener('click', () => {
-                            try {
-                                const hexInput = document.getElementById('hex-input').value;
-                                const bytes = XMIF.format.fromHex(hexInput);
-                                const base58Result = XMIF.format.toBase58(bytes);
-                                document.getElementById('result').value = base58Result;
-                            } catch (err) {
-                                console.error('Error encoding:', err);
-                                document.getElementById('result').value = `Error: ${err.message}`;
-                            }
-                        });
-                        
-                        document.getElementById('decode-btn').addEventListener('click', () => {
-                            try {
-                                const base58Input = document.getElementById('base58-input').value;
-                                const bytes = XMIF.format.fromBase58(base58Input);
-                                const hexResult = XMIF.format.toHex(bytes);
-                                document.getElementById('result').value = hexResult;
-                            } catch (err) {
-                                console.error('Error decoding:', err);
-                                document.getElementById('result').value = `Error: ${err.message}`;
-                            }
-                        });
-                        
-                        // Set up Storage demo
-                        document.getElementById('store-btn').addEventListener('click', async () => {
-                            try {
-                                const id = document.getElementById('storage-id').value;
-                                if (!id) throw new Error('ID is required');
-                                
-                                const dataString = document.getElementById('storage-data').value;
-                                const data = JSON.parse(dataString);
-                                
-                                data.id = id;
-                                data.created = new Date().toISOString();
-                                
-                                await XMIF.storeData(XMIF.Storage.KEYS_STORE, data);
-                                showStorageResult('Data stored successfully');
-                            } catch (err) {
-                                console.error('Error storing data:', err);
-                                showStorageResult(`Error: ${err.message}`);
-                            }
-                        });
-                        
-                        document.getElementById('retrieve-btn').addEventListener('click', async () => {
-                            try {
-                                const id = document.getElementById('storage-id').value;
-                                if (!id) throw new Error('ID is required');
-                                
-                                const item = await XMIF.getData(XMIF.Storage.KEYS_STORE, id);
-                                showStorageResult(item ? JSON.stringify(item, null, 2) : 'Item not found');
-                            } catch (err) {
-                                console.error('Error retrieving data:', err);
-                                showStorageResult(`Error: ${err.message}`);
-                            }
-                        });
-                        
-                        document.getElementById('list-btn').addEventListener('click', async () => {
-                            try {
-                                const items = await XMIF.listData(XMIF.Storage.KEYS_STORE);
-                                showStorageResult(items.length > 0 ? 
-                                    JSON.stringify(items, null, 2) : 
-                                    'No items found');
-                            } catch (err) {
-                                console.error('Error listing data:', err);
-                                showStorageResult(`Error: ${err.message}`);
-                            }
-                        });
-                        
-                        document.getElementById('delete-btn').addEventListener('click', async () => {
-                            try {
-                                const id = document.getElementById('storage-id').value;
-                                if (!id) throw new Error('ID is required');
-                                
-                                await XMIF.deleteData(XMIF.Storage.KEYS_STORE, id);
-                                showStorageResult('Item deleted successfully');
-                            } catch (err) {
-                                console.error('Error deleting data:', err);
-                                showStorageResult(`Error: ${err.message}`);
-                            }
-                        });
-                        
-                        function showStorageResult(text) {
-                            const resultElement = document.getElementById('storage-result');
-                            resultElement.innerHTML = text;
-                            if (typeof text === 'string' && text.startsWith('Error:')) {
-                                resultElement.classList.add('error');
-                            } else {
-                                resultElement.classList.remove('error');
-                            }
-                        }
-                    })
-                    .catch(err => {
-                        console.error('Failed to initialize XMIF:', err);
-                        document.getElementById('status').textContent = `Error: ${err.message}`;
-                    });
+                .then(() => {
+                    console.log('XMIF framework initialized');
+                    document.getElementById('status').textContent = 'Ready';
+                    
+                    // Show version number in footer
+                    document.querySelector('.version').textContent = `v${XMIF.version || window.ENV.APP_VERSION}`;
+                    
+                    // Initial data load
+                    refreshKeysStore();
+                    
+                    // Set up refresh button
+                    document.getElementById('refresh-storage').addEventListener('click', refreshKeysStore);
+                    
+                    // Set up event logging
+                    setupEventLog();
+                })
+                .catch(err => {
+                    console.error('Failed to initialize XMIF:', err);
+                    document.getElementById('status').textContent = `Error: ${err.message}`;
+                    logEvent('Error', err.message, true);
+                });
             } else {
                 document.getElementById('status').textContent = 'Error: XMIF not loaded';
+                logEvent('Error', 'XMIF framework not loaded', true);
+            }
+            
+            // Refresh keys store data
+            async function refreshKeysStore() {
+                try {
+                    const tableDiv = document.getElementById('keys-table');
+                    tableDiv.innerHTML = '<p>Loading data...</p>';
+                    
+                    const items = await XMIF.listData(KEYS_STORE);
+                    
+                    if (items.length === 0) {
+                        tableDiv.innerHTML = '<p>No keys found in the vault.</p>';
+                        logEvent('Info', 'No keys found');
+                        return;
+                    }
+                    
+                    // Create table
+                    const table = document.createElement('table');
+                    table.className = 'storage-table';
+                    
+                    // Create table header
+                    const thead = document.createElement('thead');
+                    const headerRow = document.createElement('tr');
+                    
+                    // Add header columns
+                    const headers = ['ID', 'Created', 'Contents', 'Actions'];
+                    headers.forEach(header => {
+                        const th = document.createElement('th');
+                        th.textContent = header;
+                        headerRow.appendChild(th);
+                    });
+                    
+                    thead.appendChild(headerRow);
+                    table.appendChild(thead);
+                    
+                    // Create table body
+                    const tbody = document.createElement('tbody');
+                    
+                    // Add rows for each item
+                    items.forEach(item => {
+                        const row = document.createElement('tr');
+                        
+                        // ID column
+                        const idCell = document.createElement('td');
+                        idCell.textContent = item.id;
+                        row.appendChild(idCell);
+                        
+                        // Created date column
+                        const createdCell = document.createElement('td');
+                        createdCell.textContent = item.created 
+                            ? new Date(item.created).toLocaleString() 
+                            : 'N/A';
+                        row.appendChild(createdCell);
+                        
+                        // Contents column
+                        const contentsCell = document.createElement('td');
+                        const jsonViewer = document.createElement('div');
+                        jsonViewer.className = 'json-viewer';
+                        
+                        // Create a copy of the item without id and created fields
+                        const displayData = { ...item };
+                        delete displayData.id;
+                        delete displayData.created;
+                        
+                        jsonViewer.textContent = JSON.stringify(displayData, null, 2);
+                        contentsCell.appendChild(jsonViewer);
+                        row.appendChild(contentsCell);
+                        
+                        // Actions column
+                        const actionsCell = document.createElement('td');
+                        
+                        // Delete button
+                        const deleteButton = document.createElement('button');
+                        deleteButton.className = 'action-button delete-button';
+                        deleteButton.textContent = 'Delete';
+                        deleteButton.addEventListener('click', async () => {
+                            if (confirm(`Are you sure you want to delete ${item.id}?`)) {
+                                try {
+                                    await XMIF.deleteData(KEYS_STORE, item.id);
+                                    logEvent('Success', `Deleted ${item.id} from keys store`);
+                                    refreshKeysStore();
+                                } catch (err) {
+                                    logEvent('Error', `Failed to delete ${item.id}: ${err.message}`, true);
+                                }
+                            }
+                        });
+                        actionsCell.appendChild(deleteButton);
+                        
+                        row.appendChild(actionsCell);
+                        tbody.appendChild(row);
+                    });
+                    
+                    table.appendChild(tbody);
+                    tableDiv.innerHTML = '';
+                    tableDiv.appendChild(table);
+                    
+                    logEvent('Info', `Loaded ${items.length} keys`);
+                } catch (err) {
+                    console.error('Error refreshing keys store:', err);
+                    document.getElementById('keys-table').innerHTML = 
+                        `<p class="error">Error loading keys: ${err.message}</p>`;
+                    logEvent('Error', `Failed to load keys: ${err.message}`, true);
+                }
+            }
+            
+            // Set up event logging system
+            function setupEventLog() {
+                // Clear events button
+                document.getElementById('clear-events').addEventListener('click', () => {
+                    document.getElementById('event-log').innerHTML = '';
+                    logEvent('Info', 'Event log cleared');
+                });
+            }
+            
+            // Log an event to the event box
+            function logEvent(type, message, isError = false) {
+                const eventLog = document.getElementById('event-log');
+                const eventItem = document.createElement('div');
+                
+                let className = 'event-item ';
+                if (isError) {
+                    className += 'event-error';
+                } else if (type === 'Storage') {
+                    className += 'event-incoming';
+                } else {
+                    className += 'event-info';
+                }
+                
+                eventItem.className = className;
+                
+                const timestamp = new Date().toLocaleTimeString();
+                eventItem.innerHTML = `<strong>${timestamp} - ${type}:</strong> ${message}`;
+                
+                // Add to the top 
+                if (eventLog.firstChild) {
+                    eventLog.insertBefore(eventItem, eventLog.firstChild);
+                } else {
+                    eventLog.appendChild(eventItem);
+                }
+                
+                // Remove first message if it's "Waiting for events..."
+                const firstItem = eventLog.querySelector('.event-item');
+                if (firstItem && firstItem.textContent.includes('Waiting for events...')) {
+                    eventLog.removeChild(firstItem);
+                }
             }
         });
     </script>
