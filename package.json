@@ -2,11 +2,10 @@
   "name": "crossmint-signers",
   "version": "1.0.0",
   "description": "Cryptographic utilities for Solana and EVM chains",
-  "main": "dist/index.js",
   "scripts": {
     "build": "pnpm run build:js",
-    "build:js": "esbuild src/js/index.js --bundle --minify --sourcemap --outfile=dist/bundle.min.js --format=iife",
-    "build:dev": "esbuild src/js/index.js --bundle --sourcemap --outfile=dist/bundle.js --format=iife",
+    "build:js": "esbuild src/index.js --bundle --minify --sourcemap --outfile=dist/bundle.min.js --format=iife",
+    "build:dev": "esbuild src/index.js --bundle --sourcemap --outfile=dist/bundle.js --format=iife",
     "build:prod": "pnpm run build:dev && pnpm run build:js",
     "prepare:env": "[ ! -f .env.local ] && cp .env.local.example .env.local || echo '.env.local already exists'",
     "dev": "pnpm prepare:env && pnpm build:dev && pnpm serve:static",

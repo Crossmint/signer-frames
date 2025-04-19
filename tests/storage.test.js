@@ -4,7 +4,7 @@ import {
   getItemWithExpiry, 
   removeItem, 
   LOCAL_KEY_PREFIX 
-} from '../src/js/storage';
+} from '../src/storage';
 
 // Import LOCAL_KEY_PREFIX directly from storage module or define it here if it's not exported
 // const LOCAL_KEY_PREFIX = 'XMIF_';
