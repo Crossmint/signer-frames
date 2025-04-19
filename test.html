@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iframe Test Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .controls {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .controls button {
+            margin-right: 10px;
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .controls button:hover {
+            background-color: #45a049;
+        }
+        .response {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            min-height: 100px;
+            max-height: 200px;
+            overflow-y: auto;
+            background-color: #f9f9f9;
+        }
+        iframe {
+            width: 100%;
+            height: 300px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 8px;
+            background-color: #e9f7fd;
+            border-left: 3px solid #2196F3;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Iframe Communication Test</h1>
+        
+        <div class="controls">
+            <button id="sendMessage">Send Test Message</button>
+            <button id="sendCustom">Send Custom Message</button>
+            <input type="text" id="customMessage" placeholder="Enter custom message...">
+        </div>
+        
+        <div id="responseArea" class="response">
+            <p>Response messages will appear here...</p>
+        </div>
+        
+        <iframe id="targetFrame" src="http://localhost:8080/"></iframe>
+    </div>
+    
+    <script>
+        // Generate a unique ID for each message
+        function generateId() {
+            return 'msg_' + Math.random().toString(36).substr(2, 9);
+        }
+        
+        // Add a message to the response area
+        function addMessage(text, isIncoming = false) {
+            const messageElement = document.createElement('div');
+            messageElement.className = 'message';
+            messageElement.textContent = (isIncoming ? 'Received: ' : 'Sent: ') + text;
+            
+            const responseArea = document.getElementById('responseArea');
+            responseArea.appendChild(messageElement);
+            responseArea.scrollTop = responseArea.scrollHeight;
+        }
+        
+        // Set up event listeners once the DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            const sendButton = document.getElementById('sendMessage');
+            const sendCustomButton = document.getElementById('sendCustom');
+            const customMessageInput = document.getElementById('customMessage');
+            const iframe = document.getElementById('targetFrame');
+            
+            // Send a test message to the iframe
+            sendButton.addEventListener('click', function() {
+                const messageId = generateId();
+                const message = {
+                    id: messageId,
+                    type: 'TEST_MESSAGE',
+                    data: { timestamp: Date.now() }
+                };
+                
+                iframe.contentWindow.postMessage(message, 'http://localhost:8080/');
+                addMessage(JSON.stringify(message));
+            });
+            
+            // Send a custom message to the iframe
+            sendCustomButton.addEventListener('click', function() {
+                const messageText = customMessageInput.value.trim();
+                if (!messageText) return;
+                
+                const messageId = generateId();
+                const message = {
+                    id: messageId,
+                    type: 'CUSTOM_MESSAGE',
+                    data: { text: messageText, timestamp: Date.now() }
+                };
+                
+                iframe.contentWindow.postMessage(message, 'http://localhost:8080/');
+                addMessage(JSON.stringify(message));
+                customMessageInput.value = '';
+            });
+            
+            // Listen for messages from the iframe
+            window.addEventListener('message', function(event) {
+                // Security check - only accept messages from our iframe's origin
+                if (event.origin === 'http://localhost:8080') {
+                    addMessage(JSON.stringify(event.data), true);
+                }
+            });
+        });
+    </script>
+</body>
+</html> 

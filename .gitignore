@@ -11,9 +11,6 @@ yarn-error.log
 .env.test.local
 .env.production.local
 
-# Docker
-.docker/
-
 # Misc
 .DS_Store
 .idea/
@@ -24,3 +21,12 @@ yarn-error.log
 # PNPM
 node_modules/
 dist/
+
+# Coverage
+coverage/
+
+# Log files
+*.log
+
+# Don't ignore the example file
+!.env.local.example

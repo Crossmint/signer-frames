@@ -3,17 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crossmint Client Signer Vault</title>
+    <title>{{APP_TITLE}}</title>
     <link rel="stylesheet" href="css/styles.css">
     <!-- For production use: -->
     <script src="js/dist/bundle.min.js"></script>
     
     <!-- For development use (uncomment when debugging): -->
     <!-- <script src="js/dist/bundle.js"></script> -->
+    
+    <!-- Environment configuration -->
+    <script>
+        window.ENV = {
+            API_URL: "{{API_URL}}",
+            ENVIRONMENT: "{{ENVIRONMENT}}",
+            APP_VERSION: "{{APP_VERSION}}",
+            THEME: "{{THEME}}",
+            STORAGE_PREFIX: "{{STORAGE_PREFIX}}"
+        };
+    </script>
 </head>
 <body>
     <div class="container">
-        <h1>Crossmint Client Base58 & Storage</h1>
+        <h1>{{APP_TITLE}}</h1>
         <div class="status" id="status">Initialized...</div>
         
         <div class="demo-section">
@@ -59,8 +70,7 @@
     </div>
     
     <div class="footer">
-        Crossmint Client Base58 & Storage Demo
-        <span class="version"></span>
+        {{APP_TITLE}} | <span class="version">v{{APP_VERSION}}</span>
     </div>
 
     <!-- Initialize demo -->
@@ -68,13 +78,20 @@
         document.addEventListener('DOMContentLoaded', () => {
             // Initialize the XMIF framework
             if (window.XMIF) {
-                window.XMIF.init()
+                window.XMIF.init({
+                    environment: window.ENV.ENVIRONMENT,
+                    apiUrl: window.ENV.API_URL,
+                    storagePrefix: window.ENV.STORAGE_PREFIX
+                })
                     .then(() => {
                         console.log('XMIF framework initialized');
                         document.getElementById('status').textContent = 'Ready';
                         
                         // Show version number in footer
-                        document.querySelector('.version').textContent = `v${XMIF.version}`;
+                        document.querySelector('.version').textContent = `v${XMIF.version || window.ENV.APP_VERSION}`;
+                        
+                        // Apply theme
+                        document.body.classList.add(`theme-${window.ENV.THEME || 'default'}`);
                         
                         // Set up Base58 demo
                         document.getElementById('encode-btn').addEventListener('click', () => {
