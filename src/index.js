@@ -5,9 +5,10 @@ import * as common from './common.js';
 import * as solana from './solana.js';
 import * as evm from './evm.js';
 import * as storage from './storage.js';
+import * as events from './events.js';
 
 // Export all modules
-export { common, solana, evm, storage };
+export { common, solana, evm, storage, events };
 
 // Initialize the global namespace when loaded as IIFE
 const init = () => {
@@ -109,6 +110,25 @@ const init = () => {
         },
         
         /**
+         * Process an event
+         * @param {string} eventName - Name of the event
+         * @param {Object} data - Event data
+         * @returns {Promise<any>} Result of the event handler
+         */
+        async processEvent(eventName, data) {
+            return events.processEvent(eventName, data);
+        },
+        
+        /**
+         * Register a custom event handler
+         * @param {string} eventName - Name of the event
+         * @param {Function} handler - Handler function
+         */
+        registerEventHandler(eventName, handler) {
+            events.registerHandler(eventName, handler);
+        },
+        
+        /**
          * Convert data to various formats
          */
         format: {
@@ -122,7 +142,8 @@ const init = () => {
         Common: common,
         Solana: solana,
         EVM: evm,
-        Storage: storage
+        Storage: storage,
+        Events: events
     };
     
     // Expose the API to the window object when loaded via script tag
