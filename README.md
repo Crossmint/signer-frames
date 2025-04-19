@@ -1,13 +1,14 @@
-# Static Frames Cryptography Library
+# Static Frames - Secure Cryptographic Key Shard Management
 
-A modular JavaScript library for cryptographic operations, particularly focused on Solana (Ed25519) and Ethereum (EVM) key management.
+A client-side secure environment for managing and storing cryptographic key shards with the ability to reconstruct them on demand. Designed with a focus on Solana (Ed25519) and Ethereum (EVM) blockchain ecosystems.
 
-## Features
+## Core Features
 
-- 🔐 **Key Generation**: Create cryptographic keys for Solana and Ethereum
-- 📝 **Signatures**: Sign and verify messages using Ed25519 for Solana
-- 🔄 **Encoding**: Convert between hex and Base58 formats
-- 💾 **Storage**: IndexedDB and localStorage utilities for key management
+- 🛡️ **Key Shard Management**: Securely store and manage cryptographic key fragments in the client environment
+- 🔄 **On-Demand Reconstruction**: Reconstruct full cryptographic keys only when needed
+- 🔐 **Secure Storage**: Client-side storage of key shards using IndexedDB and localStorage
+- 📝 **Signature Capabilities**: Sign and verify messages using reconstructed keys
+- 🔢 **Format Conversion**: Convert between hex and Base58 formats for different blockchain environments
 
 ## Project Structure
 
@@ -43,7 +44,7 @@ The project uses a modular ES module system with esbuild for bundling:
 ### Prerequisites
 
 - Node.js 14+
-- pnpm (recommended) or npm
+- pnpm (required)
 
 ### Setup
 
@@ -114,15 +115,15 @@ const isValid = await XMIF.Solana.verifySignature("Hello, Solana!", signature, p
 const evmPrivateKey = await XMIF.EVM.generatePrivateKey();
 const ethAddress = await XMIF.EVM.getPublicAddress(evmPrivateKey);
 
-// Store data
+// Store key shards
 await XMIF.storeData(XMIF.Storage.KEYS_STORE, { 
-  id: "my-key", 
+  id: "my-key-shard", 
   privateKey, 
   publicKey 
 });
 
-// Retrieve data
-const storedKey = await XMIF.getData(XMIF.Storage.KEYS_STORE, "my-key");
+// Retrieve and reconstruct key
+const storedKeyShard = await XMIF.getData(XMIF.Storage.KEYS_STORE, "my-key-shard");
 ```
 
 ### As ES Module (Advanced)
@@ -132,9 +133,9 @@ For more advanced projects with a build system, you can directly import the modu
 ```js
 import { solana, evm, common, storage } from './path/to/static-frames';
 
-// Generate keys
-const privateKey = await solana.generatePrivateKey();
-const publicKey = await solana.getPublicKey(privateKey);
+// Generate and manage key shards
+const privateKeyShard = await solana.generatePrivateKey();
+const publicKey = await solana.getPublicKey(privateKeyShard);
 ```
 
 ## Demo Pages
@@ -156,9 +157,10 @@ const publicKey = await solana.getPublicKey(privateKey);
 
 ## Security Considerations
 
-- This library is for demonstration purposes
-- The EVM implementation is a placeholder and should be replaced with a proper implementation for production use
-- Do not store sensitive private keys in IndexedDB or localStorage in production environments without proper encryption
+- All cryptographic operations remain client-side - keys are never transmitted to servers
+- Key shards should be stored with proper encryption for production use
+- This framework focuses on secure client-side key management rather than server-based key storage
+- For enhanced security, consider implementing additional encryption for stored key shards
 
 ## License
 
