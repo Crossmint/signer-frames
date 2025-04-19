@@ -1,11 +1,10 @@
-version: "3"
-
 services:
-  vault:
-    build: .
+  static-frames:
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "8080:8080"
     environment:
-      - OUTBOUND_ENDPOINT=my-endpoint.com
-    # To set a custom endpoint, replace the empty string above with your URL
-    # For example: OUTBOUND_ENDPOINT=https://your-endpoint.com
+      - OUTBOUND_ENDPOINT=http://localhost:3000
+    restart: unless-stopped

@@ -5,8 +5,8 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "pnpm run build:js",
-    "build:js": "esbuild src/js/index.js --bundle --minify --sourcemap --outfile=dist/bundle.min.js --format=iife && cp dist/bundle.min.js static/js/dist/bundle.min.js && cp dist/bundle.min.js.map static/js/dist/bundle.min.js.map",
-    "build:dev": "esbuild src/js/index.js --bundle --sourcemap --outfile=dist/bundle.js --format=iife && cp dist/bundle.js static/js/dist/bundle.js && cp dist/bundle.js.map static/js/dist/bundle.js.map",
+    "build:js": "esbuild src/js/index.js --bundle --minify --sourcemap --outfile=dist/bundle.min.js --format=iife",
+    "build:dev": "esbuild src/js/index.js --bundle --sourcemap --outfile=dist/bundle.js --format=iife",
     "build:prod": "mkdir -p dist static/js/dist && pnpm run build:dev && pnpm run build:js",
     "dev": "mkdir -p dist static/js/dist && esbuild src/js/index.js --bundle --sourcemap --outfile=dist/bundle.js --format=iife --watch",
     "dev:copy": "nodemon --watch dist --exec \"cp dist/bundle.js static/js/dist/bundle.js && cp dist/bundle.js.map static/js/dist/bundle.js.map\"",

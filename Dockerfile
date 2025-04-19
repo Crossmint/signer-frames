@@ -1,10 +1,34 @@
+FROM node:18-alpine AS builder
+
+# Install pnpm
+RUN npm install -g pnpm
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package.json pnpm-lock.yaml ./
+
+# Install dependencies
+RUN pnpm install
+
+# Copy source files
+COPY src/ ./src/
+COPY static/ ./static/
+
+# Create necessary directories
+RUN mkdir -p dist static/js/dist
+
+# Build the bundle
+RUN pnpm run build:prod
+
 FROM nginx:alpine
 
 # Copy nginx configuration
 COPY static/nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copy static files
-COPY static /usr/share/nginx/html
+# Copy static files from builder
+COPY --from=builder /app/static /usr/share/nginx/html
 
 # Make the template replacement script executable
 RUN chmod +x /usr/share/nginx/html/replace-template.sh
