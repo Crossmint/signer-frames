@@ -3,28 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{APP_TITLE}}</title>
+    <title>Crossmint Signers</title>
     <link rel="stylesheet" href="css/styles.css">
     <!-- For production use: -->
-    <script src="js/dist/bundle.min.js"></script>
+    <script src="dist/bundle.min.js"></script>
     
     <!-- For development use (uncomment when debugging): -->
-    <!-- <script src="js/dist/bundle.js"></script> -->
+    <!-- <script src="dist/bundle.js"></script> -->
     
     <!-- Environment configuration -->
     <script>
         window.ENV = {
-            API_URL: "{{API_URL}}",
-            ENVIRONMENT: "{{ENVIRONMENT}}",
-            APP_VERSION: "{{APP_VERSION}}",
-            THEME: "{{THEME}}",
-            STORAGE_PREFIX: "{{STORAGE_PREFIX}}"
+            API_URL: "http://localhost:3000/api",
+            ENVIRONMENT: "development",
+            APP_VERSION: "1.0.0",
+            THEME: "default",
+            STORAGE_PREFIX: "crossmint-signers"
         };
     </script>
 </head>
 <body>
     <div class="container">
-        <h1>{{APP_TITLE}}</h1>
+        <h1>Crossmint Signers</h1>
         <div class="status" id="status">Initialized...</div>
         
         <div class="demo-section">
@@ -70,7 +70,7 @@
     </div>
     
     <div class="footer">
-        {{APP_TITLE}} | <span class="version">v{{APP_VERSION}}</span>
+        Crossmint Signers | <span class="version">v1.0.0</span>
     </div>
 
     <!-- Initialize demo -->
