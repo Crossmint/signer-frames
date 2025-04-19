@@ -1,0 +1,11 @@
+version: "3"
+
+services:
+  vault:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - OUTBOUND_ENDPOINT=my-endpoint.com
+    # To set a custom endpoint, replace the empty string above with your URL
+    # For example: OUTBOUND_ENDPOINT=https://your-endpoint.com
