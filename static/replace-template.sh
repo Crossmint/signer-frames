@@ -1,32 +1,40 @@
-#!/bin/sh
+#!/bin/bash
 
-# This script replaces template variables in the HTML and JS files
-# Usage: ./replace-template.sh OUTBOUND_ENDPOINT="https://your-endpoint.com"
+# Script to replace template variables in HTML template files with environment variables
 
-if [ -z "$1" ]; then
-    echo "Usage: $0 OUTBOUND_ENDPOINT=\"https://your-endpoint.com\""
-    exit 1
+# Default directory containing templates
+TEMPLATE_DIR="static"
+
+# Process command line arguments for environment variables
+for arg in "$@"; do
+    # Extract variable name and value using parameter expansion
+    var_name="${arg%%=*}"
+    var_value="${arg#*=}"
+
+    echo "Setting $var_name to $var_value"
+
+    # Find all .template files and replace variables
+    find "$TEMPLATE_DIR" -name "*.template" | while read -r template_file; do
+        output_file="${template_file%.template}"
+
+        # Create a copy of the template
+        cp "$template_file" "$output_file"
+
+        # Replace the variable placeholder with its value
+        sed -i '' "s|{{$var_name}}|$var_value|g" "$output_file"
+
+        echo "Processed $template_file -> $output_file"
+    done
+done
+
+# If no arguments provided, simply copy all templates without replacements
+if [ "$#" -eq 0 ]; then
+    echo "No environment variables provided, creating files without replacements"
+    find "$TEMPLATE_DIR" -name "*.template" | while read -r template_file; do
+        output_file="${template_file%.template}"
+        cp "$template_file" "$output_file"
+        echo "Copied $template_file -> $output_file"
+    done
 fi
 
-# Extract variable name and value
-VAR_NAME=$(echo $1 | cut -d= -f1)
-VAR_VALUE=$(echo $1 | cut -d= -f2)
-
-if [ "$VAR_NAME" = "OUTBOUND_ENDPOINT" ]; then
-    # Check if main file exists
-    if [ ! -f "/usr/share/nginx/html/index.html" ]; then
-        echo "Error: File /usr/share/nginx/html/index.html not found"
-        exit 1
-    fi
-
-    # Replace the template variable in index.html
-    sed -i "s|{{OUTBOUND_ENDPOINT}}|$VAR_VALUE|g" /usr/share/nginx/html/index.html
-    echo "Replaced {{OUTBOUND_ENDPOINT}} in index.html with $VAR_VALUE"
-
-    # Find and replace in all JS files
-    find /usr/share/nginx/html -name "*.js" -type f -exec sed -i "s|{{OUTBOUND_ENDPOINT}}|$VAR_VALUE|g" {} \;
-    echo "Replaced {{OUTBOUND_ENDPOINT}} in all JS files with $VAR_VALUE"
-else
-    echo "Unknown variable: $VAR_NAME"
-    exit 1
-fi
+echo "Template processing complete"
