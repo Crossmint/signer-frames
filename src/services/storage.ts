@@ -8,31 +8,10 @@ export interface StorageItem {
   [key: string]: unknown;
 }
 
-// Storage providers
-export interface StorageProvider {
-  storeItem(
-    storeName: string,
-    item: StorageItem,
-    expiresIn?: number
-  ): Promise<StorageItem>;
-  storeWithExpiry(
-    storeName: string,
-    item: StorageItem,
-    ttl: number
-  ): Promise<StorageItem>;
-  getItem(storeName: string, id: string): Promise<StorageItem | null>;
-  deleteItem(storeName: string, id: string): Promise<void>;
-  listItems(storeName: string): Promise<StorageItem[]>;
-  setItemWithExpiry(key: string, value: unknown, ttl: number): void;
-  getItemWithExpiry(key: string): unknown | null;
-  removeItem(key: string): void;
-}
-
 enum Stores {
   KEYS = "keys",
   SETTINGS = "settings",
 }
-export const LOCAL_KEY_PREFIX = "XMIF_";
 import { ApplicationError } from "../errors";
 
 // Constants
@@ -321,79 +300,6 @@ export class StorageService {
         error
       );
     }
-  }
-
-  /**
-   * Store a value in localStorage with expiry
-   * @param {string} key - Key to store under
-   * @param {unknown} value - Value to store
-   * @param {number} ttl - Time to live in milliseconds
-   */
-  setItemWithExpiry(key: string, value: unknown, ttl: number): void {
-    const now = new Date().getTime();
-    const item: StoredItem = {
-      value: typeof value === "string" ? value : JSON.stringify(value),
-      expiry: now + ttl,
-    };
-    localStorage.setItem(`${LOCAL_KEY_PREFIX}${key}`, JSON.stringify(item));
-  }
-
-  /**
-   * Get a value from localStorage
-   * @param {string} key - Key to retrieve
-   * @returns {unknown | null} The retrieved value
-   */
-  getItemWithExpiry(key: string): unknown | null {
-    const itemStr = localStorage.getItem(`${LOCAL_KEY_PREFIX}${key}`);
-    if (!itemStr) {
-      return null;
-    }
-
-    try {
-      const item = JSON.parse(itemStr) as StoredItem;
-      const now = new Date().getTime();
-
-      if (now > item.expiry) {
-        // Item has expired, remove it
-        localStorage.removeItem(`${LOCAL_KEY_PREFIX}${key}`);
-        return null;
-      }
-
-      const value = item.value;
-      try {
-        return JSON.parse(value);
-      } catch {
-        return value;
-      }
-    } catch (error) {
-      console.error("Error parsing stored item:", error);
-      return null;
-    }
-  }
-
-  /**
-   * Remove a value from localStorage
-   * @param {string} key - Key to remove
-   */
-  removeItem(key: string): void {
-    localStorage.removeItem(`${LOCAL_KEY_PREFIX}${key}`);
-  }
-
-  /**
-   * Create a storage provider interface
-   * @returns {StorageProvider} A storage provider interface
-   */
-  createStorageProvider(): StorageProvider {
-    return {
-      storeItem: this.storeItem.bind(this),
-      storeWithExpiry: this.storeWithExpiry.bind(this),
-      getItem: this.getItem.bind(this),
-      deleteItem: this.deleteItem.bind(this),
-      listItems: this.listItems.bind(this),
-      setItemWithExpiry: this.setItemWithExpiry.bind(this),
-      getItemWithExpiry: this.getItemWithExpiry.bind(this),
-      removeItem: this.removeItem.bind(this),
-    };
   }
 
   /**
