@@ -28,20 +28,8 @@
         <div class="status" id="status">Initialized...</div>
         
         <div class="demo-section">
-            <h2>Keys Storage</h2>
+            <h2>Events Demo</h2>
             
-            <div class="storage-controls">
-                <button class="refresh-button" id="refresh-storage">Refresh</button>
-            </div>
-            
-            <div id="keys-container" class="storage-container">
-                <div id="keys-table">
-                    <p>Loading data...</p>
-                </div>
-            </div>
-        </div>
-        
-        <div class="demo-section">
             <div class="event-box">
                 <div class="event-box-header">
                     <h3>Event Log</h3>
@@ -61,18 +49,8 @@
     <!-- Initialize demo -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Define constants
-            const KEYS_STORE = 'keys';
-            
             // Initialize the XMIF framework
             if (window.XMIF) {
-                // Add Storage constants if they don't exist
-                if (!XMIF.Storage) {
-                    XMIF.Storage = {
-                        KEYS_STORE: KEYS_STORE
-                    };
-                }
-                
                 window.XMIF.init({
                     environment: window.ENV.ENVIRONMENT,
                     apiUrl: window.ENV.API_URL,
@@ -81,15 +59,6 @@
                 .then(() => {
                     console.log('XMIF framework initialized');
                     document.getElementById('status').textContent = 'Ready';
-                    
-                    // Show version number in footer
-                    document.querySelector('.version').textContent = `v${XMIF.version || window.ENV.APP_VERSION}`;
-                    
-                    // Initial data load
-                    refreshKeysStore();
-                    
-                    // Set up refresh button
-                    document.getElementById('refresh-storage').addEventListener('click', refreshKeysStore);
                     
                     // Set up event logging
                     setupEventLog();
@@ -102,109 +71,6 @@
             } else {
                 document.getElementById('status').textContent = 'Error: XMIF not loaded';
                 logEvent('Error', 'XMIF framework not loaded', true);
-            }
-            
-            // Refresh keys store data
-            async function refreshKeysStore() {
-                try {
-                    const tableDiv = document.getElementById('keys-table');
-                    tableDiv.innerHTML = '<p>Loading data...</p>';
-                    
-                    const items = await XMIF.listData(KEYS_STORE);
-                    
-                    if (items.length === 0) {
-                        tableDiv.innerHTML = '<p>No keys found in the vault.</p>';
-                        logEvent('Info', 'No keys found');
-                        return;
-                    }
-                    
-                    // Create table
-                    const table = document.createElement('table');
-                    table.className = 'storage-table';
-                    
-                    // Create table header
-                    const thead = document.createElement('thead');
-                    const headerRow = document.createElement('tr');
-                    
-                    // Add header columns
-                    const headers = ['ID', 'Created', 'Contents', 'Actions'];
-                    headers.forEach(header => {
-                        const th = document.createElement('th');
-                        th.textContent = header;
-                        headerRow.appendChild(th);
-                    });
-                    
-                    thead.appendChild(headerRow);
-                    table.appendChild(thead);
-                    
-                    // Create table body
-                    const tbody = document.createElement('tbody');
-                    
-                    // Add rows for each item
-                    items.forEach(item => {
-                        const row = document.createElement('tr');
-                        
-                        // ID column
-                        const idCell = document.createElement('td');
-                        idCell.textContent = item.id;
-                        row.appendChild(idCell);
-                        
-                        // Created date column
-                        const createdCell = document.createElement('td');
-                        createdCell.textContent = item.created 
-                            ? new Date(item.created).toLocaleString() 
-                            : 'N/A';
-                        row.appendChild(createdCell);
-                        
-                        // Contents column
-                        const contentsCell = document.createElement('td');
-                        const jsonViewer = document.createElement('div');
-                        jsonViewer.className = 'json-viewer';
-                        
-                        // Create a copy of the item without id and created fields
-                        const displayData = { ...item };
-                        delete displayData.id;
-                        delete displayData.created;
-                        
-                        jsonViewer.textContent = JSON.stringify(displayData, null, 2);
-                        contentsCell.appendChild(jsonViewer);
-                        row.appendChild(contentsCell);
-                        
-                        // Actions column
-                        const actionsCell = document.createElement('td');
-                        
-                        // Delete button
-                        const deleteButton = document.createElement('button');
-                        deleteButton.className = 'action-button delete-button';
-                        deleteButton.textContent = 'Delete';
-                        deleteButton.addEventListener('click', async () => {
-                            if (confirm(`Are you sure you want to delete ${item.id}?`)) {
-                                try {
-                                    await XMIF.deleteData(KEYS_STORE, item.id);
-                                    logEvent('Success', `Deleted ${item.id} from keys store`);
-                                    refreshKeysStore();
-                                } catch (err) {
-                                    logEvent('Error', `Failed to delete ${item.id}: ${err.message}`, true);
-                                }
-                            }
-                        });
-                        actionsCell.appendChild(deleteButton);
-                        
-                        row.appendChild(actionsCell);
-                        tbody.appendChild(row);
-                    });
-                    
-                    table.appendChild(tbody);
-                    tableDiv.innerHTML = '';
-                    tableDiv.appendChild(table);
-                    
-                    logEvent('Info', `Loaded ${items.length} keys`);
-                } catch (err) {
-                    console.error('Error refreshing keys store:', err);
-                    document.getElementById('keys-table').innerHTML = 
-                        `<p class="error">Error loading keys: ${err.message}</p>`;
-                    logEvent('Error', `Failed to load keys: ${err.message}`, true);
-                }
             }
             
             // Set up event logging system

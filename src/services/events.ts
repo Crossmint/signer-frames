@@ -1,183 +1,90 @@
-/**
- * Event Service
- *
- * This event system provides type-safe event handling with input/output type inference:
- *
- * Usage examples:
- *
- * 1. Register a handler for a specific event:
- * ```
- * const eventService = new EventService();
- *
- * eventService.registerEventHandler("user:created", "user-notification", {
- *   handle: async (data) => {
- *     // data is typed as { id: string; email: string; name: string; }
- *     // ...
- *     return {
- *       success: true,
- *       data: { success: true, userId: data.id }
- *     };
- *   }
- * });
- * ```
- *
- * 2. Trigger an event:
- * ```
- * const result = await eventService.handleEvent("user:created", {
- *   id: "123",
- *   email: "user@example.com",
- *   name: "John Doe"
- * });
- * // result.data is typed as { success: boolean; userId: string; }
- * ```
- *
- * 3. Adding new event types:
- * Extend the EventMap interface to define new event types with their input/output types.
- */
+import { HandshakeChild } from "@crossmint/client-sdk-window";
+import { ORIGIN } from "../consts";
+import { z } from "zod";
 
-export type EventName = string;
+const EVENT_NAMES = [
+  "sign-message",
+  "sign-transaction",
+  "attestation",
+  "get-public-key",
+  "send-otp",
+  "create-signer",
+] as const;
+type EventName = (typeof EVENT_NAMES)[number];
+type IncomingEventName = `request:${EventName}`;
+type OutgoingEventName = `response:${EventName}`;
 
-export interface EventMap {
-  [key: string]: {
-    input: Record<string, unknown>;
-    output: Record<string, unknown>;
-  };
+/* TMP */
+// Define incoming events (events that the iframe sends o us)
+export const incomingEvents: Record<IncomingEventName, z.ZodType> = {
+  "request:sign-message": z.object({
+    address: z.string(),
+    signature: z.string(),
+  }),
+  "request:sign-transaction": z.object({
+    transaction: z.string(), // Base58 serialized transaction
+  }),
+  "request:attestation": z.object({
+    attestation: z.record(z.string(), z.any()),
+  }),
+  "request:get-public-key": z.object({
+    publicKey: z.string(),
+  }),
+  "request:send-otp": z.object({
+    success: z.boolean(),
+  }),
+  "request:create-signer": z.object({
+    requestId: z.string(),
+  }),
+} as const;
 
-  // Example event definitions
-  "user:created": {
-    input: {
-      id: string;
-      email: string;
-      name: string;
-    };
-    output: {
-      success: boolean;
-      userId: string;
-    };
-  };
+// Define outgoing events (events that we send to the iframe)
+// Still incomplete, should be extended
+const AuthenticationDataSchema = z.object({
+  address: z.string(),
+  requestId: z.string(),
+});
+export const outgoingEvents: Record<OutgoingEventName, z.ZodType> = {
+  "response:attestation": z.undefined(),
+  "response:sign-message": AuthenticationDataSchema.extend({
+    message: z.string(), // Base58 encoded message
+  }),
+  "response:sign-transaction": AuthenticationDataSchema.extend({
+    transaction: z.string(), // Base58 serialized transaction
+  }),
+  "response:get-public-key": AuthenticationDataSchema,
+  "response:send-otp": AuthenticationDataSchema.extend({
+    otp: z.string(),
+    requestId: z.string(),
+  }),
+  "response:create-signer": AuthenticationDataSchema.extend({
+    authId: z.string(),
+  }),
+} as const;
+/* End of TMP */
 
-  "payment:processed": {
-    input: {
-      orderId: string;
-      amount: number;
-      currency: string;
-    };
-    output: {
-      transactionId: string;
-      status: "succeeded" | "failed";
-    };
-  };
+type EventHandlerMap = Record<
+  EventName,
+  (
+    handler: (typeof incomingEvents)[`request:${EventName}`]
+  ) => Promise<(typeof outgoingEvents)[`response:${EventName}`]>
+>;
 
-  // System events
-  "system:ready": {
-    input: Record<string, never>;
-    output: {
-      initialized: boolean;
-      timestamp: number;
-    };
-  };
+export class EventsService {
+  constructor(
+    private readonly messenger = new HandshakeChild(window.parent, ORIGIN, {
+      incomingEvents,
+      outgoingEvents,
+    })
+  ) {}
 
-  "system:error": {
-    input: {
-      message: string;
-      code?: string;
-      details?: Record<string, unknown>;
-    };
-    output: {
-      handled: boolean;
-      timestamp: number;
-    };
-  };
-}
-// End Examples
-
-export type EventInput<T extends EventName = EventName> =
-  T extends keyof EventMap ? EventMap[T]["input"] : Record<string, unknown>;
-
-export type EventOutput<T extends EventName = EventName> =
-  T extends keyof EventMap ? EventMap[T]["output"] : Record<string, unknown>;
-
-export type Events = Record<string, EventHandler<EventName>>;
-
-export type EventHandlerResult<T extends EventName = EventName> =
-  | {
-      success: false;
-      error: Error;
-    }
-  | {
-      success: true;
-      data: EventOutput<T>;
-    };
-
-export type EventHandler<T extends EventName = EventName> = {
-  handle: (data: EventInput<T>) => Promise<EventHandlerResult<T>>;
-};
-
-export class EventService {
-  private readonly eventHandlers: Record<EventName, Events> = {};
-
-  public async handleEvent<T extends EventName = EventName>(
-    eventName: T,
-    data: EventInput<T>
-  ): Promise<EventHandlerResult<T> | null> {
-    const handlers = this.eventHandlers[eventName];
-
-    if (!handlers) {
-      return null;
-    }
-
-    const results: EventHandlerResult<T>[] = [];
-
-    for (const handlerId in handlers) {
-      const handler = handlers[handlerId] as EventHandler<T>;
-      const result = await handler.handle(data);
-      results.push(result as EventHandlerResult<T>);
-
-      // If any handler fails, return the error immediately
-      if (!result.success) {
-        return result as EventHandlerResult<T>;
-      }
-    }
-
-    // Return the last successful result or null if no handlers
-    return results.length > 0 ? results[results.length - 1] : null;
+  async init() {
+    await this.messenger.handshakeWithParent();
   }
 
-  public registerEventHandler<T extends EventName = EventName>(
-    eventName: T,
-    handlerId: string,
-    handler: EventHandler<T>
-  ): void {
-    if (!this.eventHandlers[eventName]) {
-      this.eventHandlers[eventName] = {};
+  registerEventHandlers(events: EventHandlerMap) {
+    for (const event of EVENT_NAMES) {
+      this.messenger.on(`request:${event}`, events[event]);
     }
-
-    this.eventHandlers[eventName][handlerId] = handler;
-  }
-
-  public unregisterEventHandler(eventName: EventName, handlerId: string): void {
-    if (
-      this.eventHandlers[eventName] &&
-      handlerId in this.eventHandlers[eventName]
-    ) {
-      delete this.eventHandlers[eventName][handlerId];
-
-      // Clean up empty event entries
-      if (Object.keys(this.eventHandlers[eventName]).length === 0) {
-        delete this.eventHandlers[eventName];
-      }
-    }
-  }
-
-  public hasEventHandler(eventName: EventName, handlerId?: string): boolean {
-    if (!this.eventHandlers[eventName]) {
-      return false;
-    }
-
-    if (handlerId) {
-      return handlerId in this.eventHandlers[eventName];
-    }
-
-    return Object.keys(this.eventHandlers[eventName]).length > 0;
   }
 }
