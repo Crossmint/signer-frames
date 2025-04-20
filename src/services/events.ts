@@ -9,6 +9,7 @@ const EVENT_NAMES = [
   "get-public-key",
   "send-otp",
   "create-signer",
+  "test",
 ] as const;
 type EventName = (typeof EVENT_NAMES)[number];
 type IncomingEventName = `request:${EventName}`;
@@ -36,6 +37,9 @@ export const incomingEvents: Record<IncomingEventName, z.ZodType> = {
   "request:create-signer": z.object({
     requestId: z.string(),
   }),
+  "request:test": z.object({
+    message: z.string(),
+  }),
 } as const;
 
 // Define outgoing events (events that we send to the iframe)
@@ -60,31 +64,49 @@ export const outgoingEvents: Record<OutgoingEventName, z.ZodType> = {
   "response:create-signer": AuthenticationDataSchema.extend({
     authId: z.string(),
   }),
+  "response:test": z.object({
+    message: z.string(),
+  }),
 } as const;
 /* End of TMP */
 
 type EventHandlerMap = Record<
   EventName,
   (
-    handler: (typeof incomingEvents)[`request:${EventName}`]
-  ) => Promise<(typeof outgoingEvents)[`response:${EventName}`]>
+    handler: z.infer<(typeof incomingEvents)[`request:${EventName}`]>
+  ) => Promise<z.infer<(typeof outgoingEvents)[`response:${EventName}`]>>
 >;
 
 export class EventsService {
-  constructor(
-    private readonly messenger = new HandshakeChild(window.parent, ORIGIN, {
-      incomingEvents,
-      outgoingEvents,
-    })
-  ) {}
+  private messenger: HandshakeChild<
+    typeof incomingEvents,
+    typeof outgoingEvents
+  > | null = null;
 
   async init() {
+    this.messenger = new HandshakeChild(window.parent, "*", {
+      incomingEvents,
+      outgoingEvents,
+    });
     await this.messenger.handshakeWithParent();
   }
 
   registerEventHandlers(events: EventHandlerMap) {
+    if (!this.messenger) {
+      throw new Error("Messenger not initialized");
+    }
     for (const event of EVENT_NAMES) {
       this.messenger.on(`request:${event}`, events[event]);
     }
+  }
+
+  registerEventHandler<T extends EventName>(
+    eventName: T,
+    handler: EventHandlerMap[T]
+  ) {
+    if (!this.messenger) {
+      throw new Error("Messenger not initialized");
+    }
+    this.messenger.on(`request:${eventName}`, handler);
   }
 }

@@ -32,9 +32,18 @@ class XMIF {
    */
   async init(): Promise<void> {
     console.log("Initializing XMIF framework...");
-    // console.log("-- Initializing events handlers...");
-    // await this.eventsService.init(handlers);
-    // console.log("-- Events handlers initialized!");
+    console.log("-- Initializing IndexedDB...");
+    await this.storageService.initDatabase();
+    console.log("-- IndexedDB initialized!");
+    console.log("-- Initializing events handlers...");
+    await this.eventsService.init();
+    this.eventsService.registerEventHandler("test", async (data) => {
+      console.log("Received test event:", data);
+      return {
+        message: "Test response",
+      };
+    });
+    console.log("-- Events handlers initialized!");
   }
 
   // getHandlers():  {

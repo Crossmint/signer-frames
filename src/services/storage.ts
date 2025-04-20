@@ -2,21 +2,43 @@
  * StorageService - Handles data storage operations
  */
 
+// Storage item interface
+export interface StorageItem {
+  id: string;
+  [key: string]: unknown;
+}
+
+// Storage providers
+export interface StorageProvider {
+  storeItem(
+    storeName: string,
+    item: StorageItem,
+    expiresIn?: number
+  ): Promise<StorageItem>;
+  storeWithExpiry(
+    storeName: string,
+    item: StorageItem,
+    ttl: number
+  ): Promise<StorageItem>;
+  getItem(storeName: string, id: string): Promise<StorageItem | null>;
+  deleteItem(storeName: string, id: string): Promise<void>;
+  listItems(storeName: string): Promise<StorageItem[]>;
+  setItemWithExpiry(key: string, value: unknown, ttl: number): void;
+  getItemWithExpiry(key: string): unknown | null;
+  removeItem(key: string): void;
+}
+
 enum Stores {
   KEYS = "keys",
   SETTINGS = "settings",
 }
-import type { StorageItem, StorageProvider } from "../types";
+export const LOCAL_KEY_PREFIX = "XMIF_";
 import { ApplicationError } from "../errors";
 
 // Constants
 const DB_NAME = "CrossmintVault";
 const DB_VERSION = 1;
 const KEYS_STORE = Stores.KEYS;
-const SETTINGS_STORE = Stores.SETTINGS;
-
-// LocalStorage key constants
-const LOCAL_KEY_PREFIX = "XMIF_";
 
 interface StoredItem {
   readonly value: string;
@@ -41,7 +63,7 @@ export class StorageService {
     this.dbOptions = {
       name: options?.name || DB_NAME,
       version: options?.version || DB_VERSION,
-      stores: options?.stores || [KEYS_STORE, SETTINGS_STORE],
+      stores: [KEYS_STORE],
     };
   }
 
@@ -89,10 +111,6 @@ export class StorageService {
             });
             keyStore.createIndex("type", "type", { unique: false });
             keyStore.createIndex("created", "created", { unique: false });
-          }
-
-          if (!database.objectStoreNames.contains(SETTINGS_STORE)) {
-            database.createObjectStore(SETTINGS_STORE, { keyPath: "id" });
           }
         };
       } catch (error) {
