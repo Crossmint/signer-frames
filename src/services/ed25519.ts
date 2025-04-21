@@ -1,5 +1,5 @@
 import { base58Decode, base58Encode } from "../utils";
-import * as ed from "../lib/noble-ed25519.js";
+import * as ed from "@noble/ed25519";
 import { sha512 } from "@noble/hashes/sha512";
 
 // Helper function to concatenate Uint8Arrays
@@ -8,24 +8,23 @@ const concatBytes = (...arrays: Uint8Array[]): Uint8Array => {
   for (const arr of arrays) {
     totalLength += arr.length;
   }
-
   const result = new Uint8Array(totalLength);
   let offset = 0;
-
   for (const arr of arrays) {
     result.set(arr, offset);
     offset += arr.length;
   }
-
   return result;
 };
 
-// Set up SHA-512 functions required by noble-ed25519
-if (ed.etc) {
-  ed.etc.sha512Sync = (...m: Uint8Array[]) => sha512(concatBytes(...m));
-  ed.etc.sha512Async = (...m: Uint8Array[]) =>
-    Promise.resolve(sha512(concatBytes(...m)));
-}
+// In noble-ed25519 v1.7.5, we need to provide a custom SHA-512 implementation
+// Note: ed.utils.sha512 is used for async operations in v1.7.5
+ed.utils.sha512 = async (message: Uint8Array): Promise<Uint8Array> => {
+  return Promise.resolve(sha512(message));
+};
+
+// We also need to precompute for better performance
+ed.utils.precompute();
 
 export class Ed25519Service {
   /**
@@ -45,7 +44,7 @@ export class Ed25519Service {
 
       if (keyBytes.length === 32) {
         // If it's already a 32-byte private key, derive the public key
-        const publicKeyBytes = await ed.getPublicKeyAsync(keyBytes);
+        const publicKeyBytes = await ed.getPublicKey(keyBytes);
         return base58Encode(publicKeyBytes);
       }
 
@@ -87,7 +86,7 @@ export class Ed25519Service {
         );
       }
 
-      const signatureBytes = await ed.signAsync(messageBytes, privateKeyBytes);
+      const signatureBytes = await ed.sign(messageBytes, privateKeyBytes);
       return base58Encode(signatureBytes);
     } catch (error) {
       console.error("Error signing message:", error);
@@ -124,7 +123,7 @@ export class Ed25519Service {
         return false;
       }
 
-      return await ed.verifyAsync(signatureBytes, messageBytes, publicKeyBytes);
+      return await ed.verify(signatureBytes, messageBytes, publicKeyBytes);
     } catch (error) {
       console.error("Error verifying signature:", error);
       return false;
