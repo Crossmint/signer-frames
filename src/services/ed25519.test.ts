@@ -1,16 +1,20 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { mock } from "vitest-mock-extended";
+import { mockDeep, mockReset } from "vitest-mock-extended";
 import { Ed25519Service } from "./ed25519";
 import { base58Decode, base58Encode } from "../utils";
-import * as nobleEd25519 from "../lib/noble-ed25519.js";
 import { Keypair } from "@solana/web3.js";
 
-// Only mock the noble-ed25519 library
-vi.mock("../lib/noble-ed25519.js", () => ({
-  getPublicKey: vi.fn(),
-  sign: vi.fn(),
-  verify: vi.fn(),
-}));
+// Mock the noble-ed25519 library - must be before any imports of the library
+vi.mock("../lib/noble-ed25519.js", () => {
+  return {
+    getPublicKey: vi.fn(),
+    sign: vi.fn(),
+    verify: vi.fn(),
+  };
+});
+
+// Import the mocked module after mocking
+import * as nobleEd25519 from "../lib/noble-ed25519.js";
 
 describe("Ed25519Service", () => {
   const solanaKeypair = Keypair.generate();
@@ -28,15 +32,17 @@ describe("Ed25519Service", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    ed25519Service = new Ed25519Service();
 
-    (nobleEd25519.getPublicKey as ReturnType<typeof vi.fn>).mockResolvedValue(
-      PUBLIC_KEY_BYTES
-    );
-    (nobleEd25519.sign as ReturnType<typeof vi.fn>).mockResolvedValue(
-      SIGNATURE_BYTES
-    );
-    (nobleEd25519.verify as ReturnType<typeof vi.fn>).mockResolvedValue(true);
+    // Reset and set default mock implementations
+    vi.mocked(nobleEd25519.getPublicKey).mockReset();
+    vi.mocked(nobleEd25519.sign).mockReset();
+    vi.mocked(nobleEd25519.verify).mockReset();
+
+    vi.mocked(nobleEd25519.getPublicKey).mockResolvedValue(PUBLIC_KEY_BYTES);
+    vi.mocked(nobleEd25519.sign).mockResolvedValue(SIGNATURE_BYTES);
+    vi.mocked(nobleEd25519.verify).mockResolvedValue(true);
+
+    ed25519Service = new Ed25519Service();
   });
 
   afterEach(() => {
@@ -55,9 +61,7 @@ describe("Ed25519Service", () => {
 
     it("should throw an error if derivation fails", async () => {
       const mockError = new Error("Derivation failed");
-      (nobleEd25519.getPublicKey as ReturnType<typeof vi.fn>).mockRejectedValue(
-        mockError
-      );
+      vi.mocked(nobleEd25519.getPublicKey).mockRejectedValueOnce(mockError);
 
       await expect(
         ed25519Service.getPublicKey(PRIVATE_KEY_BASE58)
@@ -78,8 +82,7 @@ describe("Ed25519Service", () => {
       );
       expect(result).toBe(SIGNATURE_BASE58);
 
-      const signCall = (nobleEd25519.sign as ReturnType<typeof vi.fn>).mock
-        .calls[0];
+      const signCall = vi.mocked(nobleEd25519.sign).mock.calls[0];
       const messageArg = signCall[0];
       expect(messageArg).toBeInstanceOf(Uint8Array);
       expect(new TextDecoder().decode(messageArg)).toBe(MESSAGE);
@@ -100,9 +103,7 @@ describe("Ed25519Service", () => {
 
     it("should throw an error if signing fails", async () => {
       const mockError = new Error("Signing failed");
-      (nobleEd25519.sign as ReturnType<typeof vi.fn>).mockRejectedValue(
-        mockError
-      );
+      vi.mocked(nobleEd25519.sign).mockRejectedValueOnce(mockError);
 
       await expect(
         ed25519Service.signMessage(MESSAGE, PRIVATE_KEY_BASE58)
@@ -125,8 +126,7 @@ describe("Ed25519Service", () => {
       );
       expect(result).toBe(true);
 
-      const verifyCall = (nobleEd25519.verify as ReturnType<typeof vi.fn>).mock
-        .calls[0];
+      const verifyCall = vi.mocked(nobleEd25519.verify).mock.calls[0];
       const messageArg = verifyCall[1];
       expect(messageArg).toBeInstanceOf(Uint8Array);
       expect(new TextDecoder().decode(messageArg)).toBe(MESSAGE);
@@ -148,9 +148,7 @@ describe("Ed25519Service", () => {
     });
 
     it("should return false if verification fails", async () => {
-      (nobleEd25519.verify as ReturnType<typeof vi.fn>).mockResolvedValue(
-        false
-      );
+      vi.mocked(nobleEd25519.verify).mockResolvedValueOnce(false);
 
       const result = await ed25519Service.verifySignature(
         MESSAGE,
@@ -162,7 +160,7 @@ describe("Ed25519Service", () => {
     });
 
     it("should return false if an error occurs during verification", async () => {
-      (nobleEd25519.verify as ReturnType<typeof vi.fn>).mockRejectedValue(
+      vi.mocked(nobleEd25519.verify).mockRejectedValueOnce(
         new Error("Verification error")
       );
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { mock } from "vitest-mock-extended";
+import { mock, mockDeep, mockReset } from "vitest-mock-extended";
 import { EventsService } from "./events";
 import type { HandshakeChild } from "@crossmint/client-sdk-window";
 import type {
@@ -7,16 +7,18 @@ import type {
   SecureSignerOutboundEvents,
 } from "@crossmint/client-signers";
 
-const mockHandshakeChild = mock<
-  HandshakeChild<
-    typeof SecureSignerInboundEvents,
-    typeof SecureSignerOutboundEvents
-  >
->({
-  isConnected: true,
-  on: vi.fn().mockReturnValue("handler-id"),
-  handshakeWithParent: vi.fn().mockResolvedValue(undefined),
-});
+const mockHandshakeChild =
+  mockDeep<
+    HandshakeChild<
+      typeof SecureSignerInboundEvents,
+      typeof SecureSignerOutboundEvents
+    >
+  >();
+
+// Set specific mock implementations that are needed
+mockHandshakeChild.isConnected = true;
+mockHandshakeChild.on.mockReturnValue("handler-id");
+mockHandshakeChild.handshakeWithParent.mockResolvedValue(undefined);
 
 vi.mock("@crossmint/client-sdk-window", () => ({
   HandshakeChild: vi.fn().mockImplementation(() => mockHandshakeChild),
@@ -59,6 +61,12 @@ describe("EventsService", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockReset(mockHandshakeChild);
+
+    // Restore necessary mock values after reset
+    mockHandshakeChild.isConnected = true;
+    mockHandshakeChild.on.mockReturnValue("handler-id");
+    mockHandshakeChild.handshakeWithParent.mockResolvedValue(undefined);
 
     // Reset the static messenger property before each test
     // @ts-expect-error - Accessing private static property
@@ -175,15 +183,18 @@ describe("EventsService", () => {
     });
 
     it("should throw if messenger is not connected", () => {
+      // Create a new mock with isConnected set to false
+      const disconnectedMessenger =
+        mockDeep<
+          HandshakeChild<
+            typeof SecureSignerInboundEvents,
+            typeof SecureSignerOutboundEvents
+          >
+        >();
+      disconnectedMessenger.isConnected = false;
+
       // @ts-expect-error - Setting private static property
-      EventsService.messenger = mock<
-        HandshakeChild<
-          typeof SecureSignerInboundEvents,
-          typeof SecureSignerOutboundEvents
-        >
-      >({
-        isConnected: false,
-      });
+      EventsService.messenger = disconnectedMessenger;
 
       expect(() => {
         eventsService.registerHandler("request:sign-message", vi.fn());
