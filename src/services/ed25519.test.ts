@@ -211,8 +211,6 @@ describe('Ed25519Service', () => {
     });
 
     it('should handle errors during verification', async () => {
-      const signature = await ed25519Service.signMessage(MESSAGE, PRIVATE_KEY_BASE58);
-
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       // Create a scenario that would cause an error (invalid signature format)
