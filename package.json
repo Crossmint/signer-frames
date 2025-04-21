@@ -41,6 +41,7 @@
   },
   "dependencies": {
     "@crossmint/client-sdk-window": "0.2.3",
-    "@crossmint/client-signers": "0.0.1"
+    "@crossmint/client-signers": "0.0.1",
+    "zod": "3.22.4"
   }
 }

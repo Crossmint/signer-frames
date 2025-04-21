@@ -1,65 +1,146 @@
-import { HandshakeChild } from "@crossmint/client-sdk-window";
+import {
+  HandshakeChild,
+  type HandshakeOptions,
+} from "@crossmint/client-sdk-window";
 import {
   SecureSignerInboundEvents,
   SecureSignerOutboundEvents,
 } from "@crossmint/client-signers";
+import type { z } from "zod";
 
 const EVENT_VERSION = 1;
 
+// Type definitions for strongly-typed event handling
+type IncomingEvents = typeof SecureSignerInboundEvents;
+type OutgoingEvents = typeof SecureSignerOutboundEvents;
+type IncomingEventName = keyof IncomingEvents;
+type OutgoingEventName = keyof OutgoingEvents;
+type IncomingEventData<K extends IncomingEventName> = z.infer<
+  IncomingEvents[K]
+>;
+type OutgoingEventData<K extends OutgoingEventName> = z.infer<
+  OutgoingEvents[K]
+>;
+
 export class EventsService {
-  private messenger: HandshakeChild<
-    typeof SecureSignerInboundEvents,
-    typeof SecureSignerOutboundEvents
+  private static messenger: HandshakeChild<
+    IncomingEvents,
+    OutgoingEvents
   > | null = null;
 
-  async init() {
-    this.messenger = new HandshakeChild(window.parent, "*", {
+  /**
+   * Initialize the messenger and register event handlers
+   * The messenger is shared across all instances
+   */
+  async initMessenger(options?: {
+    handshakeOptions?: HandshakeOptions;
+    targetOrigin?: string;
+  }): Promise<void> {
+    if (EventsService.messenger) {
+      console.log("Messenger already initialized");
+      return;
+    }
+
+    EventsService.messenger = new HandshakeChild(window.parent, "*", {
       incomingEvents: SecureSignerInboundEvents,
       outgoingEvents: SecureSignerOutboundEvents,
+      handshakeOptions: options?.handshakeOptions,
+      targetOrigin: options?.targetOrigin,
     });
-    await this.messenger.handshakeWithParent();
+
+    await EventsService.messenger.handshakeWithParent();
   }
 
-  registerEventHandlers() {
+  /**
+   * Register a single event handler with proper typing
+   * @param event The event name to listen for
+   * @param handler The handler function with correct parameter and return types
+   * @returns Handler ID
+   */
+  registerHandler<K extends IncomingEventName>(
+    event: K,
+    handler: (
+      data: IncomingEventData<K>
+    ) => Promise<
+      OutgoingEventData<`response:${K extends `request:${infer R}`
+        ? R
+        : never}`>
+    >
+  ): string {
     this.assertMessengerInitialized();
-    const messenger = this.messenger as NonNullable<typeof this.messenger>;
-
-    messenger.on("request:create-signer", async (data) => {
-      console.log("Received create-signer request:", data);
-      this.assertCorrectEventVersion(data);
-      throw new Error("Not implemented");
-    });
-    messenger.on("request:get-attestation", async (data) => {
-      console.log("Received get-attestation request:", data);
-      this.assertCorrectEventVersion(data);
-      throw new Error("Not implemented");
-    });
-    messenger.on("request:sign-message", async (data) => {
-      console.log("Received sign-message request:", data);
-      this.assertCorrectEventVersion(data);
-      throw new Error("Not implemented");
-    });
-    messenger.on("request:sign-transaction", async (data) => {
-      console.log("Received sign-transaction request:", data);
-      this.assertCorrectEventVersion(data);
-      throw new Error("Not implemented");
-    });
-    messenger.on("request:send-otp", async (data) => {
-      console.log("Received send-otp request:", data);
-      this.assertCorrectEventVersion(data);
-      throw new Error("Not implemented");
-    });
+    const messenger = EventsService.messenger as NonNullable<
+      typeof EventsService.messenger
+    >;
+    return messenger.on(event, handler);
   }
 
-  private assertMessengerInitialized() {
-    if (!this.messenger) {
+  /**
+   * Get all event handlers in a properly typed record
+   * @returns Record of event handlers with correct types
+   */
+  getEventHandlers(): {
+    [K in IncomingEventName]: (
+      data: IncomingEventData<K>
+    ) => Promise<
+      OutgoingEventData<`response:${K extends `request:${infer R}`
+        ? R
+        : never}`>
+    >;
+  } {
+    return {
+      "request:create-signer": async (data) => {
+        console.log("Received create-signer request:", data);
+        this.assertCorrectEventVersion(data);
+        throw new Error("Not implemented");
+      },
+      "request:get-attestation": async (data) => {
+        console.log("Received get-attestation request:", data);
+        this.assertCorrectEventVersion(data);
+        throw new Error("Not implemented");
+      },
+      "request:sign-message": async (data) => {
+        console.log("Received sign-message request:", data);
+        this.assertCorrectEventVersion(data);
+        throw new Error("Not implemented");
+      },
+      "request:sign-transaction": async (data) => {
+        console.log("Received sign-transaction request:", data);
+        this.assertCorrectEventVersion(data);
+        throw new Error("Not implemented");
+      },
+      "request:send-otp": async (data) => {
+        console.log("Received send-otp request:", data);
+        this.assertCorrectEventVersion(data);
+        throw new Error("Not implemented");
+      },
+    } as const;
+  }
+
+  /**
+   * Assert that the messenger is initialized and connected
+   */
+  private assertMessengerInitialized(): void {
+    if (!EventsService.messenger) {
       throw new Error("Messenger not initialized");
     }
-    if (!this.messenger.isConnected) {
+    if (!EventsService.messenger.isConnected) {
       throw new Error("Messenger not connected");
     }
   }
 
+  /**
+   * Get the messenger instance
+   */
+  getMessenger(): NonNullable<typeof EventsService.messenger> {
+    this.assertMessengerInitialized();
+    return EventsService.messenger as NonNullable<
+      typeof EventsService.messenger
+    >;
+  }
+
+  /**
+   * Assert that an event has the correct version
+   */
   private assertCorrectEventVersion<T extends { version: number }>(
     data: T
   ): asserts data is T & { version: typeof EVENT_VERSION } {
