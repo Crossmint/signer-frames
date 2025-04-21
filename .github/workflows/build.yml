@@ -1,0 +1,22 @@
+name: Test
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      # Your original steps
+      - uses: actions/checkout@v3
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.3.0
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - name: Install
+        run: pnpm install
+      - name: Build
+        run: pnpm run build
+      - name: Generate SRI
+        run: pnpm run generate-sri

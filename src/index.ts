@@ -37,6 +37,7 @@ class XMIF {
     console.log("-- IndexedDB initialized!");
     console.log("-- Initializing events handlers...");
     await this.eventsService.initMessenger();
+    this.registerHandlers();
     console.log("-- Events handlers initialized!");
   }
 
