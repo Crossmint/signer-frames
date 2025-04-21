@@ -9,13 +9,13 @@ export interface StorageItem {
 }
 
 enum Stores {
-  KEYS = "keys",
-  SETTINGS = "settings",
+  KEYS = 'keys',
+  SETTINGS = 'settings',
 }
-import { ApplicationError } from "../errors";
+import { ApplicationError } from '../errors';
 
 // Constants
-const DB_NAME = "CrossmintVault";
+const DB_NAME = 'CrossmintVault';
 const DB_VERSION = 1;
 const KEYS_STORE = Stores.KEYS;
 
@@ -58,47 +58,44 @@ export class StorageService {
       }
 
       try {
-        const request = indexedDB.open(
-          this.dbOptions.name,
-          this.dbOptions.version
-        );
+        const request = indexedDB.open(this.dbOptions.name, this.dbOptions.version);
 
-        request.onerror = (event) => {
+        request.onerror = event => {
           const error = (event.target as IDBOpenDBRequest).error;
-          console.error("Database error:", error);
+          console.error('Database error:', error);
           reject(
             new ApplicationError(
-              `Failed to open database: ${error?.message || "Unknown error"}`,
-              "DB_OPEN_ERROR",
+              `Failed to open database: ${error?.message || 'Unknown error'}`,
+              'DB_OPEN_ERROR',
               error
             )
           );
         };
 
-        request.onsuccess = (event) => {
+        request.onsuccess = event => {
           StorageService.db = (event.target as IDBOpenDBRequest).result;
           resolve(StorageService.db);
         };
 
-        request.onupgradeneeded = (event) => {
+        request.onupgradeneeded = event => {
           const database = (event.target as IDBOpenDBRequest).result;
 
           // Create object stores if they don't exist
           if (!database.objectStoreNames.contains(KEYS_STORE)) {
             const keyStore = database.createObjectStore(KEYS_STORE, {
-              keyPath: "id",
+              keyPath: 'id',
             });
-            keyStore.createIndex("type", "type", { unique: false });
-            keyStore.createIndex("created", "created", { unique: false });
+            keyStore.createIndex('type', 'type', { unique: false });
+            keyStore.createIndex('created', 'created', { unique: false });
           }
         };
       } catch (error) {
         reject(
           new ApplicationError(
             `Database initialization error: ${
-              error instanceof Error ? error.message : "Unknown error"
+              error instanceof Error ? error.message : 'Unknown error'
             }`,
-            "DB_INIT_ERROR",
+            'DB_INIT_ERROR',
             error
           )
         );
@@ -113,13 +110,9 @@ export class StorageService {
    * @param {number} [expiresIn] - Optional time in milliseconds until the item expires
    * @returns {Promise<StorageItem>} A promise that resolves when the item is stored
    */
-  async storeItem(
-    storeName: string,
-    item: StorageItem,
-    expiresIn?: number
-  ): Promise<StorageItem> {
+  async storeItem(storeName: string, item: StorageItem, expiresIn?: number): Promise<StorageItem> {
     if (!item.id) {
-      throw new Error("Data must have an id property");
+      throw new Error('Data must have an id property');
     }
 
     // Add expiration if specified
@@ -132,7 +125,7 @@ export class StorageService {
       const database = await this.initDatabase();
 
       return new Promise((resolve, reject) => {
-        const transaction = database.transaction([storeName], "readwrite");
+        const transaction = database.transaction([storeName], 'readwrite');
         const store = transaction.objectStore(storeName);
 
         const request = store.put(itemToStore);
@@ -141,20 +134,16 @@ export class StorageService {
         request.onerror = () =>
           reject(
             new ApplicationError(
-              `Failed to store item: ${
-                request.error?.message || "Unknown error"
-              }`,
-              "DB_STORE_ERROR",
+              `Failed to store item: ${request.error?.message || 'Unknown error'}`,
+              'DB_STORE_ERROR',
               request.error
             )
           );
       });
     } catch (error) {
       throw new ApplicationError(
-        `Storage operation failed: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
-        "STORAGE_ERROR",
+        `Storage operation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'STORAGE_ERROR',
         error
       );
     }
@@ -171,7 +160,7 @@ export class StorageService {
       const database = await this.initDatabase();
 
       return new Promise((resolve, reject) => {
-        const transaction = database.transaction([storeName], "readonly");
+        const transaction = database.transaction([storeName], 'readonly');
         const store = transaction.objectStore(storeName);
 
         const request = store.get(id);
@@ -192,20 +181,16 @@ export class StorageService {
         request.onerror = () =>
           reject(
             new ApplicationError(
-              `Failed to retrieve item: ${
-                request.error?.message || "Unknown error"
-              }`,
-              "DB_GET_ERROR",
+              `Failed to retrieve item: ${request.error?.message || 'Unknown error'}`,
+              'DB_GET_ERROR',
               request.error
             )
           );
       });
     } catch (error) {
       throw new ApplicationError(
-        `Storage operation failed: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
-        "STORAGE_ERROR",
+        `Storage operation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'STORAGE_ERROR',
         error
       );
     }
@@ -222,7 +207,7 @@ export class StorageService {
       const database = await this.initDatabase();
 
       return new Promise((resolve, reject) => {
-        const transaction = database.transaction([storeName], "readwrite");
+        const transaction = database.transaction([storeName], 'readwrite');
         const store = transaction.objectStore(storeName);
 
         const request = store.delete(id);
@@ -231,20 +216,16 @@ export class StorageService {
         request.onerror = () =>
           reject(
             new ApplicationError(
-              `Failed to delete item: ${
-                request.error?.message || "Unknown error"
-              }`,
-              "DB_DELETE_ERROR",
+              `Failed to delete item: ${request.error?.message || 'Unknown error'}`,
+              'DB_DELETE_ERROR',
               request.error
             )
           );
       });
     } catch (error) {
       throw new ApplicationError(
-        `Storage operation failed: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
-        "STORAGE_ERROR",
+        `Storage operation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'STORAGE_ERROR',
         error
       );
     }
@@ -260,7 +241,7 @@ export class StorageService {
       const database = await this.initDatabase();
 
       return new Promise((resolve, reject) => {
-        const transaction = database.transaction([storeName], "readonly");
+        const transaction = database.transaction([storeName], 'readonly');
         const store = transaction.objectStore(storeName);
         const request = store.getAll();
 
@@ -268,7 +249,7 @@ export class StorageService {
           const items = request.result as StorageItem[];
 
           // Filter out expired items
-          const validItems = items.filter((item) => {
+          const validItems = items.filter(item => {
             if (this.hasExpired(item)) {
               // Item has expired, delete it
               this.deleteItem(storeName, item.id).catch(console.error);
@@ -283,20 +264,16 @@ export class StorageService {
         request.onerror = () =>
           reject(
             new ApplicationError(
-              `Failed to list items: ${
-                request.error?.message || "Unknown error"
-              }`,
-              "DB_LIST_ERROR",
+              `Failed to list items: ${request.error?.message || 'Unknown error'}`,
+              'DB_LIST_ERROR',
               request.error
             )
           );
       });
     } catch (error) {
       throw new ApplicationError(
-        `Storage operation failed: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
-        "STORAGE_ERROR",
+        `Storage operation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'STORAGE_ERROR',
         error
       );
     }
@@ -318,8 +295,8 @@ export class StorageService {
    */
   private hasExpired(item: StorageItem): boolean {
     return (
-      "expires" in item &&
-      typeof (item as ExpirableItem).expires === "number" &&
+      'expires' in item &&
+      typeof (item as ExpirableItem).expires === 'number' &&
       (item as ExpirableItem).expires < Date.now()
     );
   }
@@ -331,11 +308,7 @@ export class StorageService {
    * @param {number} ttl - Time to live in milliseconds
    * @returns {Promise<StorageItem>} A promise that resolves when the item is stored
    */
-  async storeWithExpiry(
-    storeName: string,
-    item: StorageItem,
-    ttl: number
-  ): Promise<StorageItem> {
+  async storeWithExpiry(storeName: string, item: StorageItem, ttl: number): Promise<StorageItem> {
     return this.storeItem(storeName, item, ttl);
   }
 }

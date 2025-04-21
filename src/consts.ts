@@ -1,1 +1,1 @@
-export const ORIGIN = "https://secure.crossmint.com";
+export const ORIGIN = 'https://secure.crossmint.com';

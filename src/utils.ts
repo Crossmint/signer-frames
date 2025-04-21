@@ -3,7 +3,7 @@
  */
 
 // Base58 alphabet
-const ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 const BASE = BigInt(ALPHABET.length);
 
 /**
@@ -12,11 +12,11 @@ const BASE = BigInt(ALPHABET.length);
  * @returns {string} The hex string representation
  */
 export function uint8ArrayToHex(uint8array: Uint8Array): string {
-  if (!uint8array || uint8array.length === 0) return "";
+  if (!uint8array || uint8array.length === 0) return '';
 
   return Array.from(uint8array)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 /**
@@ -25,14 +25,14 @@ export function uint8ArrayToHex(uint8array: Uint8Array): string {
  * @returns {Uint8Array} The Uint8Array representation
  */
 export function hexToUint8Array(hex: string): Uint8Array {
-  if (typeof hex !== "string") {
-    throw new Error("Expected string containing hex data");
+  if (typeof hex !== 'string') {
+    throw new Error('Expected string containing hex data');
   }
 
-  if (hex === "") return new Uint8Array(0);
+  if (hex === '') return new Uint8Array(0);
 
   // Remove '0x' prefix if present
-  const hexString = hex.startsWith("0x") ? hex.slice(2) : hex;
+  const hexString = hex.startsWith('0x') ? hex.slice(2) : hex;
 
   // Ensure even length
   const normalizedHex = hexString.length % 2 ? `0${hexString}` : hexString;
@@ -53,7 +53,7 @@ export function hexToUint8Array(hex: string): Uint8Array {
  * @returns {string} Base58 encoded string
  */
 export function base58Encode(data: Uint8Array): string {
-  if (!data || data.length === 0) return "";
+  if (!data || data.length === 0) return '';
 
   // Count leading zeros
   let leadingZeros = 0;
@@ -69,11 +69,11 @@ export function base58Encode(data: Uint8Array): string {
 
   // Special case for zero values
   if (num === 0n) {
-    return "1".repeat(leadingZeros);
+    return '1'.repeat(leadingZeros);
   }
 
   // Convert to Base58
-  let result = "";
+  let result = '';
   while (num > 0n) {
     const mod = Number(num % BASE);
     num = num / BASE;
@@ -81,7 +81,7 @@ export function base58Encode(data: Uint8Array): string {
   }
 
   // Add leading '1's (equivalent to zero in Base58)
-  return "1".repeat(leadingZeros) + result;
+  return '1'.repeat(leadingZeros) + result;
 }
 
 /**
@@ -94,7 +94,7 @@ export function base58Decode(str: string): Uint8Array {
 
   // Count leading '1's
   let leadingZeros = 0;
-  for (let i = 0; i < str.length && str[i] === "1"; i++) {
+  for (let i = 0; i < str.length && str[i] === '1'; i++) {
     leadingZeros++;
   }
 

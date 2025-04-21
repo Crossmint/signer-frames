@@ -1,12 +1,6 @@
-import {
-  HandshakeChild,
-  type HandshakeOptions,
-} from "@crossmint/client-sdk-window";
-import {
-  SecureSignerInboundEvents,
-  SecureSignerOutboundEvents,
-} from "@crossmint/client-signers";
-import type { z } from "zod";
+import { HandshakeChild, type HandshakeOptions } from '@crossmint/client-sdk-window';
+import { SecureSignerInboundEvents, SecureSignerOutboundEvents } from '@crossmint/client-signers';
+import type { z } from 'zod';
 
 const EVENT_VERSION = 1;
 
@@ -14,18 +8,11 @@ type IncomingEvents = typeof SecureSignerInboundEvents;
 type OutgoingEvents = typeof SecureSignerOutboundEvents;
 type IncomingEventName = keyof IncomingEvents;
 type OutgoingEventName = keyof OutgoingEvents;
-type IncomingEventData<K extends IncomingEventName> = z.infer<
-  IncomingEvents[K]
->;
-type OutgoingEventData<K extends OutgoingEventName> = z.infer<
-  OutgoingEvents[K]
->;
+type IncomingEventData<K extends IncomingEventName> = z.infer<IncomingEvents[K]>;
+type OutgoingEventData<K extends OutgoingEventName> = z.infer<OutgoingEvents[K]>;
 
 export class EventsService {
-  private static messenger: HandshakeChild<
-    IncomingEvents,
-    OutgoingEvents
-  > | null = null;
+  private static messenger: HandshakeChild<IncomingEvents, OutgoingEvents> | null = null;
 
   /**
    * Initialize the messenger and register event handlers
@@ -36,11 +23,11 @@ export class EventsService {
     targetOrigin?: string;
   }): Promise<void> {
     if (EventsService.messenger) {
-      console.log("Messenger already initialized");
+      console.log('Messenger already initialized');
       return;
     }
 
-    EventsService.messenger = new HandshakeChild(window.parent, "*", {
+    EventsService.messenger = new HandshakeChild(window.parent, '*', {
       incomingEvents: SecureSignerInboundEvents,
       outgoingEvents: SecureSignerOutboundEvents,
       handshakeOptions: options?.handshakeOptions,
@@ -60,16 +47,10 @@ export class EventsService {
     event: K,
     handler: (
       data: IncomingEventData<K>
-    ) => Promise<
-      OutgoingEventData<`response:${K extends `request:${infer R}`
-        ? R
-        : never}`>
-    >
+    ) => Promise<OutgoingEventData<`response:${K extends `request:${infer R}` ? R : never}`>>
   ): string {
     this.assertMessengerInitialized();
-    const messenger = EventsService.messenger as NonNullable<
-      typeof EventsService.messenger
-    >;
+    const messenger = EventsService.messenger as NonNullable<typeof EventsService.messenger>;
     return messenger.on(event, handler);
   }
 
@@ -78,10 +59,10 @@ export class EventsService {
    */
   private assertMessengerInitialized(): void {
     if (!EventsService.messenger) {
-      throw new Error("Messenger not initialized");
+      throw new Error('Messenger not initialized');
     }
     if (!EventsService.messenger.isConnected) {
-      throw new Error("Messenger not connected");
+      throw new Error('Messenger not connected');
     }
   }
 
@@ -90,9 +71,7 @@ export class EventsService {
    */
   getMessenger(): NonNullable<typeof EventsService.messenger> {
     this.assertMessengerInitialized();
-    return EventsService.messenger as NonNullable<
-      typeof EventsService.messenger
-    >;
+    return EventsService.messenger as NonNullable<typeof EventsService.messenger>;
   }
 
   /**
@@ -102,9 +81,7 @@ export class EventsService {
     data: T
   ): asserts data is T & { version: typeof EVENT_VERSION } {
     if (data.version !== EVENT_VERSION) {
-      throw new Error(
-        `Invalid event version. Expected ${EVENT_VERSION}, got ${data.version}`
-      );
+      throw new Error(`Invalid event version. Expected ${EVENT_VERSION}, got ${data.version}`);
     }
   }
 }

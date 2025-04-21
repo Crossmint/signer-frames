@@ -2,11 +2,7 @@
  * XMIF - Main Framework Entry Point
  */
 
-import {
-  EventsService,
-  StorageService,
-  CrossmintApiService,
-} from "./services/index.js";
+import { EventsService, StorageService, CrossmintApiService } from './services/index.js';
 
 // Define window augmentation
 declare global {
@@ -31,43 +27,43 @@ class XMIF {
    * @returns {Promise<XMIF>} This instance for chaining
    */
   async init(): Promise<void> {
-    console.log("Initializing XMIF framework...");
-    console.log("-- Initializing IndexedDB...");
+    console.log('Initializing XMIF framework...');
+    console.log('-- Initializing IndexedDB...');
     await this.storageService.initDatabase();
-    console.log("-- IndexedDB initialized!");
-    console.log("-- Initializing events handlers...");
+    console.log('-- IndexedDB initialized!');
+    console.log('-- Initializing events handlers...');
     await this.eventsService.initMessenger();
     this.registerHandlers();
-    console.log("-- Events handlers initialized!");
+    console.log('-- Events handlers initialized!');
   }
 
   private registerHandlers() {
     const messenger = this.eventsService.getMessenger();
-    messenger.on("request:create-signer", async (data) => {
-      console.log("Received create-signer request:", data);
-      throw new Error("Not implemented");
+    messenger.on('request:create-signer', async data => {
+      console.log('Received create-signer request:', data);
+      throw new Error('Not implemented');
     });
-    messenger.on("request:get-attestation", async (data) => {
-      console.log("Received get-attestation request:", data);
-      throw new Error("Not implemented");
+    messenger.on('request:get-attestation', async data => {
+      console.log('Received get-attestation request:', data);
+      throw new Error('Not implemented');
     });
-    messenger.on("request:sign-message", async (data) => {
-      console.log("Received sign-message request:", data);
-      throw new Error("Not implemented");
+    messenger.on('request:sign-message', async data => {
+      console.log('Received sign-message request:', data);
+      throw new Error('Not implemented');
     });
-    messenger.on("request:sign-transaction", async (data) => {
-      console.log("Received sign-transaction request:", data);
-      throw new Error("Not implemented");
+    messenger.on('request:sign-transaction', async data => {
+      console.log('Received sign-transaction request:', data);
+      throw new Error('Not implemented');
     });
-    messenger.on("request:send-otp", async (data) => {
-      console.log("Received send-otp request:", data);
-      throw new Error("Not implemented");
+    messenger.on('request:send-otp', async data => {
+      console.log('Received send-otp request:', data);
+      throw new Error('Not implemented');
     });
   }
 }
 
 // Initialize when loaded as IIFE
-if (typeof window !== "undefined") {
+if (typeof window !== 'undefined') {
   const xmifInstance = new XMIF();
   window.XMIF = xmifInstance;
 }

@@ -1,6 +1,6 @@
-import { base58Decode, base58Encode } from "../utils";
-import * as ed from "@noble/ed25519";
-import { sha512 } from "@noble/hashes/sha512";
+import { base58Decode, base58Encode } from '../utils';
+import * as ed from '@noble/ed25519';
+import { sha512 } from '@noble/hashes/sha512';
 
 // Helper function to concatenate Uint8Arrays
 const concatBytes = (...arrays: Uint8Array[]): Uint8Array => {
@@ -48,11 +48,9 @@ export class Ed25519Service {
         return base58Encode(publicKeyBytes);
       }
 
-      throw new Error(
-        `Invalid key length: ${keyBytes.length}. Expected 32 or 64 bytes.`
-      );
+      throw new Error(`Invalid key length: ${keyBytes.length}. Expected 32 or 64 bytes.`);
     } catch (error) {
-      console.error("Error deriving public key:", error);
+      console.error('Error deriving public key:', error);
       throw error;
     }
   }
@@ -63,22 +61,16 @@ export class Ed25519Service {
    * @param {string} privateKeyBase58 - Base58-encoded private key (64 bytes Solana format)
    * @returns {Promise<string>} Base58-encoded signature
    */
-  async signMessage(
-    message: Uint8Array | string,
-    privateKeyBase58: string
-  ): Promise<string> {
+  async signMessage(message: Uint8Array | string, privateKeyBase58: string): Promise<string> {
     try {
       // Convert string message to Uint8Array if needed
       const messageBytes =
-        typeof message === "string"
-          ? new TextEncoder().encode(message)
-          : message;
+        typeof message === 'string' ? new TextEncoder().encode(message) : message;
 
       const keyBytes = base58Decode(privateKeyBase58);
 
       // Extract the private key portion (first 32 bytes) for Solana keypairs
-      const privateKeyBytes =
-        keyBytes.length === 64 ? keyBytes.slice(0, 32) : keyBytes;
+      const privateKeyBytes = keyBytes.length === 64 ? keyBytes.slice(0, 32) : keyBytes;
 
       if (privateKeyBytes.length !== 32) {
         throw new Error(
@@ -89,7 +81,7 @@ export class Ed25519Service {
       const signatureBytes = await ed.sign(messageBytes, privateKeyBytes);
       return base58Encode(signatureBytes);
     } catch (error) {
-      console.error("Error signing message:", error);
+      console.error('Error signing message:', error);
       throw error;
     }
   }
@@ -109,23 +101,19 @@ export class Ed25519Service {
     try {
       // Convert string message to Uint8Array if needed
       const messageBytes =
-        typeof message === "string"
-          ? new TextEncoder().encode(message)
-          : message;
+        typeof message === 'string' ? new TextEncoder().encode(message) : message;
 
       const signatureBytes = base58Decode(signatureBase58);
       const publicKeyBytes = base58Decode(publicKeyBase58);
 
       if (publicKeyBytes.length !== 32) {
-        console.error(
-          `Invalid public key length: ${publicKeyBytes.length}. Expected 32 bytes.`
-        );
+        console.error(`Invalid public key length: ${publicKeyBytes.length}. Expected 32 bytes.`);
         return false;
       }
 
       return await ed.verify(signatureBytes, messageBytes, publicKeyBytes);
     } catch (error) {
-      console.error("Error verifying signature:", error);
+      console.error('Error verifying signature:', error);
       return false;
     }
   }
