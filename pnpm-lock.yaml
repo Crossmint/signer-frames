@@ -9,11 +9,11 @@ importers:
   .:
     dependencies:
       '@crossmint/client-sdk-window':
-        specifier: ^0.2.3
+        specifier: 0.2.3
         version: 0.2.3
-      zod:
-        specifier: 3.22.4
-        version: 3.22.4
+      '@crossmint/client-signers':
+        specifier: 0.0.1
+        version: 0.0.1
     devDependencies:
       '@types/node':
         specifier: ^20.12.4
@@ -65,6 +65,9 @@ packages:
 
   '@crossmint/client-sdk-window@0.2.3':
     resolution: {integrity: sha512-Xh2F7z8ddKCEZPuuRxjHwGSy1x3JpGn3LX7PKX764UuknbDSqruiSJhONY6dY6eelfyY/glyFEnAkCXi3SVnxw==}
+
+  '@crossmint/client-signers@0.0.1':
+    resolution: {integrity: sha512-jHd547vDir1QEEVKQHtdksFE3ARDKDI6XklpKUa0Fom5KPY6HnmF0DeH8mA3VMizZrOCJ93c5yOz2ebz7JAWbw==}
 
   '@csstools/color-helpers@5.0.2':
     resolution: {integrity: sha512-JqWH1vsgdGcw2RR6VliXXdA0/59LttzlU8UlRT/iUUsEeWfYq8I+K0yhihEUTTHLRm1EXvpsCx3083EU15ecsA==}
@@ -1468,6 +1471,10 @@ snapshots:
   '@crossmint/client-sdk-window@0.2.3':
     dependencies:
       nanoid: 5.0.9
+      zod: 3.22.4
+
+  '@crossmint/client-signers@0.0.1':
+    dependencies:
       zod: 3.22.4
 
   '@csstools/color-helpers@5.0.2': {}

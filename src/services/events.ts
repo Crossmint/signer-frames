@@ -1,112 +1,72 @@
 import { HandshakeChild } from "@crossmint/client-sdk-window";
-import { ORIGIN } from "../consts";
-import { z } from "zod";
+import {
+  SecureSignerInboundEvents,
+  SecureSignerOutboundEvents,
+} from "@crossmint/client-signers";
 
-const EVENT_NAMES = [
-  "sign-message",
-  "sign-transaction",
-  "attestation",
-  "get-public-key",
-  "send-otp",
-  "create-signer",
-  "test",
-] as const;
-type EventName = (typeof EVENT_NAMES)[number];
-type IncomingEventName = `request:${EventName}`;
-type OutgoingEventName = `response:${EventName}`;
-
-/* TMP */
-// Define incoming events (events that the iframe sends o us)
-export const incomingEvents: Record<IncomingEventName, z.ZodType> = {
-  "request:sign-message": z.object({
-    address: z.string(),
-    signature: z.string(),
-  }),
-  "request:sign-transaction": z.object({
-    transaction: z.string(), // Base58 serialized transaction
-  }),
-  "request:attestation": z.object({
-    attestation: z.record(z.string(), z.any()),
-  }),
-  "request:get-public-key": z.object({
-    publicKey: z.string(),
-  }),
-  "request:send-otp": z.object({
-    success: z.boolean(),
-  }),
-  "request:create-signer": z.object({
-    requestId: z.string(),
-  }),
-  "request:test": z.object({
-    message: z.string(),
-  }),
-} as const;
-
-// Define outgoing events (events that we send to the iframe)
-// Still incomplete, should be extended
-const AuthenticationDataSchema = z.object({
-  address: z.string(),
-  requestId: z.string(),
-});
-export const outgoingEvents: Record<OutgoingEventName, z.ZodType> = {
-  "response:attestation": z.undefined(),
-  "response:sign-message": AuthenticationDataSchema.extend({
-    message: z.string(), // Base58 encoded message
-  }),
-  "response:sign-transaction": AuthenticationDataSchema.extend({
-    transaction: z.string(), // Base58 serialized transaction
-  }),
-  "response:get-public-key": AuthenticationDataSchema,
-  "response:send-otp": AuthenticationDataSchema.extend({
-    otp: z.string(),
-    requestId: z.string(),
-  }),
-  "response:create-signer": AuthenticationDataSchema.extend({
-    authId: z.string(),
-  }),
-  "response:test": z.object({
-    message: z.string(),
-  }),
-} as const;
-/* End of TMP */
-
-type EventHandlerMap = Record<
-  EventName,
-  (
-    handler: z.infer<(typeof incomingEvents)[`request:${EventName}`]>
-  ) => Promise<z.infer<(typeof outgoingEvents)[`response:${EventName}`]>>
->;
+const EVENT_VERSION = 1;
 
 export class EventsService {
   private messenger: HandshakeChild<
-    typeof incomingEvents,
-    typeof outgoingEvents
+    typeof SecureSignerInboundEvents,
+    typeof SecureSignerOutboundEvents
   > | null = null;
 
   async init() {
     this.messenger = new HandshakeChild(window.parent, "*", {
-      incomingEvents,
-      outgoingEvents,
+      incomingEvents: SecureSignerInboundEvents,
+      outgoingEvents: SecureSignerOutboundEvents,
     });
     await this.messenger.handshakeWithParent();
   }
 
-  registerEventHandlers(events: EventHandlerMap) {
+  registerEventHandlers() {
+    this.assertMessengerInitialized();
+    const messenger = this.messenger as NonNullable<typeof this.messenger>;
+
+    messenger.on("request:create-signer", async (data) => {
+      console.log("Received create-signer request:", data);
+      this.assertCorrectEventVersion(data);
+      throw new Error("Not implemented");
+    });
+    messenger.on("request:get-attestation", async (data) => {
+      console.log("Received get-attestation request:", data);
+      this.assertCorrectEventVersion(data);
+      throw new Error("Not implemented");
+    });
+    messenger.on("request:sign-message", async (data) => {
+      console.log("Received sign-message request:", data);
+      this.assertCorrectEventVersion(data);
+      throw new Error("Not implemented");
+    });
+    messenger.on("request:sign-transaction", async (data) => {
+      console.log("Received sign-transaction request:", data);
+      this.assertCorrectEventVersion(data);
+      throw new Error("Not implemented");
+    });
+    messenger.on("request:send-otp", async (data) => {
+      console.log("Received send-otp request:", data);
+      this.assertCorrectEventVersion(data);
+      throw new Error("Not implemented");
+    });
+  }
+
+  private assertMessengerInitialized() {
     if (!this.messenger) {
       throw new Error("Messenger not initialized");
     }
-    for (const event of EVENT_NAMES) {
-      this.messenger.on(`request:${event}`, events[event]);
+    if (!this.messenger.isConnected) {
+      throw new Error("Messenger not connected");
     }
   }
 
-  registerEventHandler<T extends EventName>(
-    eventName: T,
-    handler: EventHandlerMap[T]
-  ) {
-    if (!this.messenger) {
-      throw new Error("Messenger not initialized");
+  private assertCorrectEventVersion<T extends { version: number }>(
+    data: T
+  ): asserts data is T & { version: typeof EVENT_VERSION } {
+    if (data.version !== EVENT_VERSION) {
+      throw new Error(
+        `Invalid event version. Expected ${EVENT_VERSION}, got ${data.version}`
+      );
     }
-    this.messenger.on(`request:${eventName}`, handler);
   }
 }

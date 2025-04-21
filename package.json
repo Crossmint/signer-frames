@@ -40,7 +40,7 @@
     "vitest": "^3.1.1"
   },
   "dependencies": {
-    "@crossmint/client-sdk-window": "^0.2.3",
-    "zod": "3.22.4"
+    "@crossmint/client-sdk-window": "0.2.3",
+    "@crossmint/client-signers": "0.0.1"
   }
 }
