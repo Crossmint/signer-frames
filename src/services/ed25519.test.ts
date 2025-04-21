@@ -30,7 +30,6 @@ describe("Ed25519Service", () => {
     vi.clearAllMocks();
     ed25519Service = new Ed25519Service();
 
-    // Setup default mock implementations for noble-ed25519
     (nobleEd25519.getPublicKey as ReturnType<typeof vi.fn>).mockResolvedValue(
       PUBLIC_KEY_BYTES
     );
@@ -46,10 +45,8 @@ describe("Ed25519Service", () => {
 
   describe("getPublicKey", () => {
     it("should derive a public key from a private key", async () => {
-      // Execute
       const result = await ed25519Service.getPublicKey(PRIVATE_KEY_BASE58);
 
-      // Verify
       expect(nobleEd25519.getPublicKey).toHaveBeenCalledWith(
         expect.any(Uint8Array)
       );
@@ -57,13 +54,11 @@ describe("Ed25519Service", () => {
     });
 
     it("should throw an error if derivation fails", async () => {
-      // Setup
       const mockError = new Error("Derivation failed");
       (nobleEd25519.getPublicKey as ReturnType<typeof vi.fn>).mockRejectedValue(
         mockError
       );
 
-      // Execute and verify
       await expect(
         ed25519Service.getPublicKey(PRIVATE_KEY_BASE58)
       ).rejects.toThrow(mockError);
@@ -72,20 +67,17 @@ describe("Ed25519Service", () => {
 
   describe("signMessage", () => {
     it("should sign a message with a private key (string input)", async () => {
-      // Execute
       const result = await ed25519Service.signMessage(
         MESSAGE,
         PRIVATE_KEY_BASE58
       );
 
-      // Verify
       expect(nobleEd25519.sign).toHaveBeenCalledWith(
         expect.any(Uint8Array),
         expect.any(Uint8Array)
       );
       expect(result).toBe(SIGNATURE_BASE58);
 
-      // Verify the message was properly encoded
       const signCall = (nobleEd25519.sign as ReturnType<typeof vi.fn>).mock
         .calls[0];
       const messageArg = signCall[0];
@@ -94,13 +86,11 @@ describe("Ed25519Service", () => {
     });
 
     it("should sign a message with a private key (Uint8Array input)", async () => {
-      // Execute
       const result = await ed25519Service.signMessage(
         MESSAGE_BYTES,
         PRIVATE_KEY_BASE58
       );
 
-      // Verify
       expect(nobleEd25519.sign).toHaveBeenCalledWith(
         MESSAGE_BYTES,
         expect.any(Uint8Array)
@@ -109,13 +99,11 @@ describe("Ed25519Service", () => {
     });
 
     it("should throw an error if signing fails", async () => {
-      // Setup
       const mockError = new Error("Signing failed");
       (nobleEd25519.sign as ReturnType<typeof vi.fn>).mockRejectedValue(
         mockError
       );
 
-      // Execute and verify
       await expect(
         ed25519Service.signMessage(MESSAGE, PRIVATE_KEY_BASE58)
       ).rejects.toThrow(mockError);
@@ -124,14 +112,12 @@ describe("Ed25519Service", () => {
 
   describe("verifySignature", () => {
     it("should verify a signature with a public key (string message)", async () => {
-      // Execute
       const result = await ed25519Service.verifySignature(
         MESSAGE,
         SIGNATURE_BASE58,
         PUBLIC_KEY_BASE58
       );
 
-      // Verify
       expect(nobleEd25519.verify).toHaveBeenCalledWith(
         expect.any(Uint8Array),
         expect.any(Uint8Array),
@@ -139,7 +125,6 @@ describe("Ed25519Service", () => {
       );
       expect(result).toBe(true);
 
-      // Verify the message was properly encoded
       const verifyCall = (nobleEd25519.verify as ReturnType<typeof vi.fn>).mock
         .calls[0];
       const messageArg = verifyCall[1];
@@ -148,14 +133,12 @@ describe("Ed25519Service", () => {
     });
 
     it("should verify a signature with a public key (Uint8Array message)", async () => {
-      // Execute
       const result = await ed25519Service.verifySignature(
         MESSAGE_BYTES,
         SIGNATURE_BASE58,
         PUBLIC_KEY_BASE58
       );
 
-      // Verify
       expect(nobleEd25519.verify).toHaveBeenCalledWith(
         expect.any(Uint8Array),
         MESSAGE_BYTES,
@@ -165,36 +148,30 @@ describe("Ed25519Service", () => {
     });
 
     it("should return false if verification fails", async () => {
-      // Setup
       (nobleEd25519.verify as ReturnType<typeof vi.fn>).mockResolvedValue(
         false
       );
 
-      // Execute
       const result = await ed25519Service.verifySignature(
         MESSAGE,
         SIGNATURE_BASE58,
         PUBLIC_KEY_BASE58
       );
 
-      // Verify
       expect(result).toBe(false);
     });
 
     it("should return false if an error occurs during verification", async () => {
-      // Setup
       (nobleEd25519.verify as ReturnType<typeof vi.fn>).mockRejectedValue(
         new Error("Verification error")
       );
 
-      // Execute
       const result = await ed25519Service.verifySignature(
         MESSAGE,
         SIGNATURE_BASE58,
         PUBLIC_KEY_BASE58
       );
 
-      // Verify
       expect(result).toBe(false);
     });
   });

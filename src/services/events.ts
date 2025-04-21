@@ -74,48 +74,6 @@ export class EventsService {
   }
 
   /**
-   * Get all event handlers in a properly typed record
-   * @returns Record of event handlers with correct types
-   */
-  getEventHandlers(): {
-    [K in IncomingEventName]: (
-      data: IncomingEventData<K>
-    ) => Promise<
-      OutgoingEventData<`response:${K extends `request:${infer R}`
-        ? R
-        : never}`>
-    >;
-  } {
-    return {
-      "request:create-signer": async (data) => {
-        console.log("Received create-signer request:", data);
-        this.assertCorrectEventVersion(data);
-        throw new Error("Not implemented");
-      },
-      "request:get-attestation": async (data) => {
-        console.log("Received get-attestation request:", data);
-        this.assertCorrectEventVersion(data);
-        throw new Error("Not implemented");
-      },
-      "request:sign-message": async (data) => {
-        console.log("Received sign-message request:", data);
-        this.assertCorrectEventVersion(data);
-        throw new Error("Not implemented");
-      },
-      "request:sign-transaction": async (data) => {
-        console.log("Received sign-transaction request:", data);
-        this.assertCorrectEventVersion(data);
-        throw new Error("Not implemented");
-      },
-      "request:send-otp": async (data) => {
-        console.log("Received send-otp request:", data);
-        this.assertCorrectEventVersion(data);
-        throw new Error("Not implemented");
-      },
-    } as const;
-  }
-
-  /**
    * Assert that the messenger is initialized and connected
    */
   private assertMessengerInitialized(): void {

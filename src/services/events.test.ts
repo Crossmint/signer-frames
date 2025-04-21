@@ -6,9 +6,7 @@ import type {
   SecureSignerInboundEvents,
   SecureSignerOutboundEvents,
 } from "@crossmint/client-signers";
-import type { z } from "zod";
 
-// Create type-safe mock for HandshakeChild
 const mockHandshakeChild = mock<
   HandshakeChild<
     typeof SecureSignerInboundEvents,
@@ -20,7 +18,6 @@ const mockHandshakeChild = mock<
   handshakeWithParent: vi.fn().mockResolvedValue(undefined),
 });
 
-// Mock the dependencies
 vi.mock("@crossmint/client-sdk-window", () => ({
   HandshakeChild: vi.fn().mockImplementation(() => mockHandshakeChild),
 }));
@@ -29,7 +26,6 @@ vi.mock("@crossmint/client-signers", async () => {
   const actual = await vi.importActual("@crossmint/client-signers");
   return {
     ...actual,
-    // Mock the schemas but keep the structure
     SecureSignerInboundEvents: {
       "request:create-signer": {},
       "request:get-attestation": {},
@@ -94,10 +90,8 @@ describe("EventsService", () => {
 
   describe("initMessenger", () => {
     it("should initialize the messenger using options", async () => {
-      // Execute
       await eventsService.initMessenger();
 
-      // Verify method was called
       expect(eventsService.initMessenger).toHaveBeenCalled();
 
       // @ts-expect-error - Accessing private static property
@@ -105,30 +99,23 @@ describe("EventsService", () => {
     });
 
     it("should initialize messenger with custom options", async () => {
-      // Setup
       const customOptions = {
         targetOrigin: "https://example.com",
       };
 
-      // Execute
       await eventsService.initMessenger(customOptions);
 
-      // Verify
       expect(eventsService.initMessenger).toHaveBeenCalledWith(customOptions);
     });
 
     it("should not reinitialize messenger if already initialized", async () => {
-      // Setup - Set up a pre-existing messenger
       // @ts-expect-error - Setting private static property
       EventsService.messenger = mockHandshakeChild;
 
-      // Setup
       const consoleSpy = vi.spyOn(console, "log");
 
-      // Execute - try to initialize again
       await eventsService.initMessenger();
 
-      // Verify
       expect(consoleSpy).toHaveBeenCalledWith("Messenger already initialized");
     });
 
@@ -158,7 +145,6 @@ describe("EventsService", () => {
 
   describe("registerHandler", () => {
     it("should register an event handler successfully", async () => {
-      // Setup
       await eventsService.initMessenger();
       const handler = vi.fn();
 
@@ -166,13 +152,11 @@ describe("EventsService", () => {
       mockHandshakeChild.on.mockClear();
       mockHandshakeChild.on.mockReturnValue("handler-id");
 
-      // Execute
       const result = eventsService.registerHandler(
         "request:sign-message",
         handler
       );
 
-      // Verify
       expect(result).toBe("handler-id");
       expect(mockHandshakeChild.on).toHaveBeenCalledWith(
         "request:sign-message",
@@ -185,14 +169,12 @@ describe("EventsService", () => {
       // @ts-expect-error - Setting private static property
       EventsService.messenger = null;
 
-      // Execute & Verify
       expect(() => {
         eventsService.registerHandler("request:sign-message", vi.fn());
       }).toThrow("Messenger not initialized");
     });
 
     it("should throw if messenger is not connected", () => {
-      // Setup - messenger is initialized but not connected
       // @ts-expect-error - Setting private static property
       EventsService.messenger = mock<
         HandshakeChild<
@@ -203,152 +185,77 @@ describe("EventsService", () => {
         isConnected: false,
       });
 
-      // Execute & Verify
       expect(() => {
         eventsService.registerHandler("request:sign-message", vi.fn());
       }).toThrow("Messenger not connected");
     });
   });
 
-  describe("getEventHandlers", () => {
-    it("should return event handlers object with all required handlers", () => {
-      // Execute
-      const handlers = eventsService.getEventHandlers();
-
-      // Verify
-      expect(handlers).toHaveProperty("request:create-signer");
-      expect(handlers).toHaveProperty("request:get-attestation");
-      expect(handlers).toHaveProperty("request:sign-message");
-      expect(handlers).toHaveProperty("request:sign-transaction");
-      expect(handlers).toHaveProperty("request:send-otp");
-    });
-
-    it("should log received messages", async () => {
-      // Setup
-      const handlers = eventsService.getEventHandlers();
-      const testData = { version: 1 };
-      const consoleSpy = vi.spyOn(console, "log");
-
-      // Execute & Verify - should log and throw
-      try {
-        // @ts-expect-error - Using simplified test data
-        await handlers["request:sign-message"](testData);
-      } catch (e) {
-        // Expected to throw
-      }
-
-      // Verify console log was called with the message data
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "Received sign-message request:",
-        expect.objectContaining({ version: 1 })
-      );
-    });
-
-    it("should throw error when version is incorrect", async () => {
-      // Setup
-      const handlers = eventsService.getEventHandlers();
-      const testData = { version: 999 };
-
-      // Spy on assertCorrectEventVersion to verify it's called
-      // @ts-expect-error - Accessing private method
-      const assertSpy = vi.spyOn(eventsService, "assertCorrectEventVersion");
-
-      // Execute & Verify
-      await expect(async () => {
-        // @ts-expect-error - Using simplified test data
-        await handlers["request:sign-message"](testData);
-      }).rejects.toThrow("Invalid event version. Expected 1, got 999");
-
-      expect(assertSpy).toHaveBeenCalled();
-    });
-
-    it("should throw not implemented for unimplemented handlers", async () => {
-      // Setup
-      const handlers = eventsService.getEventHandlers();
-      const testData = { version: 1 };
-
-      // Spy on assertCorrectEventVersion to verify it's called
-      // @ts-expect-error - Accessing private method
-      const assertSpy = vi.spyOn(eventsService, "assertCorrectEventVersion");
-
-      // Execute & Verify
-      await expect(async () => {
-        // @ts-expect-error - Using simplified test data
-        await handlers["request:sign-message"](testData);
-      }).rejects.toThrow("Not implemented");
-
-      expect(assertSpy).toHaveBeenCalled();
-    });
-
-    it("should test all event handlers throw not implemented", async () => {
-      // Setup
-      const handlers = eventsService.getEventHandlers();
-      const testData = { version: 1 };
-      const events = [
-        "request:create-signer",
-        "request:get-attestation",
-        "request:sign-message",
-        "request:sign-transaction",
-        "request:send-otp",
-      ] as const;
-
-      // Test each handler
-      for (const event of events) {
-        await expect(async () => {
-          // @ts-expect-error - Using simplified test data
-          await handlers[event](testData);
-        }).rejects.toThrow("Not implemented");
-      }
-    });
-  });
-
   describe("getMessenger", () => {
-    it("should return the messenger instance when initialized", async () => {
-      // Setup
+    it("should return the messenger if initialized", async () => {
       await eventsService.initMessenger();
 
-      // Execute
       const messenger = eventsService.getMessenger();
-
-      // Verify
       expect(messenger).toBe(mockHandshakeChild);
     });
 
     it("should throw if messenger is not initialized", () => {
-      // Make sure messenger is null
       // @ts-expect-error - Setting private static property
       EventsService.messenger = null;
 
-      // Execute & Verify
       expect(() => {
         eventsService.getMessenger();
       }).toThrow("Messenger not initialized");
     });
   });
 
-  describe("assertCorrectEventVersion", () => {
-    it("should throw error when version is incorrect", () => {
-      // Setup
-      const data = { version: 999 };
+  describe("assertMessengerInitialized", () => {
+    it("should not throw if messenger is initialized", async () => {
+      await eventsService.initMessenger();
 
-      // Execute & Verify
       expect(() => {
-        // Access private method
-        // @ts-expect-error - Accessing private method
-        eventsService.assertCorrectEventVersion(data);
-      }).toThrow("Invalid event version. Expected 1, got 999");
+        // @ts-expect-error - Testing private method
+        eventsService.assertMessengerInitialized();
+      }).not.toThrow();
     });
 
-    it("should not throw when version is correct", () => {
-      // Setup
-      const data = { version: 1 };
+    it("should throw if messenger is not initialized", () => {
+      // @ts-expect-error - Setting private static property
+      EventsService.messenger = null;
 
-      // Execute & Verify
       expect(() => {
-        // Access private method
-        // @ts-expect-error - Accessing private method
-        eventsService.assertCorrectEventVersion(data);
+        // @ts-expect-error - Testing private method
+        eventsService.assertMessengerInitialized();
+      }).toThrow("Messenger not initialized");
+    });
+  });
+
+  describe("assertCorrectEventVersion", () => {
+    it("should not throw for valid event data", () => {
+      const validEventData = { version: 1, data: {} };
+
+      expect(() => {
+        // @ts-expect-error - Testing private method
+        eventsService.assertCorrectEventVersion(validEventData);
       }).not.toThrow();
+    });
+
+    it("should throw for missing version", () => {
+      const invalidEventData = { data: {} };
+
+      expect(() => {
+        // @ts-expect-error - Testing private method
+        eventsService.assertCorrectEventVersion(invalidEventData);
+      }).toThrow("Invalid event version. Expected 1, got undefined");
+    });
+
+    it("should throw for unsupported version", () => {
+      const invalidEventData = { version: 999, data: {} };
+
+      expect(() => {
+        // @ts-expect-error - Testing private method
+        eventsService.assertCorrectEventVersion(invalidEventData);
+      }).toThrow("Invalid event version. Expected 1, got 999");
     });
   });
 });
