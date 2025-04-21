@@ -17,6 +17,6 @@ jobs:
       - name: Install
         run: pnpm install
       - name: Build
-        run: pnpm run build
+        run: pnpm run build:prod
       - name: Generate SRI
         run: pnpm run generate-sri
