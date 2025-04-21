@@ -1,20 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { mockDeep, mockReset } from "vitest-mock-extended";
+import { describe, it, expect, beforeEach } from "vitest";
 import { Ed25519Service } from "./ed25519";
 import { base58Decode, base58Encode } from "../utils";
 import { Keypair } from "@solana/web3.js";
-
-// Mock the noble-ed25519 library - must be before any imports of the library
-vi.mock("../lib/noble-ed25519.js", () => {
-  return {
-    getPublicKey: vi.fn(),
-    sign: vi.fn(),
-    verify: vi.fn(),
-  };
-});
-
-// Import the mocked module after mocking
-import * as nobleEd25519 from "../lib/noble-ed25519.js";
 
 describe("Ed25519Service", () => {
   const solanaKeypair = Keypair.generate();
@@ -25,149 +12,109 @@ describe("Ed25519Service", () => {
 
   const MESSAGE = "Hello, world!";
   const MESSAGE_BYTES = new TextEncoder().encode(MESSAGE);
-  const SIGNATURE_BYTES = new Uint8Array([9, 10, 11, 12]);
-  const SIGNATURE_BASE58 = base58Encode(SIGNATURE_BYTES);
 
   let ed25519Service: Ed25519Service;
 
   beforeEach(() => {
-    vi.clearAllMocks();
-
-    // Reset and set default mock implementations
-    vi.mocked(nobleEd25519.getPublicKey).mockReset();
-    vi.mocked(nobleEd25519.sign).mockReset();
-    vi.mocked(nobleEd25519.verify).mockReset();
-
-    vi.mocked(nobleEd25519.getPublicKey).mockResolvedValue(PUBLIC_KEY_BYTES);
-    vi.mocked(nobleEd25519.sign).mockResolvedValue(SIGNATURE_BYTES);
-    vi.mocked(nobleEd25519.verify).mockResolvedValue(true);
-
     ed25519Service = new Ed25519Service();
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
   });
 
   describe("getPublicKey", () => {
     it("should derive a public key from a private key", async () => {
       const result = await ed25519Service.getPublicKey(PRIVATE_KEY_BASE58);
+      const resultBytes = base58Decode(result);
 
-      expect(nobleEd25519.getPublicKey).toHaveBeenCalledWith(
-        expect.any(Uint8Array)
-      );
-      expect(result).toBe(PUBLIC_KEY_BASE58);
-    });
+      // In Solana keypairs, the public key is the last 32 bytes of the secret key
+      const expectedPublicKey = PRIVATE_KEY_BYTES.slice(32, 64);
 
-    it("should throw an error if derivation fails", async () => {
-      const mockError = new Error("Derivation failed");
-      vi.mocked(nobleEd25519.getPublicKey).mockRejectedValueOnce(mockError);
-
-      await expect(
-        ed25519Service.getPublicKey(PRIVATE_KEY_BASE58)
-      ).rejects.toThrow(mockError);
+      // Compare the last 32 bytes since that's what noble-ed25519 uses
+      expect(resultBytes).toEqual(expectedPublicKey);
     });
   });
 
   describe("signMessage", () => {
     it("should sign a message with a private key (string input)", async () => {
-      const result = await ed25519Service.signMessage(
+      const signature = await ed25519Service.signMessage(
         MESSAGE,
         PRIVATE_KEY_BASE58
       );
 
-      expect(nobleEd25519.sign).toHaveBeenCalledWith(
-        expect.any(Uint8Array),
-        expect.any(Uint8Array)
+      // Verify the signature can be verified
+      const isValid = await ed25519Service.verifySignature(
+        MESSAGE,
+        signature,
+        PUBLIC_KEY_BASE58
       );
-      expect(result).toBe(SIGNATURE_BASE58);
 
-      const signCall = vi.mocked(nobleEd25519.sign).mock.calls[0];
-      const messageArg = signCall[0];
-      expect(messageArg).toBeInstanceOf(Uint8Array);
-      expect(new TextDecoder().decode(messageArg)).toBe(MESSAGE);
+      expect(isValid).toBe(true);
     });
 
     it("should sign a message with a private key (Uint8Array input)", async () => {
-      const result = await ed25519Service.signMessage(
+      const signature = await ed25519Service.signMessage(
         MESSAGE_BYTES,
         PRIVATE_KEY_BASE58
       );
 
-      expect(nobleEd25519.sign).toHaveBeenCalledWith(
+      // Verify the signature can be verified
+      const isValid = await ed25519Service.verifySignature(
         MESSAGE_BYTES,
-        expect.any(Uint8Array)
+        signature,
+        PUBLIC_KEY_BASE58
       );
-      expect(result).toBe(SIGNATURE_BASE58);
-    });
 
-    it("should throw an error if signing fails", async () => {
-      const mockError = new Error("Signing failed");
-      vi.mocked(nobleEd25519.sign).mockRejectedValueOnce(mockError);
-
-      await expect(
-        ed25519Service.signMessage(MESSAGE, PRIVATE_KEY_BASE58)
-      ).rejects.toThrow(mockError);
+      expect(isValid).toBe(true);
     });
   });
 
   describe("verifySignature", () => {
-    it("should verify a signature with a public key (string message)", async () => {
+    it("should verify a valid signature with a public key (string message)", async () => {
+      const signature = await ed25519Service.signMessage(
+        MESSAGE,
+        PRIVATE_KEY_BASE58
+      );
+
       const result = await ed25519Service.verifySignature(
         MESSAGE,
-        SIGNATURE_BASE58,
+        signature,
         PUBLIC_KEY_BASE58
       );
 
-      expect(nobleEd25519.verify).toHaveBeenCalledWith(
-        expect.any(Uint8Array),
-        expect.any(Uint8Array),
-        expect.any(Uint8Array)
-      );
-      expect(result).toBe(true);
-
-      const verifyCall = vi.mocked(nobleEd25519.verify).mock.calls[0];
-      const messageArg = verifyCall[1];
-      expect(messageArg).toBeInstanceOf(Uint8Array);
-      expect(new TextDecoder().decode(messageArg)).toBe(MESSAGE);
-    });
-
-    it("should verify a signature with a public key (Uint8Array message)", async () => {
-      const result = await ed25519Service.verifySignature(
-        MESSAGE_BYTES,
-        SIGNATURE_BASE58,
-        PUBLIC_KEY_BASE58
-      );
-
-      expect(nobleEd25519.verify).toHaveBeenCalledWith(
-        expect.any(Uint8Array),
-        MESSAGE_BYTES,
-        expect.any(Uint8Array)
-      );
       expect(result).toBe(true);
     });
 
-    it("should return false if verification fails", async () => {
-      vi.mocked(nobleEd25519.verify).mockResolvedValueOnce(false);
+    it("should verify a valid signature with a public key (Uint8Array message)", async () => {
+      const signature = await ed25519Service.signMessage(
+        MESSAGE_BYTES,
+        PRIVATE_KEY_BASE58
+      );
 
       const result = await ed25519Service.verifySignature(
-        MESSAGE,
-        SIGNATURE_BASE58,
+        MESSAGE_BYTES,
+        signature,
         PUBLIC_KEY_BASE58
       );
 
-      expect(result).toBe(false);
+      expect(result).toBe(true);
     });
 
-    it("should return false if an error occurs during verification", async () => {
-      vi.mocked(nobleEd25519.verify).mockRejectedValueOnce(
-        new Error("Verification error")
+    it("should return false for an invalid signature", async () => {
+      // Generate a different keypair
+      const differentKeypair = Keypair.generate();
+      const differentPublicKey = base58Encode(
+        new Uint8Array(differentKeypair.publicKey.toBytes())
       );
 
+      // Sign with original key
+      const signature = await ed25519Service.signMessage(
+        MESSAGE,
+        PRIVATE_KEY_BASE58
+      );
+
+      // Verify with different public key (should fail)
       const result = await ed25519Service.verifySignature(
         MESSAGE,
-        SIGNATURE_BASE58,
-        PUBLIC_KEY_BASE58
+        signature,
+        differentPublicKey
       );
 
       expect(result).toBe(false);

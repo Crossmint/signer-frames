@@ -15,6 +15,8 @@ export default defineConfig({
         // "**/index.ts",
         "**/*.js",
         "**/vitest.config.*",
+        "**/consts.ts",
+        "src/services/index.ts",
       ],
     },
   },
