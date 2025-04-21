@@ -10,7 +10,6 @@ import type { z } from "zod";
 
 const EVENT_VERSION = 1;
 
-// Type definitions for strongly-typed event handling
 type IncomingEvents = typeof SecureSignerInboundEvents;
 type OutgoingEvents = typeof SecureSignerOutboundEvents;
 type IncomingEventName = keyof IncomingEvents;

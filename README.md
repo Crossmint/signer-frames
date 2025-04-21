@@ -1,10 +1,13 @@
+[![cov](https://<you>.github.io/<repo>/badges/coverage.svg)](https://github.com/<you>/<repo>/actions)
+
+
 # Crossmint Signers
 
 A minimal standalone implementation of the Crossmint signer functionality for Trusted Execution Environment (TEE) communications. This library provides cryptographic utilities supporting Solana and EVM chains.
 
 ## Features
 
-- **Zero External Dependencies**: Completely self-contained implementation with no external dependencies for maximum security
+- **Minimal External Dependencies**: Implementation with minimal external dependencies (just Zod) for maximum security
 - **Subresource Integrity (SRI)**: Scripts include integrity hashes to prevent tampering
 - **Multi-Chain Support**: Compatible with both Solana (ed25519) and Ethereum (secp256k1) chains
 - **TEE Communication**: Secure communication with Trusted Execution Environments

@@ -21,7 +21,7 @@ export function uint8ArrayToHex(uint8array: Uint8Array): string {
 
 /**
  * Convert a hex string to a Uint8Array
- * @param {string} hex - The hex string to convert
+ * @param {`0x${string}`} hex - The hex string to convert
  * @returns {Uint8Array} The Uint8Array representation
  */
 export function hexToUint8Array(hex: string): Uint8Array {

@@ -7,11 +7,6 @@ import {
   StorageService,
   CrossmintApiService,
 } from "./services/index.js";
-import type {
-  SecureSignerInboundEvents,
-  SecureSignerOutboundEvents,
-} from "@crossmint/client-signers";
-import type { z } from "zod";
 
 // Define window augmentation
 declare global {

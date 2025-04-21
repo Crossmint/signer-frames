@@ -37,7 +37,6 @@ interface DBOptions {
 export class StorageService {
   private static db: IDBDatabase | null = null;
   private readonly dbOptions: DBOptions;
-  private initialized = false;
 
   constructor(options?: Partial<DBOptions>) {
     this.dbOptions = {
