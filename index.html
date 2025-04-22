@@ -25,18 +25,16 @@
 <body>
     <div class="container">
         <h1>CrossmintVault</h1>
-        <div class="status" id="status">Initialized...</div>
+        <div class="status" id="status">Loaded. Waiting for parent handshake...</div>
         
         <div class="demo-section">
-            <h2>Events Demo</h2>
-            
             <div class="event-box">
                 <div class="event-box-header">
                     <h3>Event Log</h3>
                     <button class="clear-events" id="clear-events">Clear</button>
                 </div>
                 <div class="event-box-body" id="event-log">
-                    <div class="event-item event-info">Waiting for events...</div>
+                    <div class="event-item event-info">Listening for events...</div>
                 </div>
             </div>
         </div>
@@ -65,7 +63,7 @@
                 })
                 .catch(err => {
                     console.error('Failed to initialize XMIF:', err);
-                    document.getElementById('status').textContent = `Error: ${err.message}`;
+                    document.getElementById('status').textContent = `Error: ${typeof err === 'string' ? err : err.message}`;
                     logEvent('Error', err.message ?? (typeof err === 'string' ? err : 'Unknown error'), true);
                 });
             } else {
