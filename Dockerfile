@@ -60,7 +60,7 @@ RUN echo 'server { \
     \
     # Security headers \
     add_header X-Content-Type-Options nosniff; \
-    add_header X-Frame-Options SAMEORIGIN; \
+    add_header Content-Security-Policy "frame-ancestors *"; \
     add_header Referrer-Policy strict-origin-when-cross-origin; \
     \
     # Cache control for static assets \
