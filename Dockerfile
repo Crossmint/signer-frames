@@ -75,6 +75,13 @@ RUN echo 'server { \
     try_files $uri $uri/ /index.html; \
     } \
     \
+    # Health check \
+    location = /health { \
+    access_log off; \
+    add_header 'Content-Type' 'application/json'; \
+    return 200 '{"status":"OK"}'; \
+    } \
+    \
     # Handle 404 errors \
     error_page 404 /index.html; \
     }' > /etc/nginx/conf.d/default.conf

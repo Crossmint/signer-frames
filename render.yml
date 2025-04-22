@@ -2,6 +2,7 @@ type: docker
 runtime: docker
 name: signer-frames
 plan: free
+healthcheckPath: /health
 previews:
   plan: free
   generation: manual
