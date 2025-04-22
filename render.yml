@@ -1,0 +1,7 @@
+type: docker
+runtime: docker
+name: signer-frames
+plan: free
+previews:
+  plan: free
+  generation: manual
