@@ -5,7 +5,7 @@ import { IFrameWindow } from '@crossmint/client-sdk-window';
 
 export default function Home() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const iframeUrl = 'http://localhost:3030';
+  const iframeUrl = 'https://crossmint-signer-frames.onrender.com';
 
   useEffect(() => {
     const initIFrameWindow = async () => {
