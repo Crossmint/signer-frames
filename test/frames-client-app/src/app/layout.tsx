@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
+import Providers from './providers/Providers';
 
 const geistSans = Geist({
   subsets: ['latin'],
@@ -22,7 +23,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body style={{ fontFamily: geistSans.style.fontFamily }}>{children}</body>
+      <body style={{ fontFamily: geistSans.style.fontFamily }}>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }
