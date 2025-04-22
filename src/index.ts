@@ -2,7 +2,8 @@
  * XMIF - Main Framework Entry Point
  */
 
-import { EventsService, StorageService, CrossmintApiService } from './services/index.js';
+import { EventsService, StorageService, CrossmintApiService } from './services';
+import type { StorageItem } from './services/storage';
 
 // Define window augmentation
 declare global {
@@ -35,6 +36,25 @@ class XMIF {
     await this.eventsService.initMessenger();
     this.registerHandlers();
     console.log('-- Events handlers initialized!');
+  }
+
+  /**
+   * Get all items from a specified store
+   * @param {string} storeName - The name of the object store
+   * @returns {Promise<StorageItem[]>} A promise that resolves to an array of items
+   */
+  async listItems(storeName: string): Promise<StorageItem[]> {
+    return this.storageService.listItems(storeName);
+  }
+
+  /**
+   * Get a specific item from a store
+   * @param {string} storeName - The name of the object store
+   * @param {string} id - The ID of the item to retrieve
+   * @returns {Promise<StorageItem | null>} A promise that resolves to the item or null
+   */
+  async getItem(storeName: string, id: string): Promise<StorageItem | null> {
+    return this.storageService.getItem(storeName, id);
   }
 
   private registerHandlers() {

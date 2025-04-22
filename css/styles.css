@@ -316,4 +316,25 @@ button:disabled {
 
 .refresh-button:hover {
     background-color: #45a049;
+}
+
+.loading-message, .error-message, .empty-message {
+    padding: 15px;
+    text-align: center;
+    font-style: italic;
+}
+
+.loading-message {
+    color: #3498db;
+    background-color: #f0f7ff;
+}
+
+.error-message {
+    color: #e74c3c;
+    background-color: #fff5f5;
+}
+
+.empty-message {
+    color: #7f8c8d;
+    background-color: #f8f9fa;
 } 
