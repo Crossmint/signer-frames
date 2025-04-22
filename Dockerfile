@@ -78,8 +78,8 @@ RUN echo 'server { \
     # Health check \
     location = /health { \
     access_log off; \
-    add_header 'Content-Type' 'application/json'; \
-    return 200 '{"status":"OK"}'; \
+    add_header Content-Type "application/json"; \
+    return 200 "{\"status\":\"OK\"}"; \
     } \
     \
     # Handle 404 errors \
