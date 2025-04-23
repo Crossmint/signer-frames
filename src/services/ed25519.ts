@@ -64,13 +64,17 @@ export class Ed25519Service {
    * @param {string} privateKeyBase58 - Base58-encoded private key (64 bytes Solana format)
    * @returns {Promise<string>} Base58-encoded signature
    */
-  async signMessage(message: Uint8Array | string, privateKeyBase58: string): Promise<string> {
+  async signMessage(
+    message: Uint8Array | string,
+    privateKeyBase58: Uint8Array | string
+  ): Promise<string> {
     try {
       // Convert string message to Uint8Array if needed
       const messageBytes =
         typeof message === 'string' ? new TextEncoder().encode(message) : message;
 
-      const keyBytes = base58Decode(privateKeyBase58);
+      const keyBytes =
+        typeof privateKeyBase58 === 'string' ? base58Decode(privateKeyBase58) : privateKeyBase58;
 
       // Extract the private key portion (first 32 bytes) for Solana keypairs
       const privateKeyBytes = keyBytes.length === 64 ? keyBytes.slice(0, 32) : keyBytes;

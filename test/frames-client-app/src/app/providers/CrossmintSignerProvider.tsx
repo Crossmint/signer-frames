@@ -12,7 +12,9 @@ import { IFrameWindow } from '@crossmint/client-sdk-window';
 import { useAuth, useCrossmint } from '@crossmint/client-sdk-react-ui';
 import bs58 from 'bs58';
 import { PublicKey, type VersionedTransaction } from '@solana/web3.js';
+import { v4 as uuidv4 } from 'uuid';
 import OTPDialog from '../components/OTPDialog';
+import SignMessageDialog from '../components/SignMessageDialog';
 
 async function createIFrame(url: string): Promise<HTMLIFrameElement> {
   const iframe = document.createElement('iframe');
@@ -93,6 +95,7 @@ export default function CrossmintSignerProvider({
 }: CrossmintSignerProviderProps) {
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [otpDialogOpen, setOtpDialogOpen] = useState(false);
+  const [signMessageDialogOpen, setSignMessageDialogOpen] = useState(false);
   const [isInitializingSigner, setIsInitializingSigner] = useState(false);
   const [solanaSigner, setSolanaSigner] = useState<CrossmintSolanaSigner | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -108,9 +111,12 @@ export default function CrossmintSignerProvider({
     typeof signerInboundEvents
   > | null>(null);
 
+  // Close OTP dialog when signer is created
   useEffect(() => {
     if (solanaSigner != null && otpDialogOpen) {
       setOtpDialogOpen(false);
+      // Show sign message dialog after signer is created
+      setSignMessageDialogOpen(true);
     }
   }, [solanaSigner, otpDialogOpen]);
 
@@ -127,6 +133,13 @@ export default function CrossmintSignerProvider({
     localStorage.setItem('deviceId', newDeviceId);
     setDeviceId(newDeviceId);
   }, []);
+
+  // Generate a new device ID
+  const generateNewDeviceId = useCallback(() => {
+    const newDeviceId = uuidv4();
+    updateDeviceId(newDeviceId);
+    return newDeviceId;
+  }, [updateDeviceId]);
 
   const initIFrameWindow = useCallback(async () => {
     if (iframe.current == null) {
@@ -240,9 +253,13 @@ export default function CrossmintSignerProvider({
 
   const initSigner = useCallback(() => {
     try {
-      if (isInitializingSigner || solanaSigner || !jwt || !apiKey) {
+      if (isInitializingSigner || !jwt || !apiKey) {
         return;
       }
+
+      // Always generate a new device ID when creating a new signer
+      generateNewDeviceId();
+
       setIsInitializingSigner(true);
       // Initialize the iframe window if not already done
       if (!isInitialized && !isInitializing) {
@@ -260,11 +277,18 @@ export default function CrossmintSignerProvider({
     isInitialized,
     isInitializing,
     isInitializingSigner,
-    solanaSigner,
     jwt,
     apiKey,
     initIFrameWindow,
+    generateNewDeviceId,
   ]);
+
+  // Automatically initialize signer after login - moved here after initSigner is defined
+  useEffect(() => {
+    if (jwt && apiKey && !solanaSigner && !isInitializing && !isInitializingSigner) {
+      initSigner();
+    }
+  }, [jwt, apiKey, solanaSigner, isInitializing, isInitializingSigner, initSigner]);
 
   // Handle OTP dialog event handlers
   const handleCreateSignerEvent = async () => {
@@ -321,6 +345,22 @@ export default function CrossmintSignerProvider({
     setSolanaSigner(buildSolanaSigner(address));
     setOtpDialogOpen(false);
     setIsInitializingSigner(false);
+    // Open sign message dialog immediately after signer creation
+    setSignMessageDialogOpen(true);
+  };
+
+  const handleSignMessage = async (message: string): Promise<string> => {
+    if (!solanaSigner) {
+      throw new Error('Signer not initialized');
+    }
+
+    const messageBytes = new TextEncoder().encode(message);
+    const signatureBytes = await solanaSigner.signMessage(messageBytes);
+    return bs58.encode(signatureBytes);
+  };
+
+  const handleCloseSignMessageDialog = () => {
+    setSignMessageDialogOpen(false);
   };
 
   return (
@@ -337,12 +377,19 @@ export default function CrossmintSignerProvider({
         <>
           {isInitializing && <InitializingComponent />}
           {isInitialized && (
-            <OTPDialog
-              open={otpDialogOpen}
-              sendCreateSignerEvent={handleCreateSignerEvent}
-              sendEncryptedOtpEvent={handleEncryptedOtpEvent}
-              onAddressFetched={handleAddressFetched}
-            />
+            <>
+              <OTPDialog
+                open={otpDialogOpen}
+                sendCreateSignerEvent={handleCreateSignerEvent}
+                sendEncryptedOtpEvent={handleEncryptedOtpEvent}
+                onAddressFetched={handleAddressFetched}
+              />
+              <SignMessageDialog
+                open={signMessageDialogOpen}
+                onClose={handleCloseSignMessageDialog}
+                onSignMessage={handleSignMessage}
+              />
+            </>
           )}
           {children}
         </>

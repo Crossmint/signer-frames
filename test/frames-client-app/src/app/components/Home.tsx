@@ -4,21 +4,20 @@ import React from 'react';
 import { useAuth } from '@crossmint/client-sdk-react-ui';
 import SignerContent from './SignerContent';
 import AuthButton from './AuthButton';
-import DeviceIdGenerator from './DeviceIdGenerator';
 import { useCrossmintSigner } from '../providers/CrossmintSignerProvider';
 
 export default function Home() {
   const { logout } = useAuth();
-  const { setDeviceId } = useCrossmintSigner();
+  const { initSigner, solanaSigner } = useCrossmintSigner();
 
-  const handleDeviceIdGenerated = (newDeviceId: string) => {
-    setDeviceId(newDeviceId);
+  const handleCreateNewSigner = () => {
+    initSigner('solana');
   };
 
   return (
     <main className="min-h-screen flex flex-col p-6 bg-gradient-to-br from-gray-50 to-blue-50">
-      <div className="max-w-6xl mx-auto w-full">
-        <header className="flex justify-between items-center mb-10">
+      <div className="max-w-4xl mx-auto w-full">
+        <header className="flex justify-between items-center mb-12">
           <h1 className="text-3xl font-bold text-gray-800">Crossmint Frames Testing App</h1>
           <button
             type="button"
@@ -29,15 +28,20 @@ export default function Home() {
           </button>
         </header>
 
-        <div className="flex flex-col lg:flex-row gap-8">
-          <div className="w-full lg:w-2/3 flex flex-col gap-8">
+        <div className="flex flex-col gap-10">
+          <div className="flex flex-col">
             <SignerContent />
+            {solanaSigner && (
+              <button
+                type="button"
+                onClick={handleCreateNewSigner}
+                className="mx-auto mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                Create New Signer
+              </button>
+            )}
           </div>
-
-          <div className="w-full lg:w-1/3 flex flex-col gap-6">
-            <AuthButton />
-            <DeviceIdGenerator onDeviceIdGenerated={handleDeviceIdGenerated} />
-          </div>
+          <AuthButton />
         </div>
 
         <footer className="mt-16 text-center text-sm text-gray-500">

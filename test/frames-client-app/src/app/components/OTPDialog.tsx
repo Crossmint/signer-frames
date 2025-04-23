@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-
 import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogFooter } from './Dialog';
+import { useCrossmintSigner } from '../providers/CrossmintSignerProvider';
 
 // Simple spinner component
 const Spinner = ({ style }: { style?: React.CSSProperties }) => (
@@ -92,11 +92,16 @@ export default function OTPDialog({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasError, setHasError] = useState(false);
+  const { deviceId } = useCrossmintSigner();
 
+  // Automatically start signer creation when dialog opens if device ID is available
   useEffect(() => {
-    document.body.style.overflow = open ? 'hidden' : '';
-  }, [open]);
+    if (open && deviceId && !showOtpInput && !loading) {
+      handleCreateSigner();
+    }
+  }, [open, deviceId, showOtpInput, loading]);
 
+  // Clear dialog state when closed
   useEffect(() => {
     if (!open) {
       setShowOtpInput(false);
@@ -154,7 +159,7 @@ export default function OTPDialog({
       >
         <DialogHeader className="mb-4">
           <DialogTitle className="text-center">
-            {showOtpInput ? 'Enter Verification Code' : 'Create Signer'}
+            {showOtpInput ? 'Enter Verification Code' : 'Creating Signer'}
           </DialogTitle>
         </DialogHeader>
 
@@ -173,31 +178,19 @@ export default function OTPDialog({
         {!showOtpInput ? (
           <div className="flex flex-col items-center">
             <p className="text-cm-text-secondary text-center mb-6">
-              Click the button below to create a signer and proceed with verification
+              {loading ? 'Creating your secure signer...' : 'Preparing to create your signer'}
             </p>
 
-            <button
-              type="button"
-              onClick={handleCreateSigner}
-              disabled={loading}
-              className="relative flex text-base p-4 bg-cm-muted-primary text-cm-text-primary items-center w-full rounded-xl justify-center hover:bg-cm-hover focus:bg-cm-hover outline-none"
-              style={{
-                borderRadius: defaultTheme.borderRadius,
-                backgroundColor: defaultTheme.colors.buttonBackground,
-                color: defaultTheme.colors.textPrimary,
-              }}
-            >
-              {loading ? (
+            <div className="flex justify-center py-6">
+              {loading && (
                 <Spinner
                   style={{
                     color: defaultTheme.colors?.textSecondary,
                     fill: defaultTheme.colors?.textPrimary,
                   }}
                 />
-              ) : (
-                <span className="font-medium">Create Signer</span>
               )}
-            </button>
+            </div>
           </div>
         ) : (
           <div className="flex flex-col items-center">

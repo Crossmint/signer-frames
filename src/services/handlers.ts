@@ -6,6 +6,7 @@ import type {
 import type { CrossmintApiService } from './api';
 import type { ShardingService } from './sharding-service';
 import { base64Decode } from '../utils';
+import type { Ed25519Service } from './ed25519';
 const DEFAULT_TIMEOUT_MS = 10_000;
 
 const measureFunctionTime = async <T>(fnName: string, fn: () => Promise<T>): Promise<T> => {
@@ -101,12 +102,18 @@ export class GetPublicKeyEventHandler extends BaseEventHandler<'get-public-key'>
   event = 'request:get-public-key' as const;
   responseEvent = 'response:get-public-key' as const;
   handler = async (payload: SignerInputEvent<'get-public-key'>) => {
-    const { keyShare } = await this.api.getAuthShard(payload.deviceId, payload.authData);
-    const { publicKey } = await this.shardingService.reconstructKey(
-      {
+    let authShard = await this.shardingService.tryGetAuthKeyShardFromLocal(payload.deviceId);
+    if (!authShard) {
+      const { keyShare } = await this.api.getAuthShard(payload.deviceId, payload.authData);
+      authShard = {
         deviceId: payload.deviceId,
         data: keyShare,
-      },
+      };
+      await this.shardingService.storeAuthKeyShardLocally(authShard);
+    }
+
+    const { publicKey } = await this.shardingService.reconstructKey(
+      authShard,
       payload.data.chainLayer
     );
     return {
@@ -116,11 +123,35 @@ export class GetPublicKeyEventHandler extends BaseEventHandler<'get-public-key'>
 }
 
 export class SignMessageEventHandler extends BaseEventHandler<'sign-message'> {
+  constructor(
+    private readonly api: CrossmintApiService,
+    private readonly shardingService: ShardingService,
+    private readonly ed25519Service: Ed25519Service
+  ) {
+    super();
+  }
   event = 'request:sign-message' as const;
   responseEvent = 'response:sign-message' as const;
-  handler = async (payload: SignerInputEvent<'sign-message'>) => {
-    throw new Error('Not implemented');
-  };
+  async handler(payload: SignerInputEvent<'sign-message'>) {
+    let authShard = await this.shardingService.tryGetAuthKeyShardFromLocal(payload.deviceId);
+    if (!authShard) {
+      const { keyShare } = await this.api.getAuthShard(payload.deviceId, payload.authData);
+      authShard = {
+        deviceId: payload.deviceId,
+        data: keyShare,
+      };
+      await this.shardingService.storeAuthKeyShardLocally(authShard);
+    }
+    const { privateKey, publicKey } = await this.shardingService.reconstructKey(
+      authShard,
+      payload.data.chainLayer
+    );
+    if (payload.data.chainLayer === 'solana') {
+      const signature = await this.ed25519Service.signMessage(payload.data.message, privateKey);
+      return { signature, publicKey };
+    }
+    throw new Error('Chain layer not implemented');
+  }
 }
 
 export class SignTransactionEventHandler extends BaseEventHandler<'sign-transaction'> {

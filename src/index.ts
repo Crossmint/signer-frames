@@ -12,6 +12,7 @@ import {
   SignMessageEventHandler,
   SignTransactionEventHandler,
 } from './services/handlers';
+import { Ed25519Service } from './services/ed25519';
 
 // Define window augmentation
 declare global {
@@ -30,11 +31,12 @@ class XMIF {
     private readonly storageService = new StorageService(),
     private readonly crossmintApiService = new CrossmintApiService(),
     private readonly shardingService = new ShardingService(storageService, crossmintApiService),
+    private readonly ed25519Service = new Ed25519Service(),
     private readonly handlers = [
       new CreateSignerEventHandler(crossmintApiService),
       new SendOtpEventHandler(crossmintApiService, shardingService),
       new GetPublicKeyEventHandler(crossmintApiService, shardingService),
-      new SignMessageEventHandler(),
+      new SignMessageEventHandler(crossmintApiService, shardingService, ed25519Service),
       new SignTransactionEventHandler(),
     ]
   ) {}

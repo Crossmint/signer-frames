@@ -13,6 +13,7 @@
     "@crossmint/client-sdk-window": "0.2.3",
     "@crossmint/client-signers": "0.0.3",
     "@radix-ui/react-dialog": "^1.1.11",
+    "@radix-ui/themes": "^3.2.1",
     "@solana/web3.js": "^1.98.1",
     "@tailwindcss/postcss": "^4.1.4",
     "bs58": "^6.0.0",
