@@ -16,5 +16,5 @@
     "checkJs": false
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "src/lib/ed-25519", "src/lib/hpke-core"]
+  "exclude": ["node_modules", "dist", "src/lib/ed-25519", "src/lib/hpke-core", "**/*.test.ts"]
 }

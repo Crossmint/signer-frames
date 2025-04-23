@@ -129,3 +129,23 @@ export function base58Decode(str: string): Uint8Array {
 
   return result;
 }
+
+/**
+ * Decode a Base64 string to Uint8Array
+ * @param {string} str - Base64 encoded string
+ * @returns {Uint8Array} Decoded data
+ */
+export function base64Decode(str: string): Uint8Array {
+  // For browsers
+  if (typeof window !== 'undefined') {
+    const binary = window.atob(str);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+  }
+
+  // For Node.js (though not needed in browser context)
+  throw new Error('Base64 decoding in Node.js environment not implemented');
+}

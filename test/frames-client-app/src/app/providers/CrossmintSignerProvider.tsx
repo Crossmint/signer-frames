@@ -254,7 +254,7 @@ export default function CrossmintSignerProvider({
         version: 1,
         jwt,
         apiKey,
-        authId: `EMAIL:${user?.email}`,
+        authId: `email:${user?.email}`,
       },
     });
   };

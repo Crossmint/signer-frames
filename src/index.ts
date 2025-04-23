@@ -2,8 +2,13 @@
  * XMIF - Main Framework Entry Point
  */
 
+import { combine } from 'shamir-secret-sharing';
 import { EventsService, StorageService, CrossmintApiService } from './services';
-import type { StorageItem } from './services/storage';
+import type { StorageItem, Stores } from './services/storage';
+import { getPublicKey } from '@noble/ed25519';
+import { base58Encode, base64Decode } from './utils';
+const TMP_DEVICE_ID = '123456789';
+const TMP_CROSSMIINT_URL = 'http://localhost:3000';
 
 // Define window augmentation
 declare global {
@@ -20,7 +25,7 @@ class XMIF {
   constructor(
     private readonly eventsService = new EventsService(),
     private readonly storageService = new StorageService(),
-    private readonly crossmintApiService = new CrossmintApiService()
+    private readonly crossmintApiService = new CrossmintApiService(TMP_CROSSMIINT_URL)
   ) {}
 
   /**
@@ -40,20 +45,20 @@ class XMIF {
 
   /**
    * Get all items from a specified store
-   * @param {string} storeName - The name of the object store
+   * @param {Stores} storeName - The name of the object store
    * @returns {Promise<StorageItem[]>} A promise that resolves to an array of items
    */
-  async listItems(storeName: string): Promise<StorageItem[]> {
+  async listItems(storeName: Stores): Promise<StorageItem[]> {
     return this.storageService.listItems(storeName);
   }
 
   /**
    * Get a specific item from a store
-   * @param {string} storeName - The name of the object store
+   * @param {Stores} storeName - The name of the object store
    * @param {string} id - The ID of the item to retrieve
    * @returns {Promise<StorageItem | null>} A promise that resolves to the item or null
    */
-  async getItem(storeName: string, id: string): Promise<StorageItem | null> {
+  async getItem(storeName: Stores, id: string): Promise<StorageItem | null> {
     return this.storageService.getItem(storeName, id);
   }
 
@@ -61,7 +66,20 @@ class XMIF {
     const messenger = this.eventsService.getMessenger();
     messenger.on('request:create-signer', async data => {
       console.log('Received create-signer request:', data);
-      throw new Error('Not implemented');
+      const response = await this.crossmintApiService.createSigner(
+        TMP_DEVICE_ID,
+        {
+          jwt: data.jwt,
+          apiKey: data.apiKey,
+        },
+        {
+          authId: data.authId,
+        }
+      );
+      console.log('Response:', response);
+      messenger.send('response:create-signer', {
+        signerId: 'hello from the iframe',
+      });
     });
     messenger.on('request:get-attestation', async data => {
       console.log('Received get-attestation request:', data);
@@ -69,7 +87,6 @@ class XMIF {
     });
     messenger.on('request:sign-message', async data => {
       console.log('Received sign-message request:', data);
-      throw new Error('Not implemented');
     });
     messenger.on('request:sign-transaction', async data => {
       console.log('Received sign-transaction request:', data);
@@ -77,8 +94,38 @@ class XMIF {
     });
     messenger.on('request:send-otp', async data => {
       console.log('Received send-otp request:', data);
-      throw new Error('Not implemented');
+      const response = await this.crossmintApiService.sendOtp(
+        TMP_DEVICE_ID,
+        {
+          jwt: data.jwt,
+          apiKey: data.apiKey,
+        },
+        {
+          otp: data.encryptedOtp,
+        }
+      );
+      console.log('Response:', response);
+      const deviceShard = response.shares.device;
+      const authShard = response.shares.auth;
+      // await this.storageService.storeItem(Stores.DEVICE_SHARES, {
+      //   shard: deviceShard,
+      //   id: TMP_DEVICE_ID,
+      // });
+
+      const privkey = await combine([base64Decode(deviceShard), base64Decode(authShard)]);
+      const address = base58Encode(await getPublicKey(privkey));
+
+      messenger.send('response:send-otp', {
+        encryptedOtp: 'hello from the iframe',
+        address,
+      });
     });
+    // messenger.on('request:get-public-key', async data => {
+    //   console.log('Received get-public-key request:', data);
+    //   messenger.send('response:get-public-key', {
+    //     publicKey: '',
+    //   });
+    // });
   }
 }
 

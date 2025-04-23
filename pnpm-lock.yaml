@@ -12,14 +12,17 @@ importers:
         specifier: 0.2.3
         version: 0.2.3
       '@crossmint/client-signers':
-        specifier: 0.0.1
-        version: 0.0.1
+        specifier: file://Users/albertogarciaplanes/Repositories/crossmint-sdk/packages/client/signers
+        version: file:../crossmint-sdk/packages/client/signers
       '@noble/ed25519':
         specifier: ^1.7.2
         version: 1.7.5
       '@noble/hashes':
         specifier: ^1.7.2
         version: 1.7.2
+      shamir-secret-sharing:
+        specifier: ^0.0.4
+        version: 0.0.4
       zod:
         specifier: 3.22.4
         version: 3.22.4
@@ -129,8 +132,8 @@ packages:
   '@crossmint/client-sdk-window@0.2.3':
     resolution: {integrity: sha512-Xh2F7z8ddKCEZPuuRxjHwGSy1x3JpGn3LX7PKX764UuknbDSqruiSJhONY6dY6eelfyY/glyFEnAkCXi3SVnxw==}
 
-  '@crossmint/client-signers@0.0.1':
-    resolution: {integrity: sha512-jHd547vDir1QEEVKQHtdksFE3ARDKDI6XklpKUa0Fom5KPY6HnmF0DeH8mA3VMizZrOCJ93c5yOz2ebz7JAWbw==}
+  '@crossmint/client-signers@file:../crossmint-sdk/packages/client/signers':
+    resolution: {directory: ../crossmint-sdk/packages/client/signers, type: directory}
 
   '@csstools/color-helpers@5.0.2':
     resolution: {integrity: sha512-JqWH1vsgdGcw2RR6VliXXdA0/59LttzlU8UlRT/iUUsEeWfYq8I+K0yhihEUTTHLRm1EXvpsCx3083EU15ecsA==}
@@ -1776,6 +1779,9 @@ packages:
     engines: {node: '>= 14'}
     hasBin: true
 
+  shamir-secret-sharing@0.0.4:
+    resolution: {integrity: sha512-ui8u/cIg2j16b9on/LH3V/glL6wHdwiTo/Iajzqx0STniBvuOzl6VYUxhrow3waF0dggovJfYiBZSWfTAN4XLQ==}
+
   shebang-command@2.0.0:
     resolution: {integrity: sha512-kHxr2zZpYtdmrN1qDjrrX/Z1rR1kG8Dx+gkpK1G4eXmvXswmcE1hTWBWYUzlraYw1/yZp6YuDY77YtvbN0dmDA==}
     engines: {node: '>=8'}
@@ -2226,7 +2232,7 @@ snapshots:
       nanoid: 5.0.9
       zod: 3.22.4
 
-  '@crossmint/client-signers@0.0.1':
+  '@crossmint/client-signers@file:../crossmint-sdk/packages/client/signers':
     dependencies:
       zod: 3.22.4
 
@@ -3815,6 +3821,8 @@ snapshots:
       update-check: 1.5.4
     transitivePeerDependencies:
       - supports-color
+
+  shamir-secret-sharing@0.0.4: {}
 
   shebang-command@2.0.0:
     dependencies:

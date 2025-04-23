@@ -1,18 +1,19 @@
 import { HandshakeChild, type HandshakeOptions } from '@crossmint/client-sdk-window';
-import { SecureSignerInboundEvents, SecureSignerOutboundEvents } from '@crossmint/client-signers';
+import {
+  type SecureSignerInboundEvents,
+  type SecureSignerOutboundEvents,
+  secureSignerInboundEvents,
+  secureSignerOutboundEvents,
+} from '@crossmint/client-signers';
 import type { z } from 'zod';
 
 const EVENT_VERSION = 1;
 
-type IncomingEvents = typeof SecureSignerInboundEvents;
-type OutgoingEvents = typeof SecureSignerOutboundEvents;
-type IncomingEventName = keyof IncomingEvents;
-type OutgoingEventName = keyof OutgoingEvents;
-type IncomingEventData<K extends IncomingEventName> = z.infer<IncomingEvents[K]>;
-type OutgoingEventData<K extends OutgoingEventName> = z.infer<OutgoingEvents[K]>;
-
 export class EventsService {
-  private static messenger: HandshakeChild<IncomingEvents, OutgoingEvents> | null = null;
+  private static messenger: HandshakeChild<
+    SecureSignerInboundEvents,
+    SecureSignerOutboundEvents
+  > | null = null;
 
   /**
    * Initialize the messenger and register event handlers
@@ -28,30 +29,13 @@ export class EventsService {
     }
 
     EventsService.messenger = new HandshakeChild(window.parent, '*', {
-      incomingEvents: SecureSignerInboundEvents,
-      outgoingEvents: SecureSignerOutboundEvents,
+      incomingEvents: secureSignerInboundEvents,
+      outgoingEvents: secureSignerOutboundEvents,
       handshakeOptions: options?.handshakeOptions,
       targetOrigin: options?.targetOrigin,
     });
 
     await EventsService.messenger.handshakeWithParent();
-  }
-
-  /**
-   * Register a single event handler with proper typing
-   * @param event The event name to listen for
-   * @param handler The handler function with correct parameter and return types
-   * @returns Handler ID
-   */
-  registerHandler<K extends IncomingEventName>(
-    event: K,
-    handler: (
-      data: IncomingEventData<K>
-    ) => Promise<OutgoingEventData<`response:${K extends `request:${infer R}` ? R : never}`>>
-  ): string {
-    this.assertMessengerInitialized();
-    const messenger = EventsService.messenger as NonNullable<typeof EventsService.messenger>;
-    return messenger.on(event, handler);
   }
 
   /**

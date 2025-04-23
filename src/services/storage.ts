@@ -8,16 +8,16 @@ export interface StorageItem {
   [key: string]: unknown;
 }
 
-enum Stores {
-  KEYS = 'keys',
-  SETTINGS = 'settings',
+export enum Stores {
+  SETTINGS = 'Settings',
+  DEVICE_SHARES = 'DeviceShares',
 }
 import { ApplicationError } from '../errors';
 
 // Constants
 const DB_NAME = 'CrossmintVault';
 const DB_VERSION = 1;
-const KEYS_STORE = Stores.KEYS;
+const DEVICE_SHARES_STORE = Stores.DEVICE_SHARES;
 
 interface StoredItem {
   readonly value: string;
@@ -42,7 +42,7 @@ export class StorageService {
     this.dbOptions = {
       name: options?.name || DB_NAME,
       version: options?.version || DB_VERSION,
-      stores: [KEYS_STORE],
+      stores: [DEVICE_SHARES_STORE],
     };
   }
 
@@ -81,8 +81,8 @@ export class StorageService {
           const database = (event.target as IDBOpenDBRequest).result;
 
           // Create object stores if they don't exist
-          if (!database.objectStoreNames.contains(KEYS_STORE)) {
-            const keyStore = database.createObjectStore(KEYS_STORE, {
+          if (!database.objectStoreNames.contains(DEVICE_SHARES_STORE)) {
+            const keyStore = database.createObjectStore(DEVICE_SHARES_STORE, {
               keyPath: 'id',
             });
             keyStore.createIndex('type', 'type', { unique: false });
@@ -105,12 +105,12 @@ export class StorageService {
 
   /**
    * Store an item in IndexedDB with expiry
-   * @param {string} storeName - The name of the object store
+   * @param {Stores} storeName - The name of the object store
    * @param {StorageItem} item - The item to store
    * @param {number} [expiresIn] - Optional time in milliseconds until the item expires
    * @returns {Promise<StorageItem>} A promise that resolves when the item is stored
    */
-  async storeItem(storeName: string, item: StorageItem, expiresIn?: number): Promise<StorageItem> {
+  async storeItem(storeName: Stores, item: StorageItem, expiresIn?: number): Promise<StorageItem> {
     if (!item.id) {
       throw new Error('Data must have an id property');
     }
@@ -151,11 +151,11 @@ export class StorageService {
 
   /**
    * Retrieve an item from IndexedDB
-   * @param {string} storeName - The name of the object store
+   * @param {Stores} storeName - The name of the object store
    * @param {string} id - The ID of the item to retrieve
    * @returns {Promise<StorageItem | null>} A promise that resolves to the retrieved item
    */
-  async getItem(storeName: string, id: string): Promise<StorageItem | null> {
+  async getItem(storeName: Stores, id: string): Promise<StorageItem | null> {
     try {
       const database = await this.initDatabase();
 
@@ -198,11 +198,11 @@ export class StorageService {
 
   /**
    * Delete an item from IndexedDB
-   * @param {string} storeName - The name of the object store
+   * @param {Stores} storeName - The name of the object store
    * @param {string} id - The ID of the item to delete
    * @returns {Promise<void>} A promise that resolves when the item is deleted
    */
-  async deleteItem(storeName: string, id: string): Promise<void> {
+  async deleteItem(storeName: Stores, id: string): Promise<void> {
     try {
       const database = await this.initDatabase();
 
@@ -233,10 +233,10 @@ export class StorageService {
 
   /**
    * List all items in an IndexedDB store
-   * @param {string} storeName - The name of the object store
+   * @param {Stores} storeName - The name of the object store
    * @returns {Promise<StorageItem[]>} A promise that resolves to an array of items
    */
-  async listItems(storeName: string): Promise<StorageItem[]> {
+  async listItems(storeName: Stores): Promise<StorageItem[]> {
     try {
       const database = await this.initDatabase();
 
@@ -303,12 +303,12 @@ export class StorageService {
 
   /**
    * Store a time-limited item in IndexedDB
-   * @param {string} storeName - The name of the object store
+   * @param {Stores} storeName - The name of the object store
    * @param {StorageItem} item - The item to store
    * @param {number} ttl - Time to live in milliseconds
    * @returns {Promise<StorageItem>} A promise that resolves when the item is stored
    */
-  async storeWithExpiry(storeName: string, item: StorageItem, ttl: number): Promise<StorageItem> {
+  async storeWithExpiry(storeName: Stores, item: StorageItem, ttl: number): Promise<StorageItem> {
     return this.storeItem(storeName, item, ttl);
   }
 }
