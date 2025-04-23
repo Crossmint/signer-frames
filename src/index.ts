@@ -29,14 +29,11 @@ class XMIF {
     private readonly eventsService = new EventsService(),
     private readonly storageService = new StorageService(),
     private readonly crossmintApiService = new CrossmintApiService(),
-    private readonly shardingService = new ShardingService(
-      this.storageService,
-      this.crossmintApiService
-    ),
+    private readonly shardingService = new ShardingService(storageService, crossmintApiService),
     private readonly handlers = [
-      new CreateSignerEventHandler(this.crossmintApiService),
-      new SendOtpEventHandler(this.crossmintApiService, this.shardingService),
-      new GetPublicKeyEventHandler(this.crossmintApiService, this.shardingService),
+      new CreateSignerEventHandler(crossmintApiService),
+      new SendOtpEventHandler(crossmintApiService, shardingService),
+      new GetPublicKeyEventHandler(crossmintApiService, shardingService),
       new SignMessageEventHandler(),
       new SignTransactionEventHandler(),
     ]
@@ -85,7 +82,12 @@ class XMIF {
   private registerHandlers() {
     const messenger = this.eventsService.getMessenger();
     for (const handler of this.handlers) {
-      messenger.onAction(handler);
+      messenger.on(handler.event, async payload => {
+        // @ts-expect-error The payload types from different handlers are incompatible
+        // but at runtime each handler only receives payloads it can handle
+        const response = await handler.handler(payload);
+        messenger.send(handler.responseEvent, response);
+      });
     }
   }
 }

@@ -17,8 +17,7 @@ import { ApplicationError } from '../errors';
 
 // Constants
 const DB_NAME = 'CrossmintVault';
-const DB_VERSION = 1;
-const DEVICE_SHARES_STORE = Stores.DEVICE_SHARES;
+const DB_VERSION = 2;
 
 interface StoredItem {
   readonly value: string;
@@ -43,7 +42,7 @@ export class StorageService {
     this.dbOptions = {
       name: options?.name || DB_NAME,
       version: options?.version || DB_VERSION,
-      stores: [DEVICE_SHARES_STORE],
+      stores: [Stores.DEVICE_SHARES, Stores.AUTH_SHARES, Stores.SETTINGS],
     };
   }
 
@@ -81,13 +80,16 @@ export class StorageService {
         request.onupgradeneeded = event => {
           const database = (event.target as IDBOpenDBRequest).result;
 
-          // Create object stores if they don't exist
-          if (!database.objectStoreNames.contains(DEVICE_SHARES_STORE)) {
-            const keyStore = database.createObjectStore(DEVICE_SHARES_STORE, {
-              keyPath: 'id',
-            });
-            keyStore.createIndex('type', 'type', { unique: false });
-            keyStore.createIndex('created', 'created', { unique: false });
+          // Create all needed object stores if they don't exist
+          for (const storeName of this.dbOptions.stores) {
+            if (!database.objectStoreNames.contains(storeName)) {
+              console.log(`Creating object store: ${storeName}`);
+              const store = database.createObjectStore(storeName, {
+                keyPath: 'id',
+              });
+              store.createIndex('type', 'type', { unique: false });
+              store.createIndex('created', 'created', { unique: false });
+            }
           }
         };
       } catch (error) {
@@ -124,24 +126,40 @@ export class StorageService {
 
     try {
       const database = await this.initDatabase();
+      console.log('Database opened. Available stores:', Array.from(database.objectStoreNames));
+      console.log(`Attempting to use store: ${storeName}`);
 
       return new Promise((resolve, reject) => {
-        const transaction = database.transaction([storeName], 'readwrite');
-        const store = transaction.objectStore(storeName);
+        try {
+          const transaction = database.transaction([storeName], 'readwrite');
+          const store = transaction.objectStore(storeName);
 
-        const request = store.put(itemToStore);
+          const request = store.put(itemToStore);
 
-        request.onsuccess = () => resolve(itemToStore);
-        request.onerror = () =>
+          request.onsuccess = () => resolve(itemToStore);
+          request.onerror = event => {
+            console.error('Error in store.put:', event);
+            reject(
+              new ApplicationError(
+                `Failed to store item: ${request.error?.message || 'Unknown error'}`,
+                'DB_STORE_ERROR',
+                request.error
+              )
+            );
+          };
+        } catch (err) {
+          console.error('Error creating transaction:', err);
           reject(
             new ApplicationError(
-              `Failed to store item: ${request.error?.message || 'Unknown error'}`,
-              'DB_STORE_ERROR',
-              request.error
+              `Transaction failed: ${err instanceof Error ? err.message : String(err)}`,
+              'DB_TRANSACTION_ERROR',
+              err
             )
           );
+        }
       });
     } catch (error) {
+      console.error('Error in storeItem:', error);
       throw new ApplicationError(
         `Storage operation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'STORAGE_ERROR',

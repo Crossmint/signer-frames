@@ -4,3 +4,4 @@
 export { EventsService } from './events';
 export { StorageService } from './storage';
 export { CrossmintApiService } from './api';
+export { ShardingService } from './sharding-service';

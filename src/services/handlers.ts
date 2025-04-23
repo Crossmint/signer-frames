@@ -32,11 +32,9 @@ abstract class BaseEventHandler<EventName extends SignerIFrameEventName> {
   abstract responseEvent: `response:${EventName}`;
   abstract handler(payload: SignerInputEvent<EventName>): Promise<SignerOutputEvent<EventName>>;
   async callback(payload: SignerInputEvent<EventName>): Promise<SignerOutputEvent<EventName>> {
-    console.log('callback', payload);
     const result = await measureFunctionTime(`[${this.event} handler]`, async () =>
       this.handler(payload)
     );
-    console.log('result', result);
     return result;
   }
   options = {
@@ -50,10 +48,13 @@ export class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> 
   }
   event = 'request:create-signer' as const;
   responseEvent = 'response:create-signer' as const;
-  handler = async (payload: SignerInputEvent<'create-signer'>) => {
+  async handler(payload: SignerInputEvent<'create-signer'>) {
+    if (!this.api) {
+      throw new Error('API service is not available');
+    }
     await this.api.createSigner(payload.deviceId, payload.authData, payload.data);
     return {};
-  };
+  }
 }
 
 export class SendOtpEventHandler extends BaseEventHandler<'send-otp'> {

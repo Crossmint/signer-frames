@@ -549,3 +549,186 @@ describe('StorageService', () => {
     });
   });
 });
+
+describe('StorageService Database Initialization', () => {
+  // Mock IDB with proper TypeScript types
+  interface MockObjectStore {
+    name: string;
+    keyPath: string;
+    createIndex: ReturnType<typeof vi.fn>;
+  }
+
+  let mockIDBDatabase: {
+    objectStoreNames: { contains: (name: string) => boolean };
+    createObjectStore: ReturnType<typeof vi.fn>;
+  };
+  let mockIDBObjectStoreNames: string[] = [];
+  let mockObjectStores: Map<string, MockObjectStore> = new Map();
+  let createObjectStoreSpy: ReturnType<typeof vi.spyOn>;
+  let mockOpenDBRequest: {
+    onupgradeneeded: ((event: Event) => void) | null;
+    onsuccess: ((event: Event) => void) | null;
+    onerror: ((event: Event) => void) | null;
+  };
+  let openSpy: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    // Reset storage DB by accessing the property via a method
+    // Use Object.defineProperty directly instead of casting
+    Object.defineProperty(StorageService, 'db', { value: null, writable: true });
+
+    // Reset mock collections
+    mockIDBObjectStoreNames = [];
+    mockObjectStores = new Map();
+
+    // Mock IDB database
+    mockIDBDatabase = {
+      objectStoreNames: {
+        contains: (name: string) => mockIDBObjectStoreNames.includes(name),
+      },
+      createObjectStore: vi.fn((name, options) => {
+        mockIDBObjectStoreNames.push(name);
+        const mockStore = {
+          name,
+          keyPath: options.keyPath,
+          createIndex: vi.fn(),
+        };
+        mockObjectStores.set(name, mockStore);
+        return mockStore;
+      }),
+    };
+
+    createObjectStoreSpy = vi.spyOn(mockIDBDatabase, 'createObjectStore');
+
+    // Mock the indexedDB.open
+    mockOpenDBRequest = {
+      onupgradeneeded: null,
+      onsuccess: null,
+      onerror: null,
+    };
+
+    openSpy = vi.fn().mockReturnValue(mockOpenDBRequest);
+
+    // Replace global indexedDB
+    vi.stubGlobal('indexedDB', {
+      open: openSpy,
+    });
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('should create all required stores when initializing the database', async () => {
+    // Arrange
+    const storageService = new StorageService();
+    let upgradeCalled = false;
+
+    // Use proper type instead of Function
+    let dbPromiseResolve: (value: void | PromiseLike<void>) => void;
+
+    const dbPromise = new Promise<void>(resolve => {
+      dbPromiseResolve = resolve;
+    });
+
+    // Act - Start database initialization
+    const promise = storageService.initDatabase();
+
+    // Verify open was called with correct params
+    expect(openSpy).toHaveBeenCalledWith('CrossmintVault', 2);
+
+    // Simulate onupgradeneeded with proper type casting
+    mockOpenDBRequest.onupgradeneeded?.({
+      target: {
+        result: mockIDBDatabase,
+      },
+    } as unknown as Event);
+
+    // Mark upgrade as called
+    upgradeCalled = true;
+
+    // Simulate onsuccess with proper type casting
+    mockOpenDBRequest.onsuccess?.({
+      target: {
+        result: mockIDBDatabase,
+      },
+    } as unknown as Event);
+
+    // Wait for the initialization promise
+    await promise;
+
+    // Assert
+    expect(upgradeCalled).toBe(true);
+
+    // Check that all required stores were created
+    expect(mockIDBObjectStoreNames).toContain(Stores.DEVICE_SHARES);
+    expect(mockIDBObjectStoreNames).toContain(Stores.AUTH_SHARES);
+    expect(mockIDBObjectStoreNames).toContain(Stores.SETTINGS);
+
+    // Verify correct options were used
+    const deviceStore = mockObjectStores.get(Stores.DEVICE_SHARES);
+    // Check if deviceStore exists before accessing properties
+    expect(deviceStore).toBeDefined();
+    if (deviceStore) {
+      expect(deviceStore.keyPath).toBe('id');
+      expect(deviceStore.createIndex).toHaveBeenCalledWith('type', 'type', { unique: false });
+      expect(deviceStore.createIndex).toHaveBeenCalledWith('created', 'created', { unique: false });
+    }
+
+    const authStore = mockObjectStores.get(Stores.AUTH_SHARES);
+    expect(authStore).toBeDefined();
+    if (authStore) {
+      expect(authStore.keyPath).toBe('id');
+    }
+  });
+
+  it('should not create stores if they already exist', async () => {
+    // Arrange - Simulate stores already existing
+    mockIDBObjectStoreNames = [Stores.DEVICE_SHARES, Stores.AUTH_SHARES, Stores.SETTINGS];
+
+    const storageService = new StorageService();
+
+    // Act - Start database initialization
+    const promise = storageService.initDatabase();
+
+    // Simulate onupgradeneeded with proper type casting
+    mockOpenDBRequest.onupgradeneeded?.({
+      target: {
+        result: mockIDBDatabase,
+      },
+    } as unknown as Event);
+
+    // Simulate onsuccess with proper type casting
+    mockOpenDBRequest.onsuccess?.({
+      target: {
+        result: mockIDBDatabase,
+      },
+    } as unknown as Event);
+
+    // Wait for the initialization promise
+    await promise;
+
+    // Assert - createObjectStore should not have been called
+    expect(createObjectStoreSpy).not.toHaveBeenCalled();
+  });
+
+  it('should handle initialization errors', async () => {
+    // Arrange
+    const storageService = new StorageService();
+    const error = new Error('DB initialization failed');
+
+    // Act - Start database initialization
+    const promise = storageService.initDatabase();
+
+    // Simulate onerror with proper type casting
+    mockOpenDBRequest.onerror?.({
+      target: {
+        error,
+      },
+    } as unknown as Event);
+
+    // Assert - Promise should reject
+    await expect(promise).rejects.toThrow('Failed to open database');
+  });
+});

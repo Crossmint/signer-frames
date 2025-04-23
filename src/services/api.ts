@@ -4,7 +4,7 @@
 
 export class CrossmintApiService {
   constructor(
-    private readonly url = 'https://alb-deploy-for-testing.icyforest-9fbfd6c0.eastus2.azurecontainerapps.io/'
+    private readonly url = 'https://alb-deploy-for-testing.icyforest-9fbfd6c0.eastus2.azurecontainerapps.io'
   ) {}
 
   async init() {}

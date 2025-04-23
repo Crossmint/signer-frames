@@ -5,10 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
+
     <title>🔑 Crossmint Signers Vault</title>
     <link rel="stylesheet" href="css/styles.css?v=1.0.0">
     <!-- For production use: -->
-    <script src="dist/bundle.min.js?v=1.0.0"></script>
+    <script src="dist/bundle.min.js?v=1.0.2"></script>
     
     <!-- For development use (uncomment when debugging): -->
     <!-- <script src="dist/bundle.js"></script> -->
@@ -92,12 +93,6 @@
                     
                     // Set up event logging
                     setupEventLog();
-                    
-                    // Load key shards
-                    loadKeyShards();
-                    
-                    // Set up refresh button
-                    document.getElementById('refresh-keys').addEventListener('click', loadKeyShards);
                 })
                 .catch(err => {
                     console.error('Failed to initialize XMIF:', err);
@@ -148,84 +143,6 @@
                 const firstItem = eventLog.querySelector('.event-item');
                 if (firstItem && firstItem.textContent.includes('Waiting for events...')) {
                     eventLog.removeChild(firstItem);
-                }
-            }
-            
-            // Load key shards from IndexedDB
-            function loadKeyShards() {
-                const tableBody = document.getElementById('keys-table-body');
-                tableBody.innerHTML = '<tr><td colspan="4" class="loading-message">Loading key shards...</td></tr>';
-                
-                if (!window.XMIF) {
-                    tableBody.innerHTML = '<tr><td colspan="4" class="error-message">XMIF framework not available</td></tr>';
-                    logEvent('Error', 'XMIF framework not available', true);
-                    return;
-                }
-                
-                try {
-                    // Use the exposed XMIF.listItems method
-                    window.XMIF.listItems('keys')
-                        .then(items => {
-                            if (!items || items.length === 0) {
-                                tableBody.innerHTML = '<tr><td colspan="4" class="empty-message">No key shards found</td></tr>';
-                                logEvent('Storage', 'No key shards found in database');
-                                return;
-                            }
-                            
-                            // Clear the table
-                            tableBody.innerHTML = '';
-                            
-                            // Add each key shard to the table
-                            items.forEach(item => {
-                                const row = document.createElement('tr');
-                                
-                                // ID column
-                                const idCell = document.createElement('td');
-                                idCell.textContent = item.id.substring(0, 8) + '...'; // Truncate long IDs
-                                idCell.title = item.id; // Show full ID on hover
-                                row.appendChild(idCell);
-                                
-                                // Type column
-                                const typeCell = document.createElement('td');
-                                typeCell.textContent = item.type || 'N/A';
-                                row.appendChild(typeCell);
-                                
-                                // Created column
-                                const createdCell = document.createElement('td');
-                                createdCell.textContent = item.created 
-                                    ? new Date(item.created).toLocaleString() 
-                                    : 'N/A';
-                                row.appendChild(createdCell);
-                                
-                                // Data column
-                                const dataCell = document.createElement('td');
-                                const jsonViewer = document.createElement('div');
-                                jsonViewer.className = 'json-viewer';
-                                
-                                // Create a sanitized view of the data
-                                const displayData = { ...item };
-                                delete displayData.id; // Already displayed in ID column
-                                delete displayData.type; // Already displayed in Type column
-                                delete displayData.created; // Already displayed in Created column
-                                
-                                jsonViewer.textContent = JSON.stringify(displayData, null, 2);
-                                dataCell.appendChild(jsonViewer);
-                                row.appendChild(dataCell);
-                                
-                                tableBody.appendChild(row);
-                            });
-                            
-                            logEvent('Storage', `Loaded ${items.length} key shard(s)`);
-                        })
-                        .catch(err => {
-                            console.error('Error loading key shards:', err);
-                            tableBody.innerHTML = `<tr><td colspan="4" class="error-message">Error loading key shards: ${err.message || 'Unknown error'}</td></tr>`;
-                            logEvent('Error', `Failed to load key shards: ${err.message || 'Unknown error'}`, true);
-                        });
-                } catch (err) {
-                    console.error('Error accessing database:', err);
-                    tableBody.innerHTML = `<tr><td colspan="4" class="error-message">Error accessing database: ${err.message || 'Unknown error'}</td></tr>`;
-                    logEvent('Error', `Failed to access database: ${err.message || 'Unknown error'}`, true);
                 }
             }
         });

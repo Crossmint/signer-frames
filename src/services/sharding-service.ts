@@ -114,7 +114,7 @@ export class ShardingService {
     expiresIn: number = 60 * 5 * 1_000 // 5 mins
   ): Promise<void> {
     await this.storageService.storeItem(
-      Stores.DEVICE_SHARES,
+      storeName,
       {
         id: shard.deviceId,
         data: shard.data,
@@ -146,7 +146,7 @@ export class ShardingService {
   private async getShardFromStore(storeName: Stores, shardId: string): Promise<KeyShard | null> {
     const item = await this.storageService.getItem(storeName, shardId);
 
-    if (!item || !item.shard) {
+    if (!item) {
       return null;
     }
 
