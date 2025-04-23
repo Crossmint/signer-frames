@@ -3,9 +3,8 @@
  */
 
 export class CrossmintApiService {
-  constructor(
-    private readonly url = 'https://alb-deploy-for-testing.icyforest-9fbfd6c0.eastus2.azurecontainerapps.io'
-  ) {}
+  // TODO: this url should be JWT-based
+  constructor(private readonly url = 'https://staging.crossmint.com') {}
 
   async init() {}
 
