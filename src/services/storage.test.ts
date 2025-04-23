@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mock } from 'vitest-mock-extended';
-import { StorageService, type StorageItem } from './storage';
+import { StorageService, type StorageItem, Stores } from './storage';
 import { ApplicationError } from '../errors';
 
 // Create mocks
@@ -64,9 +64,9 @@ describe('StorageService', () => {
       });
 
       // Execute and verify
-      const result = await storage.storeItem('keys', item);
+      const result = await storage.storeItem(Stores.SETTINGS, item);
       expect(result).toEqual(item);
-      expect(mockDatabase.transaction).toHaveBeenCalledWith(['keys'], 'readwrite');
+      expect(mockDatabase.transaction).toHaveBeenCalledWith([Stores.SETTINGS], 'readwrite');
       expect(mockObjectStore.put).toHaveBeenCalledWith(item);
     });
 
@@ -76,7 +76,7 @@ describe('StorageService', () => {
       const invalidItem = { name: 'No ID' } as unknown as StorageItem;
 
       // Test and verify
-      await expect(storage.storeItem('keys', invalidItem)).rejects.toThrow(
+      await expect(storage.storeItem(Stores.SETTINGS, invalidItem)).rejects.toThrow(
         'Data must have an id property'
       );
     });
@@ -104,9 +104,9 @@ describe('StorageService', () => {
       });
 
       // Execute and verify
-      const result = await storage.getItem('keys', 'test-id');
+      const result = await storage.getItem(Stores.SETTINGS, 'test-id');
       expect(result).toEqual(item);
-      expect(mockDatabase.transaction).toHaveBeenCalledWith(['keys'], 'readonly');
+      expect(mockDatabase.transaction).toHaveBeenCalledWith([Stores.SETTINGS], 'readonly');
       expect(mockObjectStore.get).toHaveBeenCalledWith('test-id');
     });
 
@@ -127,8 +127,8 @@ describe('StorageService', () => {
       });
 
       // Execute and verify
-      await storage.deleteItem('keys', 'test-id');
-      expect(mockDatabase.transaction).toHaveBeenCalledWith(['keys'], 'readwrite');
+      await storage.deleteItem(Stores.SETTINGS, 'test-id');
+      expect(mockDatabase.transaction).toHaveBeenCalledWith([Stores.SETTINGS], 'readwrite');
       expect(mockObjectStore.delete).toHaveBeenCalledWith('test-id');
     });
 
@@ -158,9 +158,9 @@ describe('StorageService', () => {
       });
 
       // Execute and verify
-      const result = await storage.listItems('keys');
+      const result = await storage.listItems(Stores.SETTINGS);
       expect(result).toEqual(items);
-      expect(mockDatabase.transaction).toHaveBeenCalledWith(['keys'], 'readonly');
+      expect(mockDatabase.transaction).toHaveBeenCalledWith([Stores.SETTINGS], 'readonly');
       expect(mockObjectStore.getAll).toHaveBeenCalled();
     });
 
@@ -188,7 +188,7 @@ describe('StorageService', () => {
       });
 
       // Execute
-      const result = await storage.storeItem('keys', item, expiresIn);
+      const result = await storage.storeItem(Stores.SETTINGS, item, expiresIn);
 
       // Verify
       expect(result).toHaveProperty('expires', now + expiresIn);
@@ -235,11 +235,11 @@ describe('StorageService', () => {
       });
 
       // Execute
-      const result = await storage.getItem('keys', 'expired-id');
+      const result = await storage.getItem(Stores.SETTINGS, 'expired-id');
 
       // Verify
       expect(result).toBeNull();
-      expect(deleteItemSpy).toHaveBeenCalledWith('keys', 'expired-id');
+      expect(deleteItemSpy).toHaveBeenCalledWith(Stores.SETTINGS, 'expired-id');
     });
 
     it('should filter out expired items when listing', async () => {
@@ -278,167 +278,274 @@ describe('StorageService', () => {
       });
 
       // Execute
-      const result = await storage.listItems('keys');
+      const result = await storage.listItems(Stores.SETTINGS);
 
       // Verify
       expect(result).toHaveLength(2); // Only non-expired items
       expect(result[0].id).toBe('item1');
       expect(result[1].id).toBe('item2');
-      expect(deleteItemSpy).toHaveBeenCalledWith('keys', 'item3');
+      expect(deleteItemSpy).toHaveBeenCalledWith(Stores.SETTINGS, 'item3');
     });
-  });
 
-  describe('storeWithExpiry', () => {
-    it('should call storeItem with the correct ttl parameter', async () => {
+    it('should list items and filter out expired items', async () => {
+      // Setup
+      const storage = new StorageService();
+      const now = 1625097600000; // Fixed timestamp for testing
+
+      const items: StorageItem[] = [
+        { id: 'item1', name: 'Item 1' },
+        { id: 'item2', name: 'Item 2', expires: now - 1000 }, // expired
+        { id: 'item3', name: 'Item 3' },
+      ];
+
+      // Mock Date.now
+      vi.spyOn(Date, 'now').mockReturnValue(now);
+
+      // Mock initDatabase
+      vi.spyOn(storage, 'initDatabase').mockResolvedValue(mockDatabase);
+
+      // Mock getAll operation to return success with the items
+      mockObjectStore.getAll.mockImplementation(() => {
+        const request = {} as IDBRequest;
+        // Set the result property
+        Object.defineProperty(request, 'result', {
+          value: items,
+        });
+        // Trigger success callback
+        setTimeout(() => {
+          request.onsuccess?.(new Event('success'));
+        }, 0);
+        return request;
+      });
+
+      // Mock deleteItem to return success
+      vi.spyOn(storage, 'deleteItem').mockResolvedValue();
+
+      // Execute and verify
+      const result = await storage.listItems(Stores.SETTINGS);
+
+      // Should return non-expired items
+      expect(result).toEqual([
+        { id: 'item1', name: 'Item 1' },
+        { id: 'item3', name: 'Item 3' },
+      ]);
+
+      // Should try to delete expired item
+      expect(storage.deleteItem).toHaveBeenCalledWith(Stores.SETTINGS, 'item2');
+    });
+
+    it('should check if an item has expired', async () => {
+      // Setup
+      const storage = new StorageService();
+      const now = 1625097600000; // Fixed timestamp for testing
+
+      // Mock Date.now
+      vi.spyOn(Date, 'now').mockReturnValue(now);
+
+      // Test with expired item
+      const expiredItem = { id: 'expired', expires: now - 1000 };
+      const validItem = { id: 'valid', expires: now + 1000 };
+      const noExpiryItem = { id: 'noexpiry' };
+
+      // Use private method via type cast to test hasExpired
+      const hasExpired = (
+        storage as unknown as { hasExpired(item: StorageItem): boolean }
+      ).hasExpired.bind(storage);
+
+      expect(hasExpired(expiredItem)).toBe(true);
+      expect(hasExpired(validItem)).toBe(false);
+      expect(hasExpired(noExpiryItem)).toBe(false);
+    });
+
+    it('should store with expiry method', async () => {
       // Setup
       const storage = new StorageService();
       const item: StorageItem = { id: 'test-id', name: 'Test Item' };
       const ttl = 60000; // 1 minute
 
-      // Spy on storeItem
-      vi.spyOn(storage, 'storeItem').mockResolvedValue(item);
+      // Mock storeItem method
+      const storeItemSpy = vi.spyOn(storage, 'storeItem').mockResolvedValue(item);
 
-      // Execute
-      await storage.storeWithExpiry('keys', item, ttl);
+      // Call storeWithExpiry
+      await (
+        storage as unknown as {
+          storeWithExpiry(storeName: Stores, item: StorageItem, ttl: number): Promise<StorageItem>;
+        }
+      ).storeWithExpiry(Stores.SETTINGS, item, ttl);
 
-      // Verify
-      expect(storage.storeItem).toHaveBeenCalledWith('keys', item, ttl);
+      // Verify storeItem was called with correct params
+      expect(storeItemSpy).toHaveBeenCalledWith(Stores.SETTINGS, item, ttl);
     });
   });
 
-  describe('createInstance', () => {
-    it('should create a new StorageService instance', () => {
-      const storage = StorageService.createInstance();
-      expect(storage).toBeInstanceOf(StorageService);
-    });
+  describe('static methods', () => {
+    it('should create instance with createInstance static method', () => {
+      const instance = StorageService.createInstance();
+      expect(instance).toBeInstanceOf(StorageService);
 
-    it('should create an instance with custom options', () => {
-      const options = { name: 'CustomDB', version: 2 };
-      const storage = StorageService.createInstance(options);
-      expect(storage).toBeInstanceOf(StorageService);
+      const customInstance = StorageService.createInstance({
+        name: 'CustomDB',
+        version: 3,
+        stores: ['custom1', 'custom2'],
+      });
+      expect(customInstance).toBeInstanceOf(StorageService);
     });
   });
 
   describe('error handling', () => {
     it('should handle database initialization error', async () => {
-      // Setup
       const storage = new StorageService();
-      const mockError = new Error('Database initialization failed');
 
-      // Mock indexedDB.open to throw an error
+      // Mock indexedDB.open to fail immediately without using onerror callback
       vi.stubGlobal('indexedDB', {
         open: vi.fn().mockImplementation(() => {
-          throw mockError;
+          throw new Error('Database connection failed');
         }),
       });
 
-      // Execute and verify
-      await expect(storage.initDatabase()).rejects.toThrow(ApplicationError);
+      await expect(storage.initDatabase()).rejects.toThrow(/Database initialization error/);
     });
 
-    it('should handle put request error', async () => {
-      // Setup
+    it('should handle store operations errors', async () => {
       const storage = new StorageService();
       const item: StorageItem = { id: 'test-id', name: 'Test Item' };
-      const mockError = new Error('Store error');
 
       // Mock initDatabase
       vi.spyOn(storage, 'initDatabase').mockResolvedValue(mockDatabase);
 
-      // Mock put operation to fail
+      // Mock put operation to return error
       mockObjectStore.put.mockImplementation(() => {
         const request = {} as IDBRequest;
-        // Set error property
+
+        // Mock error property
         Object.defineProperty(request, 'error', {
-          value: mockError,
+          value: new Error('Store operation failed'),
         });
-        // Trigger error callback
+
         setTimeout(() => {
           request.onerror?.(new Event('error'));
         }, 0);
+
         return request;
       });
 
-      // Execute and verify
-      await expect(storage.storeItem('keys', item)).rejects.toThrow(ApplicationError);
+      await expect(storage.storeItem(Stores.SETTINGS, item)).rejects.toThrow(
+        'Failed to store item'
+      );
     });
 
-    it('should handle get request error', async () => {
-      // Setup
+    it('should handle getItem error', async () => {
       const storage = new StorageService();
-      const mockError = new Error('Get error');
 
       // Mock initDatabase
       vi.spyOn(storage, 'initDatabase').mockResolvedValue(mockDatabase);
 
-      // Mock get operation to fail
+      // Mock get operation to return error
       mockObjectStore.get.mockImplementation(() => {
         const request = {} as IDBRequest;
-        // Set error property
+
+        // Mock error property
         Object.defineProperty(request, 'error', {
-          value: mockError,
+          value: new Error('Get operation failed'),
         });
-        // Trigger error callback
+
         setTimeout(() => {
           request.onerror?.(new Event('error'));
         }, 0);
+
         return request;
       });
 
-      // Execute and verify
-      await expect(storage.getItem('keys', 'test-id')).rejects.toThrow(ApplicationError);
+      await expect(storage.getItem(Stores.SETTINGS, 'test-id')).rejects.toThrow(
+        'Failed to retrieve item'
+      );
     });
 
-    it('should handle delete request error', async () => {
-      // Setup
+    it('should handle getItem with expired item', async () => {
       const storage = new StorageService();
-      const mockError = new Error('Delete error');
+      const now = 1625097600000; // Fixed timestamp for testing
+      const expiredItem = { id: 'expired', expires: now - 1000 };
+
+      // Mock Date.now
+      vi.spyOn(Date, 'now').mockReturnValue(now);
 
       // Mock initDatabase
       vi.spyOn(storage, 'initDatabase').mockResolvedValue(mockDatabase);
 
-      // Mock delete operation to fail
+      // Mock deleteItem
+      vi.spyOn(storage, 'deleteItem').mockResolvedValue();
+
+      // Mock get operation to return expired item
+      mockObjectStore.get.mockImplementation(() => {
+        const request = {} as IDBRequest;
+
+        // Set the result property
+        Object.defineProperty(request, 'result', {
+          value: expiredItem,
+        });
+
+        setTimeout(() => {
+          request.onsuccess?.(new Event('success'));
+        }, 0);
+
+        return request;
+      });
+
+      const result = await storage.getItem(Stores.SETTINGS, 'expired');
+      expect(result).toBeNull();
+      expect(storage.deleteItem).toHaveBeenCalledWith(Stores.SETTINGS, 'expired');
+    });
+
+    it('should handle deleteItem error', async () => {
+      const storage = new StorageService();
+
+      // Mock initDatabase
+      vi.spyOn(storage, 'initDatabase').mockResolvedValue(mockDatabase);
+
+      // Mock delete operation to return error
       mockObjectStore.delete.mockImplementation(() => {
         const request = {} as IDBRequest;
-        // Set error property
+
+        // Mock error property
         Object.defineProperty(request, 'error', {
-          value: mockError,
+          value: new Error('Delete operation failed'),
         });
-        // Trigger error callback
+
         setTimeout(() => {
           request.onerror?.(new Event('error'));
         }, 0);
+
         return request;
       });
 
-      // Execute and verify
-      await expect(storage.deleteItem('keys', 'test-id')).rejects.toThrow(ApplicationError);
+      await expect(storage.deleteItem(Stores.SETTINGS, 'test-id')).rejects.toThrow(
+        'Failed to delete item'
+      );
     });
 
-    it('should handle list request error', async () => {
-      // Setup
+    it('should handle listItems error', async () => {
       const storage = new StorageService();
-      const mockError = new Error('List error');
 
       // Mock initDatabase
       vi.spyOn(storage, 'initDatabase').mockResolvedValue(mockDatabase);
 
-      // Mock getAll operation to fail
+      // Mock getAll operation to return error
       mockObjectStore.getAll.mockImplementation(() => {
         const request = {} as IDBRequest;
-        // Set error property
+
+        // Mock error property
         Object.defineProperty(request, 'error', {
-          value: mockError,
+          value: new Error('List operation failed'),
         });
-        // Trigger error callback
+
         setTimeout(() => {
           request.onerror?.(new Event('error'));
         }, 0);
+
         return request;
       });
 
-      // Execute and verify
-      await expect(storage.listItems('keys')).rejects.toThrow(ApplicationError);
+      await expect(storage.listItems(Stores.SETTINGS)).rejects.toThrow('Failed to list items');
     });
   });
 });

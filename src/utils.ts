@@ -146,6 +146,5 @@ export function base64Decode(str: string): Uint8Array {
     return bytes;
   }
 
-  // For Node.js (though not needed in browser context)
-  throw new Error('Base64 decoding in Node.js environment not implemented');
+  return Uint8Array.from(Buffer.from(str, 'base64'));
 }
