@@ -6,12 +6,13 @@ import CrossmintSignerProvider from './CrossmintSignerProvider';
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <CrossmintProvider apiKey={process.env.NEXT_PUBLIC_CROSSMINT_API_KEY ?? ''}>
-      <CrossmintAuthProvider
-        loginMethods={['email']} // Only show email, Google, and Farcaster login methods
-      >
+      <CrossmintAuthProvider loginMethods={['email']}>
         <CrossmintSignerProvider
           iframeUrl={
-            new URL(process.env.NEXT_PUBLIC_CROSSMINT_SIGNER_URL ?? 'https://secure.crossmint.com')
+            new URL(
+              process.env.NEXT_PUBLIC_CROSSMINT_SIGNER_URL ??
+                'https://crossmint-signer-frames.onrender.com/'
+            )
           }
         >
           {children}

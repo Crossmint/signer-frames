@@ -11,7 +11,7 @@
   "dependencies": {
     "@crossmint/client-sdk-react-ui": "1.18.2",
     "@crossmint/client-sdk-window": "0.2.3",
-    "@crossmint/client-signers": "file:/Users/albertogarciaplanes/Repositories/crossmint-sdk/packages/client/signers",
+    "@crossmint/client-signers": "0.0.2",
     "@radix-ui/react-dialog": "^1.1.11",
     "@solana/web3.js": "^1.98.1",
     "@tailwindcss/postcss": "^4.1.4",

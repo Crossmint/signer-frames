@@ -3,7 +3,10 @@
  */
 
 export class CrossmintApiService {
-  constructor(private readonly url: string) {}
+  constructor(
+    private readonly url = process.env.NEXT_PUBLIC_CROSSMINT_API_URL ||
+      'https://staging.crossmint.com'
+  ) {}
 
   private get baseUrl() {
     return `${this.url}/api/unstable/wallets/ncs`;

@@ -8,7 +8,6 @@ import type { StorageItem, Stores } from './services/storage';
 import { getPublicKey } from '@noble/ed25519';
 import { base58Encode, base64Decode } from './utils';
 const TMP_DEVICE_ID = '123456789';
-const TMP_CROSSMIINT_URL = 'http://localhost:3000';
 
 // Define window augmentation
 declare global {
@@ -25,7 +24,7 @@ class XMIF {
   constructor(
     private readonly eventsService = new EventsService(),
     private readonly storageService = new StorageService(),
-    private readonly crossmintApiService = new CrossmintApiService(TMP_CROSSMIINT_URL)
+    private readonly crossmintApiService = new CrossmintApiService()
   ) {}
 
   /**

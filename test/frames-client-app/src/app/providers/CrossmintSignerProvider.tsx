@@ -19,9 +19,6 @@ import bs58 from 'bs58';
 import { PublicKey, VersionedTransaction } from '@solana/web3.js';
 import OTPDialog from '../components/OTPDialog';
 
-// POTATO - Add debug logging
-console.log('POTATO - CrossmintSignerProvider module loaded');
-
 const defaultEventOptions = {
   timeoutMs: 10000,
   intervalMs: 5000,
@@ -59,7 +56,6 @@ const CrossmintSignerContext = createContext<CrossmintSignerContext | null>(null
 
 export function useCrossmintSigner() {
   const context = useContext(CrossmintSignerContext);
-  console.log('POTATO - useCrossmintSigner called, context:', context ? 'exists' : 'null');
   if (context == null) {
     throw new Error('useCrossmintSigner must be used within a CrossmintSignerProvider');
   }
@@ -76,7 +72,6 @@ export default function CrossmintSignerProvider({
   children,
   iframeUrl = new URL(process.env?.NEXT_PUBLIC_SECURE_ENDPOINT_URL ?? 'secure.crossmint.com'),
 }: CrossmintSignerProviderProps) {
-  console.log('POTATO - CrossmintSignerProvider rendering');
   const [otpDialogOpen, setOtpDialogOpen] = useState(false);
   const [isInitializingSigner, setIsInitializingSigner] = useState(false);
   const [solanaSigner, setSolanaSigner] = useState<CrossmintSolanaSigner | null>(null);
@@ -93,35 +88,27 @@ export default function CrossmintSignerProvider({
     SecureSignerInboundEvents
   > | null>(null);
 
-  console.log('POTATO - Before useAuth');
-  console.log('POTATO - useAuth succeeded:', jwt ? 'exists' : 'null', 'jwt available:', !!jwt);
-
   useEffect(() => {
-    console.log('POTATO - useEffect for OTP dialog triggered');
     if (solanaSigner != null && otpDialogOpen) {
       setOtpDialogOpen(false);
     }
   }, [solanaSigner, otpDialogOpen]);
 
   const initIFrameWindow = useCallback(async () => {
-    console.log('POTATO - initIFrameWindow called');
     if (iframe.current == null) {
       try {
         setIsInitializing(true);
-        console.log('POTATO - Initializing iframe window with URL:', iframeUrl.toString());
         iframeWindow.current = await IFrameWindow.init(iframeUrl.toString(), {
           targetOrigin: iframeUrl.origin,
           incomingEvents: secureSignerOutboundEvents,
           outgoingEvents: secureSignerInboundEvents,
         });
 
-        console.log('POTATO - Trying to handshake with iframe...');
         await iframeWindow.current.handshakeWithChild();
-        console.log('POTATO - Parent connected to iframe!');
         setIsInitialized(true);
         setError(null);
       } catch (err) {
-        console.error('POTATO - Failed to initialize or connect to iframe:', err);
+        console.error('Failed to initialize or connect to iframe:', err);
         setError(err instanceof Error ? err : new Error(String(err)));
       } finally {
         setIsInitializing(false);
@@ -130,13 +117,11 @@ export default function CrossmintSignerProvider({
   }, [iframeUrl.origin, iframeUrl]);
 
   const buildSolanaSigner = (address: string) => {
-    console.log('POTATO - buildSolanaSigner called with address:', address);
     return {
       address,
       publicKey: new PublicKey(address),
       signMessage: async (message: Uint8Array): Promise<Uint8Array> => {
         try {
-          console.log('POTATO - signMessage called');
           assertInitialized();
           const response = await iframeWindow.current?.sendAction({
             event: 'request:sign-message',
@@ -157,13 +142,12 @@ export default function CrossmintSignerProvider({
           const signature = bs58.decode(response?.signature);
           return signature;
         } catch (error) {
-          console.error('POTATO - Failed to sign message:', error);
+          console.error('Failed to sign message:', error);
           throw error;
         }
       },
       signTransaction: async (transaction: VersionedTransaction): Promise<VersionedTransaction> => {
         try {
-          console.log('POTATO - signTransaction called');
           assertInitialized();
           const response = await iframeWindow.current?.sendAction({
             event: 'request:sign-transaction',
@@ -183,7 +167,7 @@ export default function CrossmintSignerProvider({
           }
           return VersionedTransaction.deserialize(bs58.decode(response?.transaction));
         } catch (error) {
-          console.error('POTATO - Failed to sign transaction:', error);
+          console.error('Failed to sign transaction:', error);
           throw error;
         }
       },
@@ -191,7 +175,6 @@ export default function CrossmintSignerProvider({
   };
 
   const assertInitialized = () => {
-    console.log('POTATO - assertInitialized called');
     if (iframeWindow.current == null) {
       throw new Error('Iframe window not initialized');
     }
@@ -204,30 +187,21 @@ export default function CrossmintSignerProvider({
   };
 
   const initSigner = useCallback(() => {
-    console.log('POTATO - initSigner called - state:', {
-      isInitializingSigner,
-      hasSolanaSigner: !!solanaSigner,
-      hasJwt: !!jwt,
-      hasApiKey: !!apiKey,
-    });
     try {
       if (isInitializingSigner || solanaSigner || !jwt || !apiKey) {
-        console.log('POTATO - initSigner early return');
         return;
       }
       setIsInitializingSigner(true);
       // Initialize the iframe window if not already done
       if (!isInitialized && !isInitializing) {
-        console.log('POTATO - initIFrameWindow will be called');
         initIFrameWindow().then(() => {
           setOtpDialogOpen(true);
         });
       } else {
-        console.log('POTATO - OTP dialog will be opened directly');
         setOtpDialogOpen(true);
       }
     } catch (error) {
-      console.error('POTATO - Error creating signer:', error);
+      console.error('Error creating signer:', error);
       throw error;
     }
   }, [
@@ -242,7 +216,6 @@ export default function CrossmintSignerProvider({
 
   // Handle OTP dialog event handlers
   const handleCreateSignerEvent = async () => {
-    console.log('POTATO - handleCreateSignerEvent called');
     assertInitialized();
     if (iframeWindow.current == null || jwt == null || apiKey == null) {
       throw new Error('Failed to create signer. The component has not been initialized');
@@ -260,7 +233,6 @@ export default function CrossmintSignerProvider({
   };
 
   const handleEncryptedOtpEvent = async (encryptedOtp: string, chainLayer: 'solana') => {
-    console.log('POTATO - handleEncryptedOtpEvent called');
     assertInitialized();
     if (iframeWindow.current == null || jwt == null || apiKey == null) {
       throw new Error('Failed to create signer. The component has not been initialized');
@@ -283,7 +255,6 @@ export default function CrossmintSignerProvider({
   };
 
   const handleAddressFetched = (address: string) => {
-    console.log('POTATO - handleAddressFetched called with address:', address);
     setSolanaSigner(buildSolanaSigner(address));
     setOtpDialogOpen(false);
     setIsInitializingSigner(false);
