@@ -32,9 +32,12 @@ export class Ed25519Service {
    * @param {string} privateKeyBase58 - Base58-encoded private key (64 bytes Solana format)
    * @returns {Promise<string>} Base58-encoded public key
    */
-  async getPublicKey(privateKeyBase58: string): Promise<string> {
+  async getPublicKey(privateKeyBase58orArray: string | Uint8Array): Promise<string> {
     try {
-      const keyBytes = base58Decode(privateKeyBase58);
+      const keyBytes =
+        typeof privateKeyBase58orArray === 'string'
+          ? base58Decode(privateKeyBase58orArray)
+          : privateKeyBase58orArray;
 
       // Solana keypairs are 64 bytes: first 32 bytes are the private key, last 32 bytes are the public key
       if (keyBytes.length === 64) {

@@ -11,6 +11,7 @@ export interface StorageItem {
 export enum Stores {
   SETTINGS = 'Settings',
   DEVICE_SHARES = 'DeviceShares',
+  AUTH_SHARES = 'AuthShares',
 }
 import { ApplicationError } from '../errors';
 

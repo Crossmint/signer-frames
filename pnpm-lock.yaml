@@ -12,8 +12,8 @@ importers:
         specifier: 0.2.3
         version: 0.2.3
       '@crossmint/client-signers':
-        specifier: 0.0.2
-        version: 0.0.2
+        specifier: file:/Users/albertogarciaplanes/Repositories/crossmint-sdk/packages/client/signers
+        version: file:../crossmint-sdk/packages/client/signers
       '@noble/ed25519':
         specifier: ^1.7.2
         version: 1.7.5
@@ -132,8 +132,8 @@ packages:
   '@crossmint/client-sdk-window@0.2.3':
     resolution: {integrity: sha512-Xh2F7z8ddKCEZPuuRxjHwGSy1x3JpGn3LX7PKX764UuknbDSqruiSJhONY6dY6eelfyY/glyFEnAkCXi3SVnxw==}
 
-  '@crossmint/client-signers@0.0.2':
-    resolution: {integrity: sha512-mq/RlWVsgyaupr68XlWcDm5RMzZkd3RJUN8HvreWsnG2Bz0KMg3r5bLqv64l+S0swNU4hLX9ZeYY2kxDxrWv3w==}
+  '@crossmint/client-signers@file:../crossmint-sdk/packages/client/signers':
+    resolution: {directory: ../crossmint-sdk/packages/client/signers, type: directory}
 
   '@csstools/color-helpers@5.0.2':
     resolution: {integrity: sha512-JqWH1vsgdGcw2RR6VliXXdA0/59LttzlU8UlRT/iUUsEeWfYq8I+K0yhihEUTTHLRm1EXvpsCx3083EU15ecsA==}
@@ -2232,7 +2232,7 @@ snapshots:
       nanoid: 5.0.9
       zod: 3.22.4
 
-  '@crossmint/client-signers@0.0.2':
+  '@crossmint/client-signers@file:../crossmint-sdk/packages/client/signers':
     dependencies:
       zod: 3.22.4
 

@@ -2,12 +2,16 @@
  * XMIF - Main Framework Entry Point
  */
 
-import { combine } from 'shamir-secret-sharing';
 import { EventsService, StorageService, CrossmintApiService } from './services';
 import type { StorageItem, Stores } from './services/storage';
-import { getPublicKey } from '@noble/ed25519';
-import { base58Encode, base64Decode } from './utils';
-const TMP_DEVICE_ID = '123456789';
+import { ShardingService } from './services/sharding-service';
+import {
+  CreateSignerEventHandler,
+  GetPublicKeyEventHandler,
+  SendOtpEventHandler,
+  SignMessageEventHandler,
+  SignTransactionEventHandler,
+} from './services/handlers';
 
 // Define window augmentation
 declare global {
@@ -24,7 +28,18 @@ class XMIF {
   constructor(
     private readonly eventsService = new EventsService(),
     private readonly storageService = new StorageService(),
-    private readonly crossmintApiService = new CrossmintApiService()
+    private readonly crossmintApiService = new CrossmintApiService(),
+    private readonly shardingService = new ShardingService(
+      this.storageService,
+      this.crossmintApiService
+    ),
+    private readonly handlers = [
+      new CreateSignerEventHandler(this.crossmintApiService),
+      new SendOtpEventHandler(this.crossmintApiService, this.shardingService),
+      new GetPublicKeyEventHandler(this.crossmintApiService, this.shardingService),
+      new SignMessageEventHandler(),
+      new SignTransactionEventHandler(),
+    ]
   ) {}
 
   /**
@@ -33,9 +48,15 @@ class XMIF {
    */
   async init(): Promise<void> {
     console.log('Initializing XMIF framework...');
-    console.log('-- Initializing IndexedDB...');
+
+    console.log('-- Initializing IndexedDB client...');
     await this.storageService.initDatabase();
-    console.log('-- IndexedDB initialized!');
+    console.log('-- IndexedDB client initialized!');
+
+    console.log('-- Initializing Crossmint API...');
+    await this.crossmintApiService.init();
+    console.log('-- Crossmint API initialized!');
+
     console.log('-- Initializing events handlers...');
     await this.eventsService.initMessenger();
     this.registerHandlers();
@@ -63,68 +84,9 @@ class XMIF {
 
   private registerHandlers() {
     const messenger = this.eventsService.getMessenger();
-    messenger.on('request:create-signer', async data => {
-      console.log('Received create-signer request:', data);
-      const response = await this.crossmintApiService.createSigner(
-        TMP_DEVICE_ID,
-        {
-          jwt: data.jwt,
-          apiKey: data.apiKey,
-        },
-        {
-          authId: data.authId,
-        }
-      );
-      console.log('Response:', response);
-      messenger.send('response:create-signer', {
-        signerId: 'hello from the iframe',
-      });
-    });
-    messenger.on('request:get-attestation', async data => {
-      console.log('Received get-attestation request:', data);
-      throw new Error('Not implemented');
-    });
-    messenger.on('request:sign-message', async data => {
-      console.log('Received sign-message request:', data);
-    });
-    messenger.on('request:sign-transaction', async data => {
-      console.log('Received sign-transaction request:', data);
-      throw new Error('Not implemented');
-    });
-    messenger.on('request:send-otp', async data => {
-      console.log('Received send-otp request:', data);
-      const response = await this.crossmintApiService.sendOtp(
-        TMP_DEVICE_ID,
-        {
-          jwt: data.jwt,
-          apiKey: data.apiKey,
-        },
-        {
-          otp: data.encryptedOtp,
-        }
-      );
-      console.log('Response:', response);
-      const deviceShard = response.shares.device;
-      const authShard = response.shares.auth;
-      // await this.storageService.storeItem(Stores.DEVICE_SHARES, {
-      //   shard: deviceShard,
-      //   id: TMP_DEVICE_ID,
-      // });
-
-      const privkey = await combine([base64Decode(deviceShard), base64Decode(authShard)]);
-      const address = base58Encode(await getPublicKey(privkey));
-
-      messenger.send('response:send-otp', {
-        encryptedOtp: 'hello from the iframe',
-        address,
-      });
-    });
-    // messenger.on('request:get-public-key', async data => {
-    //   console.log('Received get-public-key request:', data);
-    //   messenger.send('response:get-public-key', {
-    //     publicKey: '',
-    //   });
-    // });
+    for (const handler of this.handlers) {
+      messenger.onAction(handler);
+    }
   }
 }
 

@@ -8,6 +8,8 @@ export class CrossmintApiService {
       'https://staging.crossmint.com'
   ) {}
 
+  async init() {}
+
   private get baseUrl() {
     return `${this.url}/api/unstable/wallets/ncs`;
   }
@@ -42,7 +44,12 @@ export class CrossmintApiService {
     data: {
       otp: string;
     }
-  ) {
+  ): Promise<{
+    shares: {
+      device: string;
+      auth: string;
+    };
+  }> {
     const response = await fetch(`${this.baseUrl}/${deviceId}/auth`, {
       method: 'POST',
       body: JSON.stringify(data),
@@ -52,13 +59,13 @@ export class CrossmintApiService {
     return response;
   }
 
-  async getKeyShare(
+  async getAuthShard(
     deviceId: string,
-    authData: { jwt: string; apiKey: string },
-    data: {
-      keyId: string;
-    }
-  ) {
+    authData: { jwt: string; apiKey: string }
+  ): Promise<{
+    deviceId: string;
+    keyShare: string;
+  }> {
     const response = await fetch(`${this.baseUrl}/${deviceId}`, {
       headers: this.getHeaders(authData),
     }).then(res => res.json());

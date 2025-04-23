@@ -1,18 +1,12 @@
 import { HandshakeChild, type HandshakeOptions } from '@crossmint/client-sdk-window';
-import {
-  type SecureSignerInboundEvents,
-  type SecureSignerOutboundEvents,
-  secureSignerInboundEvents,
-  secureSignerOutboundEvents,
-} from '@crossmint/client-signers';
-import type { z } from 'zod';
+import { signerInboundEvents, signerOutboundEvents } from '@crossmint/client-signers';
 
 const EVENT_VERSION = 1;
 
 export class EventsService {
   private static messenger: HandshakeChild<
-    SecureSignerInboundEvents,
-    SecureSignerOutboundEvents
+    typeof signerInboundEvents,
+    typeof signerOutboundEvents
   > | null = null;
 
   /**
@@ -29,8 +23,8 @@ export class EventsService {
     }
 
     EventsService.messenger = new HandshakeChild(window.parent, '*', {
-      incomingEvents: secureSignerInboundEvents,
-      outgoingEvents: secureSignerOutboundEvents,
+      incomingEvents: signerInboundEvents,
+      outgoingEvents: signerOutboundEvents,
       handshakeOptions: options?.handshakeOptions,
       targetOrigin: options?.targetOrigin,
     });
@@ -56,16 +50,5 @@ export class EventsService {
   getMessenger(): NonNullable<typeof EventsService.messenger> {
     this.assertMessengerInitialized();
     return EventsService.messenger as NonNullable<typeof EventsService.messenger>;
-  }
-
-  /**
-   * Assert that an event has the correct version
-   */
-  private assertCorrectEventVersion<T extends { version: number }>(
-    data: T
-  ): asserts data is T & { version: typeof EVENT_VERSION } {
-    if (data.version !== EVENT_VERSION) {
-      throw new Error(`Invalid event version. Expected ${EVENT_VERSION}, got ${data.version}`);
-    }
   }
 }
