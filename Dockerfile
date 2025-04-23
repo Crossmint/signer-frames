@@ -2,48 +2,24 @@ FROM node:20 AS builder
 
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml ./
-RUN npm install -g pnpm && pnpm install --frozen-lockfile
+COPY package.json pnpm-lock.yaml  ./
+RUN npm install -g pnpm && pnpm install --frozen-lockfile --prod=false
 
 COPY . .
 
 # Create dist directory if it doesn't exist
 RUN mkdir -p dist
 
-# Use TypeScript directly
-RUN npx tsc
-
-# Create a temporary script to use esbuild via its JS API
-RUN echo "const esbuild = require('esbuild'); \
-    esbuild.build({ \
-    entryPoints: ['src/index.ts'], \
-    bundle: true, \
-    minify: true, \
-    sourcemap: true, \
-    outfile: 'dist/bundle.min.js', \
-    format: 'iife', \
-    }).catch(() => process.exit(1));" > esbuild-script.js
-
-RUN node esbuild-script.js
+# Build using pnpm build script
+RUN pnpm build
 
 # RUN pnpm generate-sri
-
-# RUN echo '#!/bin/sh \n\
-#     SRI_HASH=$(node -e "const fs=require(\"fs\"); \
-#     const crypto=require(\"crypto\"); \
-#     const file=fs.readFileSync(\"/app/dist/bundle.min.js\"); \
-#     const hash=crypto.createHash(\"sha384\").update(file).digest(\"base64\"); \
-#     console.log(\"sha384-\" + hash);") \n\
-#     sed -i "s|<script src=\"dist/bundle.min.js\"></script>|<script src=\"dist/bundle.min.js\" integrity=\"$SRI_HASH\" crossorigin=\"anonymous\"></script>|g" /usr/share/nginx/html/index.html' > /app/inject-sri.sh && chmod +x /app/inject-sri.sh
 
 FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html/dist
 COPY --from=builder /app/css /usr/share/nginx/html/css
 COPY --from=builder /app/index.html /usr/share/nginx/html/
 COPY --from=builder /app/favicon.ico /usr/share/nginx/html/
-# COPY --from=builder /app/inject-sri.sh /docker-entrypoint.d/40-inject-sri.sh
-
-# RUN chmod +x /docker-entrypoint.d/40-inject-sri.sh
 
 RUN echo 'server { \
     listen 8080; \
