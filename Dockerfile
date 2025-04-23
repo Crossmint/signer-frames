@@ -20,6 +20,7 @@ COPY --from=builder /app/dist /usr/share/nginx/html/dist
 COPY --from=builder /app/css /usr/share/nginx/html/css
 COPY --from=builder /app/index.html /usr/share/nginx/html/
 COPY --from=builder /app/favicon.ico /usr/share/nginx/html/
+RUN sed -i "s/?v=1.0.0/?v=$(date +%s)/" /usr/share/nginx/html/index.html
 
 RUN echo 'server { \
     listen 8080; \
