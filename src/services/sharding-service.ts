@@ -93,11 +93,8 @@ export class ShardingService {
    * Stores a device key shard in the local storage. It does not expire
    * @param shard The key shard to store
    */
-  async storeDeviceKeyShardLocally(
-    shard: KeyShard,
-    expiresIn: number = 60 * 5 * 1_000
-  ): Promise<void> {
-    await this.storeKeyShardLocallyInStore(shard, Stores.DEVICE_SHARES, expiresIn);
+  async storeDeviceKeyShardLocally(shard: KeyShard): Promise<void> {
+    await this.storeKeyShardLocallyInStore(shard, Stores.DEVICE_SHARES);
   }
 
   /**
@@ -105,13 +102,13 @@ export class ShardingService {
    * @param shard The key shard to store
    */
   async storeAuthKeyShardLocally(shard: KeyShard): Promise<void> {
-    await this.storeKeyShardLocallyInStore(shard, Stores.AUTH_SHARES, 60 * 5 * 1_000);
+    await this.storeKeyShardLocallyInStore(shard, Stores.DEVICE_SHARES, 60 * 5 * 1_000);
   }
 
   private async storeKeyShardLocallyInStore(
     shard: KeyShard,
     storeName: Stores,
-    expiresIn: number = 60 * 5 * 1_000 // 5 mins
+    expiresIn?: number
   ): Promise<void> {
     await this.storageService.storeItem(
       storeName,

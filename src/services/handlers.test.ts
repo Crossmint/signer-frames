@@ -10,6 +10,7 @@ import { mockDeep, mockReset } from 'vitest-mock-extended';
 import type { CrossmintApiService } from './api';
 import type { ShardingService } from './sharding-service';
 import type { SignerInputEvent } from '@crossmint/client-signers';
+import type { Ed25519Service } from './ed25519';
 
 // Mock base64Decode
 vi.mock('../utils', () => ({
@@ -185,17 +186,50 @@ describe('EventHandlers', () => {
   });
 
   describe('SignMessageEventHandler', () => {
+    const mockEd25519Service = mockDeep<Ed25519Service>();
+
+    beforeEach(() => {
+      mockReset(mockEd25519Service);
+    });
+
     it('should have correct event names', () => {
-      const handler = new SignMessageEventHandler();
+      const handler = new SignMessageEventHandler(
+        mockCrossmintApiService,
+        mockShardingService,
+        mockEd25519Service
+      );
       expect(handler.event).toBe('request:sign-message');
       expect(handler.responseEvent).toBe('response:sign-message');
     });
 
-    it('should throw "Not implemented" error', async () => {
-      const handler = new SignMessageEventHandler();
-      const testInput = {} as SignerInputEvent<'sign-message'>;
+    it('should throw "Not implemented" error for unsupported chain layers', async () => {
+      const handler = new SignMessageEventHandler(
+        mockCrossmintApiService,
+        mockShardingService,
+        mockEd25519Service
+      );
+      const testInput: SignerInputEvent<'sign-message'> = {
+        deviceId: testDeviceId,
+        authData: testAuthData,
+        data: {
+          chainLayer: 'evm', // Use EVM to trigger the 'not implemented' error
+          message: 'test message', // Use a string message
+          encoding: 'base58', // Add required encoding property
+        },
+      };
 
-      await expect(handler.handler(testInput)).rejects.toThrow('Not implemented');
+      // Mock the necessary methods to avoid other errors
+      mockShardingService.tryGetAuthKeyShardFromLocal.mockResolvedValue({
+        deviceId: testDeviceId,
+        data: 'auth-key-share',
+      });
+
+      mockShardingService.reconstructKey.mockResolvedValue({
+        privateKey: testPrivateKey,
+        publicKey: testPublicKey,
+      });
+
+      await expect(handler.handler(testInput)).rejects.toThrow('Chain layer not implemented');
     });
   });
 

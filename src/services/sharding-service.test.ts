@@ -139,7 +139,7 @@ describe('ShardingService', () => {
           type: 'base64KeyShard',
           created: expect.any(Number),
         },
-        expect.any(Number)
+        undefined
       );
     });
 
