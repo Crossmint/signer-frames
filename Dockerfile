@@ -11,7 +11,7 @@ COPY . .
 RUN mkdir -p dist
 
 # Build using pnpm build script
-RUN pnpm build
+RUN pnpm build:prod
 
 # RUN pnpm generate-sri
 
