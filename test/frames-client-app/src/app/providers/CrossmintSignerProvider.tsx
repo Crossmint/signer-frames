@@ -14,7 +14,14 @@ import bs58 from 'bs58';
 import { PublicKey, type VersionedTransaction } from '@solana/web3.js';
 import { v4 as uuidv4 } from 'uuid';
 import OTPDialog from '../components/OTPDialog';
-import SignMessageDialog from '../components/SignMessageDialog';
+
+// Simple initializing component to show while connecting to the iframe
+const InitializingComponent = () => (
+  <div className="flex flex-col items-center justify-center p-4">
+    <div className="w-10 h-10 border-4 border-t-transparent border-current rounded-full animate-spin mb-4" />
+    <p className="text-cm-text-secondary text-center">Initializing secure connection...</p>
+  </div>
+);
 
 async function createIFrame(url: string): Promise<HTMLIFrameElement> {
   const iframe = document.createElement('iframe');
@@ -42,14 +49,6 @@ const defaultEventOptions = {
   timeoutMs: 10_000,
   intervalMs: 5_000,
 };
-
-// Simple initializing component to show while connecting to the iframe
-const InitializingComponent = () => (
-  <div className="flex flex-col items-center justify-center p-4">
-    <div className="w-10 h-10 border-4 border-t-transparent border-current rounded-full animate-spin mb-4" />
-    <p className="text-cm-text-secondary text-center">Initializing secure connection...</p>
-  </div>
-);
 
 // Type definitions
 export interface CreateSignerProps {
@@ -95,7 +94,6 @@ export default function CrossmintSignerProvider({
 }: CrossmintSignerProviderProps) {
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [otpDialogOpen, setOtpDialogOpen] = useState(false);
-  const [signMessageDialogOpen, setSignMessageDialogOpen] = useState(false);
   const [isInitializingSigner, setIsInitializingSigner] = useState(false);
   const [solanaSigner, setSolanaSigner] = useState<CrossmintSolanaSigner | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -115,8 +113,6 @@ export default function CrossmintSignerProvider({
   useEffect(() => {
     if (solanaSigner != null && otpDialogOpen) {
       setOtpDialogOpen(false);
-      // Show sign message dialog after signer is created
-      setSignMessageDialogOpen(true);
     }
   }, [solanaSigner, otpDialogOpen]);
 
@@ -251,16 +247,21 @@ export default function CrossmintSignerProvider({
     }
   };
 
+  // Initialize signer manually (instead of auto-init)
   const initSigner = useCallback(() => {
     try {
       if (isInitializingSigner || !jwt || !apiKey) {
         return;
       }
 
-      // Always generate a new device ID when creating a new signer
-      generateNewDeviceId();
+      // We'll use the provided deviceId instead of generating one
+      if (!deviceId) {
+        console.error('No device ID provided');
+        return;
+      }
 
       setIsInitializingSigner(true);
+
       // Initialize the iframe window if not already done
       if (!isInitialized && !isInitializing) {
         initIFrameWindow().then(() => {
@@ -279,16 +280,9 @@ export default function CrossmintSignerProvider({
     isInitializingSigner,
     jwt,
     apiKey,
+    deviceId,
     initIFrameWindow,
-    generateNewDeviceId,
   ]);
-
-  // Automatically initialize signer after login - moved here after initSigner is defined
-  useEffect(() => {
-    if (jwt && apiKey && !solanaSigner && !isInitializing && !isInitializingSigner) {
-      initSigner();
-    }
-  }, [jwt, apiKey, solanaSigner, isInitializing, isInitializingSigner, initSigner]);
 
   // Handle OTP dialog event handlers
   const handleCreateSignerEvent = async () => {
@@ -309,7 +303,7 @@ export default function CrossmintSignerProvider({
           apiKey,
         },
         data: {
-          authId: `email:${user?.email}`,
+          authId: user?.email ? `email:${user.email}` : user?.id || '',
         },
       },
     });
@@ -345,22 +339,6 @@ export default function CrossmintSignerProvider({
     setSolanaSigner(buildSolanaSigner(address));
     setOtpDialogOpen(false);
     setIsInitializingSigner(false);
-    // Open sign message dialog immediately after signer creation
-    setSignMessageDialogOpen(true);
-  };
-
-  const handleSignMessage = async (message: string): Promise<string> => {
-    if (!solanaSigner) {
-      throw new Error('Signer not initialized');
-    }
-
-    const messageBytes = new TextEncoder().encode(message);
-    const signatureBytes = await solanaSigner.signMessage(messageBytes);
-    return bs58.encode(signatureBytes);
-  };
-
-  const handleCloseSignMessageDialog = () => {
-    setSignMessageDialogOpen(false);
   };
 
   return (
@@ -377,19 +355,12 @@ export default function CrossmintSignerProvider({
         <>
           {isInitializing && <InitializingComponent />}
           {isInitialized && (
-            <>
-              <OTPDialog
-                open={otpDialogOpen}
-                sendCreateSignerEvent={handleCreateSignerEvent}
-                sendEncryptedOtpEvent={handleEncryptedOtpEvent}
-                onAddressFetched={handleAddressFetched}
-              />
-              <SignMessageDialog
-                open={signMessageDialogOpen}
-                onClose={handleCloseSignMessageDialog}
-                onSignMessage={handleSignMessage}
-              />
-            </>
+            <OTPDialog
+              open={otpDialogOpen}
+              sendCreateSignerEvent={handleCreateSignerEvent}
+              sendEncryptedOtpEvent={handleEncryptedOtpEvent}
+              onAddressFetched={handleAddressFetched}
+            />
           )}
           {children}
         </>

@@ -1,34 +1,25 @@
 'use client';
 
 import React from 'react';
-import AuthButton from './AuthButton';
+import { useAuth } from '@crossmint/client-sdk-react-ui';
 
 export default function LoginPage() {
+  const { login } = useAuth();
+
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-br from-gray-50 to-blue-50">
-      <div className="max-w-4xl w-full flex flex-col items-center">
-        <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold text-gray-800 mb-4">Crossmint Frames Testing App</h1>
-        </div>
-
-        <div className="flex justify-center mb-8">
-          <AuthButton />
-        </div>
-
-        <div className="mt-12 text-center text-sm text-gray-500">
-          <p>
-            Powered by{' '}
-            <a
-              href="https://www.crossmint.com/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-500 hover:text-blue-700 underline"
-            >
-              Crossmint
-            </a>{' '}
-            — The easiest way to onboard users to web3
-          </p>
-        </div>
+    <main className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
+      <div className="max-w-md w-full bg-white rounded-lg shadow-sm p-8 text-center">
+        <h1 className="text-2xl font-bold mb-6">Frames Testing App</h1>
+        <p className="text-gray-600 mb-8">
+          Please login to start creating signers and signing messages.
+        </p>
+        <button
+          type="button"
+          onClick={login}
+          className="w-full py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+        >
+          Login with Crossmint
+        </button>
       </div>
     </main>
   );
