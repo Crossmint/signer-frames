@@ -3,10 +3,7 @@
  */
 
 export class CrossmintApiService {
-  constructor(
-    private readonly url = process.env.NEXT_PUBLIC_CROSSMINT_API_URL ||
-      'https://staging.crossmint.com'
-  ) {}
+  constructor(private readonly url = 'http://localhost:3000') {}
 
   async init() {}
 
