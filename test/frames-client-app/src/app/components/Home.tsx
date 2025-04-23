@@ -4,9 +4,16 @@ import React from 'react';
 import { useAuth } from '@crossmint/client-sdk-react-ui';
 import SignerContent from './SignerContent';
 import AuthButton from './AuthButton';
+import DeviceIdGenerator from './DeviceIdGenerator';
+import { useCrossmintSigner } from '../providers/CrossmintSignerProvider';
 
 export default function Home() {
   const { logout } = useAuth();
+  const { setDeviceId } = useCrossmintSigner();
+
+  const handleDeviceIdGenerated = (newDeviceId: string) => {
+    setDeviceId(newDeviceId);
+  };
 
   return (
     <main className="min-h-screen flex flex-col p-6 bg-gradient-to-br from-gray-50 to-blue-50">
@@ -27,8 +34,9 @@ export default function Home() {
             <SignerContent />
           </div>
 
-          <div className="w-full lg:w-1/3">
+          <div className="w-full lg:w-1/3 flex flex-col gap-6">
             <AuthButton />
+            <DeviceIdGenerator onDeviceIdGenerated={handleDeviceIdGenerated} />
           </div>
         </div>
 

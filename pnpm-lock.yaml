@@ -20,6 +20,9 @@ importers:
       '@noble/hashes':
         specifier: ^1.7.2
         version: 1.7.2
+      crossmint-signers:
+        specifier: 'link:'
+        version: 'link:'
       shamir-secret-sharing:
         specifier: ^0.0.4
         version: 0.0.4

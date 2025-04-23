@@ -15,8 +15,8 @@ importers:
         specifier: 0.2.3
         version: 0.2.3
       '@crossmint/client-signers':
-        specifier: file:/Users/albertogarciaplanes/Repositories/crossmint-sdk/packages/client/signers
-        version: file:../../../crossmint-sdk/packages/client/signers
+        specifier: 0.0.3
+        version: 0.0.3
       '@radix-ui/react-dialog':
         specifier: ^1.1.11
         version: 1.1.11(@types/react-dom@19.1.2(@types/react@19.1.2))(@types/react@19.1.2)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -29,6 +29,9 @@ importers:
       bs58:
         specifier: ^6.0.0
         version: 6.0.0
+      frames-testing-app:
+        specifier: 'link:'
+        version: 'link:'
       next:
         specifier: 15.3.1
         version: 15.3.1(@babel/core@7.26.10)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -38,6 +41,9 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.1.0(react@19.1.0)
+      uuid:
+        specifier: ^11.1.0
+        version: 11.1.0
       zod:
         specifier: ^3.24.3
         version: 3.24.3
@@ -54,6 +60,9 @@ importers:
       '@types/react-dom':
         specifier: ^19
         version: 19.1.2(@types/react@19.1.2)
+      '@types/uuid':
+        specifier: ^10.0.0
+        version: 10.0.0
       autoprefixer:
         specifier: ^10.4.21
         version: 10.4.21(postcss@8.5.3)
@@ -801,8 +810,8 @@ packages:
   '@crossmint/client-sdk-window@0.2.3':
     resolution: {integrity: sha512-Xh2F7z8ddKCEZPuuRxjHwGSy1x3JpGn3LX7PKX764UuknbDSqruiSJhONY6dY6eelfyY/glyFEnAkCXi3SVnxw==}
 
-  '@crossmint/client-signers@file:../../../crossmint-sdk/packages/client/signers':
-    resolution: {directory: ../../../crossmint-sdk/packages/client/signers, type: directory}
+  '@crossmint/client-signers@0.0.3':
+    resolution: {integrity: sha512-Y1AkNXUSg1bKzW8BiQpAgsAqUoMEeuMXx6G7PxoBAdXAQ23sFAyNM6liZVJbTLe0dj3u6cu1U1hSBWA6Tv2TaQ==}
 
   '@crossmint/common-sdk-auth@1.0.24':
     resolution: {integrity: sha512-IzpK3RIAlEoR+rmDd7cYcttLyI2tcnI5D9v3Ep9aQ2RYTj77jcKZ41uytxKRZBe3+TEXitRom56doUYTZ1PI6A==}
@@ -2437,6 +2446,9 @@ packages:
 
   '@types/trusted-types@2.0.7':
     resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
+
+  '@types/uuid@10.0.0':
+    resolution: {integrity: sha512-7gqG38EyHgyP1S+7+xomFtL+ZNHcKv6DwNaCZmJmo1vgMugyF3TCnXVg4t1uk89mLNwnLtnY3TpOpCOyp1/xHQ==}
 
   '@types/uuid@8.3.4':
     resolution: {integrity: sha512-c/I8ZRb51j+pYGAu5CrFMRxqZ2ke4y2grEBO5AUjgSkSk+qT2Ea+OdWElz/OiMf5MNpn2b17kuVBwZLQJXzihw==}
@@ -6076,6 +6088,10 @@ packages:
     resolution: {integrity: sha512-pMZTvIkT1d+TFGvDOqodOclx0QWkkgi6Tdoa8gC8ffGAAqz9pzPTZWAybbsHHoED/ztMtkv/VoYTYyShUn81hA==}
     engines: {node: '>= 0.4.0'}
 
+  uuid@11.1.0:
+    resolution: {integrity: sha512-0/A9rDy9P7cJ+8w1c9WD9V//9Wj15Ce2MPz8Ri6032usz+NfePxx5AcN3bN+r6ZL6jEo066/yNYB3tn4pQEx+A==}
+    hasBin: true
+
   uuid@8.3.2:
     resolution: {integrity: sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==}
     hasBin: true
@@ -7313,7 +7329,7 @@ snapshots:
       nanoid: 5.0.9
       zod: 3.22.4
 
-  '@crossmint/client-signers@file:../../../crossmint-sdk/packages/client/signers':
+  '@crossmint/client-signers@0.0.3':
     dependencies:
       zod: 3.22.4
 
@@ -9642,6 +9658,8 @@ snapshots:
   '@types/stack-utils@2.0.3': {}
 
   '@types/trusted-types@2.0.7': {}
+
+  '@types/uuid@10.0.0': {}
 
   '@types/uuid@8.3.4': {}
 
@@ -14044,6 +14062,8 @@ snapshots:
       which-typed-array: 1.1.19
 
   utils-merge@1.0.1: {}
+
+  uuid@11.1.0: {}
 
   uuid@8.3.2: {}
 

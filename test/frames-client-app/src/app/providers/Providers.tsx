@@ -5,7 +5,10 @@ import CrossmintSignerProvider from './CrossmintSignerProvider';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <CrossmintProvider apiKey={process.env.NEXT_PUBLIC_CROSSMINT_API_KEY ?? ''}>
+    <CrossmintProvider
+      apiKey={process.env.NEXT_PUBLIC_CROSSMINT_API_KEY ?? ''}
+      overrideBaseUrl={process.env.NEXT_PUBLIC_CROSSMINT_BASE_URL ?? ''}
+    >
       <CrossmintAuthProvider loginMethods={['email']}>
         <CrossmintSignerProvider
           iframeUrl={

@@ -60,6 +60,7 @@
     "@crossmint/client-signers": "0.0.3",
     "@noble/ed25519": "^1.7.2",
     "@noble/hashes": "^1.7.2",
+    "crossmint-signers": "link:",
     "shamir-secret-sharing": "^0.0.4",
     "zod": "3.22.4"
   }
