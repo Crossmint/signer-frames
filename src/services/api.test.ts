@@ -222,7 +222,7 @@ describe('CrossmintApiService', () => {
       const result = await apiService.getAuthShard(testDeviceId, testAuthData);
 
       expect(mockFetch).toHaveBeenCalledWith(
-        `${apiService.getBaseUrl(testAuthData.apiKey)}/${testDeviceId}`,
+        `${apiService.getBaseUrl(testAuthData.apiKey)}/${testDeviceId}/key-shares`,
         expect.objectContaining({
           headers: expect.any(Object),
         })
