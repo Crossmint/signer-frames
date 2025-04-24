@@ -11,7 +11,7 @@ export class CrossmintApiService {
 		let baseUrl: string;
 		switch (environment) {
 			case "development":
-				baseUrl = "https://localhost:3000";
+				baseUrl = "http://localhost:3000";
 				break;
 			case "staging":
 				baseUrl = "https://staging.crossmint.com";
