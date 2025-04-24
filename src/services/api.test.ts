@@ -1,4 +1,5 @@
 import { expect, describe, it, beforeEach, vi, afterEach } from 'vitest';
+import * as apiModule from './api';
 import { CrossmintApiService } from './api';
 
 // Mock fetch globally
@@ -7,16 +8,19 @@ global.fetch = mockFetch;
 
 describe('CrossmintApiService', () => {
   let apiService: CrossmintApiService;
-  const testUrl = 'http://test-api.com';
   const testDeviceId = 'test-device-id';
   const testAuthData = {
     jwt: 'test-jwt',
-    apiKey: 'test-api-key',
+    apiKey: 'sk_development_123',
   };
 
+  // Create a spy on parseApiKey
+  const parseApiKeySpy = vi.spyOn(apiModule, 'parseApiKey');
+
   beforeEach(() => {
-    apiService = new CrossmintApiService(testUrl);
+    apiService = new CrossmintApiService();
     mockFetch.mockClear();
+    parseApiKeySpy.mockClear();
   });
 
   afterEach(() => {
@@ -31,23 +35,97 @@ describe('CrossmintApiService', () => {
     await expect(apiService.init()).resolves.not.toThrow();
   });
 
-  it('should use the provided base URL', async () => {
-    const urlService = new CrossmintApiService('https://custom-url.com');
-    mockFetch.mockResolvedValueOnce({
-      json: async () => ({ success: true }),
+  describe('getBaseUrl', () => {
+    it('should generate correct URL for development environment', () => {
+      parseApiKeySpy.mockReturnValueOnce({
+        origin: 'server',
+        environment: 'development',
+      });
+
+      const result = apiService.getBaseUrl('sk_development_123');
+
+      expect(result).toBe('https://localhost:3000/api/unstable/wallets/ncs');
     });
 
-    await urlService.getAuthShard(testDeviceId, testAuthData);
+    it('should generate correct URL for staging environment', () => {
+      parseApiKeySpy.mockReturnValueOnce({
+        origin: 'server',
+        environment: 'staging',
+      });
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      'https://custom-url.com/api/unstable/wallets/ncs/test-device-id',
-      expect.objectContaining({
-        headers: expect.any(Object),
-      })
-    );
+      const result = apiService.getBaseUrl('sk_staging_123');
+
+      expect(result).toBe('https://staging.crossmint.com/api/unstable/wallets/ncs');
+    });
+
+    it('should generate correct URL for production environment', () => {
+      parseApiKeySpy.mockReturnValueOnce({
+        origin: 'server',
+        environment: 'production',
+      });
+
+      const result = apiService.getBaseUrl('sk_production_123');
+
+      expect(result).toBe('https://crossmint.com/api/unstable/wallets/ncs');
+    });
+
+    it('should throw error for invalid environment', () => {
+      parseApiKeySpy.mockImplementationOnce(() => {
+        throw new Error('Invalid API key');
+      });
+
+      expect(() => apiService.getBaseUrl('sk_invalid123')).toThrow('Invalid API key');
+    });
+  });
+
+  describe('parseApiKey function', () => {
+    beforeEach(() => {
+      parseApiKeySpy.mockRestore();
+    });
+
+    it('should correctly parse server-side development API key', () => {
+      const result = apiModule.parseApiKey('sk_development_123');
+      expect(result).toEqual({
+        origin: 'server',
+        environment: 'development',
+      });
+    });
+
+    it('should correctly parse server-side staging API key', () => {
+      const result = apiModule.parseApiKey('sk_staging_123');
+      expect(result).toEqual({
+        origin: 'server',
+        environment: 'staging',
+      });
+    });
+
+    it('should correctly parse server-side production API key', () => {
+      const result = apiModule.parseApiKey('sk_production_123');
+      expect(result).toEqual({
+        origin: 'server',
+        environment: 'production',
+      });
+    });
+
+    it('should correctly parse client-side API keys', () => {
+      const result = apiModule.parseApiKey('ck_production_123');
+      expect(result).toEqual({
+        origin: 'client',
+        environment: 'production',
+      });
+    });
+
+    it('should throw error for invalid API key', () => {
+      expect(() => apiModule.parseApiKey('skinvalid123')).toThrow('Invalid API key');
+    });
   });
 
   it('should include correct headers in the request', async () => {
+    parseApiKeySpy.mockReturnValue({
+      origin: 'server',
+      environment: 'production',
+    });
+
     mockFetch.mockResolvedValueOnce({
       json: async () => ({ success: true }),
     });
@@ -68,6 +146,11 @@ describe('CrossmintApiService', () => {
 
   describe('createSigner', () => {
     it('should make a POST request to create a signer', async () => {
+      parseApiKeySpy.mockReturnValue({
+        origin: 'server',
+        environment: 'production',
+      });
+
       const testData = { authId: 'test-auth-id' };
       mockFetch.mockResolvedValueOnce({
         json: async () => ({ success: true }),
@@ -76,7 +159,7 @@ describe('CrossmintApiService', () => {
       await apiService.createSigner(testDeviceId, testAuthData, testData);
 
       expect(mockFetch).toHaveBeenCalledWith(
-        `${testUrl}/api/unstable/wallets/ncs/${testDeviceId}`,
+        `${apiService.getBaseUrl(testAuthData.apiKey)}/${testDeviceId}`,
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify(testData),
@@ -88,6 +171,11 @@ describe('CrossmintApiService', () => {
 
   describe('sendOtp', () => {
     it('should make a POST request to send OTP and return expected data', async () => {
+      parseApiKeySpy.mockReturnValue({
+        origin: 'server',
+        environment: 'production',
+      });
+
       const testOtpData = { otp: '123456' };
       const expectedResponse = {
         shares: {
@@ -103,7 +191,7 @@ describe('CrossmintApiService', () => {
       const result = await apiService.sendOtp(testDeviceId, testAuthData, testOtpData);
 
       expect(mockFetch).toHaveBeenCalledWith(
-        `${testUrl}/api/unstable/wallets/ncs/${testDeviceId}/auth`,
+        `${apiService.getBaseUrl(testAuthData.apiKey)}/${testDeviceId}/auth`,
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify(testOtpData),
@@ -117,6 +205,11 @@ describe('CrossmintApiService', () => {
 
   describe('getAuthShard', () => {
     it('should make a GET request to fetch auth shard and return expected data', async () => {
+      parseApiKeySpy.mockReturnValue({
+        origin: 'server',
+        environment: 'production',
+      });
+
       const expectedResponse = {
         deviceId: testDeviceId,
         keyShare: 'test-key-share',
@@ -129,7 +222,7 @@ describe('CrossmintApiService', () => {
       const result = await apiService.getAuthShard(testDeviceId, testAuthData);
 
       expect(mockFetch).toHaveBeenCalledWith(
-        `${testUrl}/api/unstable/wallets/ncs/${testDeviceId}`,
+        `${apiService.getBaseUrl(testAuthData.apiKey)}/${testDeviceId}`,
         expect.objectContaining({
           headers: expect.any(Object),
         })
