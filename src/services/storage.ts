@@ -2,7 +2,6 @@
  * StorageService - Handles data storage operations
  */
 
-// Storage item interface
 export interface StorageItem {
   id: string;
   [key: string]: unknown;
@@ -15,7 +14,6 @@ export enum Stores {
 }
 import { ApplicationError } from '../errors';
 
-// Constants
 const DB_NAME = 'CrossmintVault';
 const DB_VERSION = 2;
 
@@ -80,7 +78,6 @@ export class StorageService {
         request.onupgradeneeded = event => {
           const database = (event.target as IDBOpenDBRequest).result;
 
-          // Create all needed object stores if they don't exist
           for (const storeName of this.dbOptions.stores) {
             if (!database.objectStoreNames.contains(storeName)) {
               console.log(`Creating object store: ${storeName}`);
@@ -118,7 +115,6 @@ export class StorageService {
       throw new Error('Data must have an id property');
     }
 
-    // Add expiration if specified
     const itemToStore = { ...item };
     if (expiresIn && expiresIn > 0) {
       (itemToStore as ExpirableItem).expires = Date.now() + expiresIn;
@@ -187,9 +183,7 @@ export class StorageService {
         request.onsuccess = () => {
           const item = request.result as StorageItem | undefined;
 
-          // Check if item has expired
           if (item && this.hasExpired(item)) {
-            // Item has expired, delete it and return null
             this.deleteItem(storeName, id).catch(console.error);
             resolve(null);
           } else {
@@ -267,10 +261,8 @@ export class StorageService {
         request.onsuccess = () => {
           const items = request.result as StorageItem[];
 
-          // Filter out expired items
           const validItems = items.filter(item => {
             if (this.hasExpired(item)) {
-              // Item has expired, delete it
               this.deleteItem(storeName, item.id).catch(console.error);
               return false;
             }

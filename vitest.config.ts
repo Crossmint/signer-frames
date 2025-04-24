@@ -12,7 +12,6 @@ export default defineConfig({
         '**/dist/**',
         '**/cypress/**',
         '**/.{idea,git,cache,output,temp}/**',
-        // "**/index.ts",
         '**/*.js',
         '**/vitest.config.*',
         '**/consts.ts',

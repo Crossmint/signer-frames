@@ -3,7 +3,6 @@ import { mock } from 'vitest-mock-extended';
 import { StorageService, type StorageItem, Stores } from './storage';
 import { ApplicationError } from '../errors';
 
-// Create mocks
 const mockDatabase = mock<IDBDatabase>();
 const mockObjectStore = mock<IDBObjectStore>();
 const mockTransaction = mock<IDBTransaction>();
@@ -11,11 +10,9 @@ const mockTransaction = mock<IDBTransaction>();
 beforeEach(() => {
   vi.clearAllMocks();
 
-  // Reset mock implementations
   mockTransaction.objectStore.mockReturnValue(mockObjectStore);
   mockDatabase.transaction.mockReturnValue(mockTransaction);
 
-  // Mock indexedDB global
   vi.stubGlobal('indexedDB', {
     open: vi.fn(),
   });

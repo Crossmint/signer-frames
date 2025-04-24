@@ -5,7 +5,6 @@
 export class CrossmintApiService {
   async init() {}
 
-  // Make method public for testing purposes
   public getBaseUrl(apiKey: string) {
     const { environment } = parseApiKey(apiKey);
     const basePath = 'api/unstable/wallets/ncs';

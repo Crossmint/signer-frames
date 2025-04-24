@@ -69,7 +69,6 @@ export class Ed25519Service {
     privateKeyBase58: Uint8Array | string
   ): Promise<string> {
     try {
-      // Convert string message to Uint8Array if needed
       const messageBytes =
         typeof message === 'string' ? new TextEncoder().encode(message) : message;
 

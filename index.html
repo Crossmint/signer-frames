@@ -8,13 +8,8 @@
 
     <title>🔑 Crossmint Signers Vault</title>
     <link rel="stylesheet" href="css/styles.css?v=1.0.0">
-    <!-- For production use: -->
     <script src="dist/bundle.min.js?v=1.0.2"></script>
     
-    <!-- For development use (uncomment when debugging): -->
-    <!-- <script src="dist/bundle.js"></script> -->
-    
-    <!-- Environment configuration -->
     <script>
         window.ENV = {
             ENVIRONMENT: "development",
@@ -50,21 +45,16 @@
         Crossmint Signers Vault
     </div>
 
-    <!-- Initialize demo -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Initialize the XMIF framework
             if (window.XMIF) {
                 window.XMIF.init({
-                    environment: window.ENV.ENVIRONMENT,
-                    apiUrl: window.ENV.API_URL,
                     storagePrefix: window.ENV.STORAGE_PREFIX
                 })
                 .then(() => {
                     console.log('XMIF framework initialized');
                     document.getElementById('status').textContent = 'Ready';
                     
-                    // Set up event logging
                     setupEventLog();
                 })
                 .catch(err => {
@@ -77,16 +67,13 @@
                 logEvent('Error', 'XMIF framework not loaded', true);
             }
             
-            // Set up event logging system
             function setupEventLog() {
-                // Clear events button
                 document.getElementById('clear-events').addEventListener('click', () => {
                     document.getElementById('event-log').innerHTML = '';
                     logEvent('Info', 'Event log cleared');
                 });
             }
             
-            // Log an event to the event box
             function logEvent(type, message, isError = false) {
                 const eventLog = document.getElementById('event-log');
                 const eventItem = document.createElement('div');
@@ -105,14 +92,12 @@
                 const timestamp = new Date().toLocaleTimeString();
                 eventItem.innerHTML = `<strong>${timestamp} - ${type}:</strong> ${message}`;
                 
-                // Add to the top 
                 if (eventLog.firstChild) {
                     eventLog.insertBefore(eventItem, eventLog.firstChild);
                 } else {
                     eventLog.appendChild(eventItem);
                 }
                 
-                // Remove first message if it's "Waiting for events..."
                 const firstItem = eventLog.querySelector('.event-item');
                 if (firstItem && firstItem.textContent.includes('Waiting for events...')) {
                     eventLog.removeChild(firstItem);

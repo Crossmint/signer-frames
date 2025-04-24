@@ -2,8 +2,6 @@ import { CrossmintApiService } from './api';
 import { StorageService } from './storage';
 import { combine } from 'shamir-secret-sharing';
 import { Stores } from './storage';
-
-// Using direct import of ed25519 utils
 import { utils } from '@noble/ed25519';
 import { Ed25519Service } from './ed25519';
 import { base64Decode } from '../utils';
