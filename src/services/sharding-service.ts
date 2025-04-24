@@ -100,7 +100,7 @@ export class ShardingService {
    * @param shard The key shard to store
    */
   async storeAuthKeyShardLocally(shard: KeyShard): Promise<void> {
-    await this.storeKeyShardLocallyInStore(shard, Stores.DEVICE_SHARES, 60 * 5 * 1_000);
+    await this.storeKeyShardLocallyInStore(shard, Stores.AUTH_SHARES, 60 * 5 * 1_000);
   }
 
   private async storeKeyShardLocallyInStore(
