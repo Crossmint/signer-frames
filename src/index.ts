@@ -35,9 +35,9 @@ class XMIF {
     private readonly handlers = [
       new CreateSignerEventHandler(crossmintApiService),
       new SendOtpEventHandler(crossmintApiService, shardingService),
-      new GetPublicKeyEventHandler(crossmintApiService, shardingService),
-      new SignMessageEventHandler(crossmintApiService, shardingService, ed25519Service),
-      new SignTransactionEventHandler(),
+      new GetPublicKeyEventHandler(shardingService),
+      new SignMessageEventHandler(shardingService, ed25519Service),
+      new SignTransactionEventHandler(shardingService, ed25519Service),
     ]
   ) {}
 
