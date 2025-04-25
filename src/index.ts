@@ -28,9 +28,8 @@ class XMIF {
 	// Services
 	constructor(
 		private readonly eventsService = new EventsService(),
-		private readonly storageService = new StorageService(),
 		private readonly crossmintApiService = new CrossmintApiService(),
-		readonly shardingService = new ShardingService(storageService),
+		readonly shardingService = new ShardingService(),
 		readonly ed25519Service = new Ed25519Service(),
 		private readonly handlers = [
 			new CreateSignerEventHandler(crossmintApiService, shardingService),
@@ -52,10 +51,6 @@ class XMIF {
 	async init(): Promise<void> {
 		console.log("Initializing XMIF framework...");
 
-		console.log("-- Initializing IndexedDB client...");
-		await this.storageService.initDatabase();
-		console.log("-- IndexedDB client initialized!");
-
 		console.log("-- Initializing Crossmint API...");
 		await this.crossmintApiService.init();
 		console.log("-- Crossmint API initialized!");
@@ -64,25 +59,6 @@ class XMIF {
 		await this.eventsService.initMessenger();
 		this.registerHandlers();
 		console.log("-- Events handlers initialized!");
-	}
-
-	/**
-	 * Get all items from a specified store
-	 * @param {Stores} storeName - The name of the object store
-	 * @returns {Promise<StorageItem[]>} A promise that resolves to an array of items
-	 */
-	async listItems(storeName: Stores): Promise<StorageItem[]> {
-		return this.storageService.listItems(storeName);
-	}
-
-	/**
-	 * Get a specific item from a store
-	 * @param {Stores} storeName - The name of the object store
-	 * @param {string} id - The ID of the item to retrieve
-	 * @returns {Promise<StorageItem | null>} A promise that resolves to the item or null
-	 */
-	async getItem(storeName: Stores, id: string): Promise<StorageItem | null> {
-		return this.storageService.getItem(storeName, id);
 	}
 
 	private registerHandlers() {

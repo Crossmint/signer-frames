@@ -76,7 +76,7 @@ export class CrossmintApiService {
 		return response;
 	}
 
-	async getAuthShard(
+	async getAuthShare(
 		deviceId: string,
 		authData: { jwt: string; apiKey: string },
 	): Promise<{

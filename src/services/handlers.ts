@@ -64,7 +64,17 @@ export class CreateSignerEventHandler extends BaseEventHandler<"create-signer"> 
 		if (!this.api) {
 			throw new Error("API service is not available");
 		}
-		const deviceId = await this.shardingService.getOrCreateDeviceId();
+
+		console.log("local storage items");
+		console.log(localStorage.getItem("deviceId"));
+		console.log(localStorage.getItem("device-share"));
+		console.log(localStorage.getItem("auth-share"));
+
+		const deviceId = this.shardingService.getOrCreateDeviceId();
+		// if (this.shardingService.getDeviceShare() != null) {
+		// 	return {};
+		// }
+
 		await this.api.createSigner(deviceId, payload.authData, payload.data);
 		return {};
 	}
@@ -80,18 +90,14 @@ export class SendOtpEventHandler extends BaseEventHandler<"send-otp"> {
 	event = "request:send-otp" as const;
 	responseEvent = "response:send-otp" as const;
 	handler = async (payload: SignerInputEvent<"send-otp">) => {
-		const deviceId = await this.shardingService.getOrCreateDeviceId();
+		const deviceId = this.shardingService.getOrCreateDeviceId();
 		const response = await this.api.sendOtp(deviceId, payload.authData, {
 			otp: payload.data.encryptedOtp,
 		});
-		await Promise.all([
-			this.shardingService.storeDeviceKeyShardLocally({
-				data: response.shares.device,
-			}),
-			this.shardingService.storeAuthKeyShardLocally({
-				data: response.shares.auth,
-			}),
-		]);
+
+		this.shardingService.storeDeviceShare(response.shares.device);
+		this.shardingService.cacheAuthShare(response.shares.auth);
+
 		const { publicKey } = await this.shardingService.recombineShards(
 			base64Decode(response.shares.device),
 			base64Decode(response.shares.auth),
@@ -113,21 +119,19 @@ export class GetPublicKeyEventHandler extends BaseEventHandler<"get-public-key">
 	event = "request:get-public-key" as const;
 	responseEvent = "response:get-public-key" as const;
 	handler = async (payload: SignerInputEvent<"get-public-key">) => {
-		let authShard = await this.shardingService.tryGetAuthKeyShardFromLocal();
+		let authShare = await this.shardingService.getCachedAuthShare();
 		const deviceId = await this.shardingService.getOrCreateDeviceId();
-		if (!authShard) {
-			const { keyShare } = await this.api.getAuthShard(
+		if (!authShare) {
+			const { keyShare } = await this.api.getAuthShare(
 				deviceId,
 				payload.authData,
 			);
-			authShard = {
-				data: keyShare,
-			};
-			await this.shardingService.storeAuthKeyShardLocally(authShard);
+			authShare = keyShare;
+			await this.shardingService.cacheAuthShare(keyShare);
 		}
 
 		const { publicKey } = await this.shardingService.reconstructKey(
-			authShard,
+			authShare,
 			payload.data.chainLayer,
 		);
 		return {
@@ -150,28 +154,26 @@ export class SignMessageEventHandler extends BaseEventHandler<"sign-message"> {
 		console.log("[SignMessageEventHandler] Starting message signing process");
 		console.log("[SignMessageEventHandler] Checking for cached auth shard");
 		const deviceId = await this.shardingService.getOrCreateDeviceId();
-		let authShard = await this.shardingService.tryGetAuthKeyShardFromLocal();
-		if (!authShard) {
+		let authShare = await this.shardingService.getCachedAuthShare();
+		if (!authShare) {
 			console.log(
 				"[SignMessageEventHandler] No cached auth shard found, fetching from API",
 			);
-			const { keyShare } = await this.api.getAuthShard(
+			const { keyShare } = await this.api.getAuthShare(
 				deviceId,
 				payload.authData,
 			);
-			authShard = {
-				data: keyShare,
-			};
 			console.log("[SignMessageEventHandler] Storing new auth shard locally");
-			console.log("[SignMessageEventHandler] Auth shard:", authShard);
-			await this.shardingService.storeAuthKeyShardLocally(authShard);
+			console.log("[SignMessageEventHandler] Auth shard:", authShare);
+			authShare = keyShare;
+			await this.shardingService.cacheAuthShare(keyShare);
 		} else {
 			console.log("[SignMessageEventHandler] Using cached auth shard");
-			console.log("[SignMessageEventHandler] Cached auth shard:", authShard);
+			console.log("[SignMessageEventHandler] Cached auth shard:", authShare);
 		}
 		console.log("[SignMessageEventHandler] Reconstructing key pair");
 		const { privateKey, publicKey } = await this.shardingService.reconstructKey(
-			authShard,
+			authShare,
 			payload.data.chainLayer,
 		);
 		if (payload.data.chainLayer === "solana") {

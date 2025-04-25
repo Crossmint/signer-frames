@@ -1,7 +1,4 @@
-import { CrossmintApiService } from "./api";
-import { StorageService } from "./storage";
 import { combine } from "shamir-secret-sharing";
-import { Stores } from "./storage";
 import { Ed25519Service } from "./ed25519";
 import { base64Decode } from "../utils";
 
@@ -20,37 +17,24 @@ export interface RecombinedKeys {
 
 export class ShardingService {
 	constructor(
-		private readonly storageService: StorageService = new StorageService(),
 		private readonly ed25519Service: Ed25519Service = new Ed25519Service(),
 	) {}
 
-	async init(): Promise<void> {
-		await this.storageService.initDatabase();
-	}
-
-	// here
-	public async getOrCreateDeviceId(): Promise<string> {
+	public getOrCreateDeviceId(): string {
 		console.log("[ShardingService] Attempting to get device ID from storage");
 
-		const item = await this.storageService.getItem(Stores.SETTINGS, "deviceId");
-		if (item != null) {
-			console.log("[ShardingService] Found existing device ID:", item.deviceId);
-			return item.deviceId as string;
+		const existing = localStorage.getItem("deviceId");
+		if (existing != null) {
+			console.log("[ShardingService] Found existing device ID:", existing);
+			return existing;
 		}
 
 		console.log(
 			"[ShardingService] No existing device ID found, generating new one",
 		);
 		const deviceId = crypto.randomUUID();
-		console.log("[ShardingService] Generated new device ID:", deviceId);
-
-		console.log("[ShardingService] Storing new device ID in settings store");
-		await this.storageService.storeItem(Stores.SETTINGS, {
-			id: "deviceId",
-			deviceId,
-		});
+		localStorage.setItem("deviceId", deviceId);
 		console.log("[ShardingService] Successfully stored new device ID");
-
 		return deviceId;
 	}
 
@@ -81,20 +65,17 @@ export class ShardingService {
 	}
 
 	async reconstructKey(
-		authShard: KeyShard,
+		authShare: string,
 		chainLayer: ChainLayer,
 	): Promise<RecombinedKeys> {
-		const { data } = authShard;
-		const deviceId = await this.getOrCreateDeviceId();
-		const deviceShard = await this.getDeviceKeyShardFromLocal(deviceId);
-		if (!deviceShard) {
-			throw new Error(
-				`Device shard not found in IndexedDB for deviceId: ${deviceId}`,
-			);
+		const deviceShare = this.getDeviceShare();
+		if (!deviceShare) {
+			throw new Error("Device share not found");
 		}
+
 		return this.recombineShards(
-			base64Decode(deviceShard.data),
-			base64Decode(data),
+			base64Decode(deviceShare),
+			base64Decode(authShare),
 			chainLayer,
 		);
 	}
@@ -129,37 +110,16 @@ export class ShardingService {
 	 * Stores a device key shard in the local storage. It does not expire
 	 * @param shard The key shard to store
 	 */
-	async storeDeviceKeyShardLocally(shard: KeyShard): Promise<void> {
-		await this.storeKeyShardLocallyInStore(shard, Stores.DEVICE_SHARES);
+	async storeDeviceShare(share: string): Promise<void> {
+		localStorage.setItem("device-share", share);
 	}
 
 	/**
 	 * Stores an auth key shard in the local storage. Expires in 5 minutes
 	 * @param shard The key shard to store
 	 */
-	async storeAuthKeyShardLocally(shard: KeyShard): Promise<void> {
-		await this.storeKeyShardLocallyInStore(
-			shard,
-			Stores.AUTH_SHARES,
-			60 * 5 * 1_000,
-		);
-	}
-
-	private async storeKeyShardLocallyInStore(
-		shard: KeyShard,
-		storeName: Stores,
-		expiresIn?: number,
-	): Promise<void> {
-		await this.storageService.storeItem(
-			storeName,
-			{
-				id: "1",
-				data: shard.data,
-				type: "base64KeyShard",
-				created: Date.now(),
-			},
-			expiresIn,
-		);
+	async cacheAuthShare(share: string): Promise<void> {
+		sessionStorage.setItem("auth-share", share);
 	}
 
 	/**
@@ -167,8 +127,8 @@ export class ShardingService {
 	 * @param shardId The ID of the shard to retrieve
 	 * @returns The key shard or null if not found
 	 */
-	async getDeviceKeyShardFromLocal(shardId: string): Promise<KeyShard | null> {
-		return this.getShardFromStore(Stores.DEVICE_SHARES);
+	getDeviceShare(): string | null {
+		return localStorage.getItem("device-share");
 	}
 
 	/**
@@ -176,19 +136,7 @@ export class ShardingService {
 	 * @param shardId The ID of the shard to retrieve
 	 * @returns The key shard or null if not found
 	 */
-	async tryGetAuthKeyShardFromLocal(): Promise<KeyShard | null> {
-		return this.getShardFromStore(Stores.AUTH_SHARES);
-	}
-
-	private async getShardFromStore(storeName: Stores): Promise<KeyShard | null> {
-		const item = await this.storageService.getItem(storeName, "1");
-
-		if (!item) {
-			return null;
-		}
-
-		return {
-			data: item.data as string,
-		};
+	getCachedAuthShare(): string | null {
+		return sessionStorage.getItem("auth-share");
 	}
 }

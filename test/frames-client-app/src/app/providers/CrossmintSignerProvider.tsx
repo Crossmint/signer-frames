@@ -15,7 +15,6 @@ import { IFrameWindow } from "@crossmint/client-sdk-window";
 import { useAuth, useCrossmint } from "@crossmint/client-sdk-react-ui";
 import bs58 from "bs58";
 import { PublicKey, type VersionedTransaction } from "@solana/web3.js";
-import { v4 as uuidv4 } from "uuid";
 import OTPDialog from "../components/OTPDialog";
 
 // Simple initializing component to show while connecting to the iframe
