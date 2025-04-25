@@ -37,11 +37,12 @@ abstract class BaseEventHandler<EventName extends SignerIFrameEventName> {
   ): Promise<Omit<SignerOutputEvent<EventName>, 'status'>>;
   async callback(payload: SignerInputEvent<EventName>): Promise<SignerOutputEvent<EventName>> {
     try {
+      const result = await measureFunctionTime(`[${this.event} handler]`, async () =>
+        this.handler(payload)
+      );
       return {
         status: 'success',
-        ...(await measureFunctionTime(`[${this.event} handler]`, async () =>
-          this.handler(payload)
-        )),
+        ...result,
       } as SignerOutputEvent<EventName>;
     } catch (error: unknown) {
       console.error(`[${this.event} handler] Error: ${error}`);
