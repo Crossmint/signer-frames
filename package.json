@@ -4,9 +4,9 @@
   "description": "Cryptographic utilities for Solana and EVM chains",
   "scripts": {
     "build": "pnpm run build:ts",
-    "build:js": "esbuild src/index.js --bundle --minify --sourcemap --outfile=dist/bundle.min.js --format=iife",
-    "build:ts": "tsc && esbuild src/index.ts --bundle --minify --sourcemap --outfile=dist/bundle.min.js --format=iife",
-    "build:dev": "tsc && esbuild src/index.ts --bundle --sourcemap --outfile=dist/bundle.js --format=iife",
+    "build:js": "esbuild src/index.js --bundle --minify --sourcemap --outfile=dist/bundle.min.js --format=iife --external:react-native",
+    "build:ts": "tsc && esbuild src/index.ts --bundle --minify --sourcemap --outfile=dist/bundle.min.js --format=iife --external:react-native",
+    "build:dev": "tsc && esbuild src/index.ts --bundle --sourcemap --outfile=dist/bundle.js --format=iife --external:react-native",
     "build:prod": "pnpm run build:dev && pnpm run build:ts",
     "dev": "pnpm build:prod && pnpm serve:static",
     "serve": "pnpm build:prod && serve -s .",
