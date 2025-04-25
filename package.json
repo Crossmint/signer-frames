@@ -10,7 +10,7 @@
     "build:prod": "pnpm run build:dev && pnpm run build:ts",
     "dev": "pnpm build:prod && pnpm serve:static",
     "serve": "pnpm build:prod && serve -s .",
-    "serve:static": "serve -s .",
+    "serve:static": "serve -s . --listen 54825",
     "serve:prod": "pnpm build:prod && serve -s .",
     "test": "vitest run",
     "test:watch": "vitest",
