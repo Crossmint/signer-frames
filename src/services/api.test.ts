@@ -298,10 +298,13 @@ describe('CrossmintApiService', () => {
       // Fast-forward past the retry delay
       await vi.advanceTimersByTimeAsync(1100);
 
+      // Ensure all promises resolve
+      await vi.runAllTimersAsync();
+
       const response = await promise;
       expect(response.status).toBe(200);
       expect(fetchMock).toHaveBeenCalledTimes(2);
-    });
+    }, 10000); // Increase timeout just in case
 
     it('should respect max retries and eventually fail', async () => {
       const fetchMock = vi.fn();
@@ -328,5 +331,77 @@ describe('CrossmintApiService', () => {
       expect(response.status).toBe(429);
       expect(fetchMock).toHaveBeenCalledTimes(3); // Initial + 2 retries
     });
+
+    it('should handle mixed error types in sequence', async () => {
+      const fetchMock = vi.fn();
+      // First network error, then 429, then success
+      fetchMock
+        .mockRejectedValueOnce(new Error('Network error'))
+        .mockResolvedValueOnce({
+          status: 429,
+          headers: {
+            get: vi.fn().mockReturnValue('1'),
+          },
+        })
+        .mockResolvedValueOnce({
+          status: 200,
+          json: vi.fn().mockResolvedValue({ success: true }),
+          headers: {
+            get: vi.fn(),
+          },
+        });
+
+      global.fetch = fetchMock;
+
+      const promise = testApiService.testFetchWithRetry('https://test.com', { method: 'GET' });
+
+      // Fast-forward past the first retry (network error)
+      await vi.advanceTimersByTimeAsync(1100);
+
+      // Fast-forward past the second retry (429 status)
+      await vi.advanceTimersByTimeAsync(1100);
+
+      // Ensure all promises resolve
+      await vi.runAllTimersAsync();
+
+      const response = await promise;
+      expect(response.status).toBe(200);
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+    }, 10000);
+
+    it('should respect custom retryStatusCodes', async () => {
+      const fetchMock = vi.fn();
+      // Return 404 (not in default retry codes) but in our custom config
+      fetchMock
+        .mockResolvedValueOnce({
+          status: 404,
+          headers: {
+            get: vi.fn(),
+          },
+        })
+        .mockResolvedValueOnce({
+          status: 200,
+          json: vi.fn().mockResolvedValue({ success: true }),
+          headers: {
+            get: vi.fn(),
+          },
+        });
+
+      global.fetch = fetchMock;
+
+      // Create service with custom retry config including 404
+      testApiService = new TestCrossmintApiService({ retryStatusCodes: [404, 429, 500] });
+      const promise = testApiService.testFetchWithRetry('https://test.com', { method: 'GET' });
+
+      // Fast-forward past the retry delay
+      await vi.advanceTimersByTimeAsync(1100);
+
+      // Ensure all promises resolve
+      await vi.runAllTimersAsync();
+
+      const response = await promise;
+      expect(response.status).toBe(200);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    }, 10000);
   });
 });

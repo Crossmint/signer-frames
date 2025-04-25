@@ -17,4 +17,4 @@ jobs:
       - name: Install
         run: pnpm install
       - name: Test and Coverage
-        run: pnpm run test:coverage:json
+        run: pnpm run test:coverage
