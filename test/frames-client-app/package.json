@@ -13,7 +13,7 @@
   "dependencies": {
     "@crossmint/client-sdk-react-ui": "1.18.2",
     "@crossmint/client-sdk-window": "0.2.3",
-    "@crossmint/client-signers": "0.0.5",
+    "@crossmint/client-signers": "0.0.6",
     "@radix-ui/react-dialog": "^1.1.11",
     "@radix-ui/themes": "^3.2.1",
     "@solana/web3.js": "^1.98.1",

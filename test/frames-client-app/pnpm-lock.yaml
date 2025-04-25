@@ -15,8 +15,8 @@ importers:
         specifier: 0.2.3
         version: 0.2.3
       '@crossmint/client-signers':
-        specifier: 0.0.5
-        version: 0.0.5
+        specifier: 0.0.6
+        version: 0.0.6
       '@radix-ui/react-dialog':
         specifier: ^1.1.11
         version: 1.1.11(@types/react-dom@19.1.2(@types/react@19.1.2))(@types/react@19.1.2)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -819,8 +819,8 @@ packages:
   '@crossmint/client-sdk-window@0.2.3':
     resolution: {integrity: sha512-Xh2F7z8ddKCEZPuuRxjHwGSy1x3JpGn3LX7PKX764UuknbDSqruiSJhONY6dY6eelfyY/glyFEnAkCXi3SVnxw==}
 
-  '@crossmint/client-signers@0.0.5':
-    resolution: {integrity: sha512-CHuNF2O23qVagTsrg/sYWrD+RgRRG0E1u1zhF7coeAXR/cK0gwghACorJo8xdR7ud2kAezYGAHSKMpGo1hPSGQ==}
+  '@crossmint/client-signers@0.0.6':
+    resolution: {integrity: sha512-fhzR40ZpgyPuep6JHoPJnGDMUYBHufhTabE99KseKFGACp10zTA4IRSSBRYlQ0YrdUo9U0gCS6yC8yUZnYN1jg==}
 
   '@crossmint/common-sdk-auth@1.0.24':
     resolution: {integrity: sha512-IzpK3RIAlEoR+rmDd7cYcttLyI2tcnI5D9v3Ep9aQ2RYTj77jcKZ41uytxKRZBe3+TEXitRom56doUYTZ1PI6A==}
@@ -7901,7 +7901,7 @@ snapshots:
       nanoid: 5.0.9
       zod: 3.22.4
 
-  '@crossmint/client-signers@0.0.5':
+  '@crossmint/client-signers@0.0.6':
     dependencies:
       zod: 3.22.4
 

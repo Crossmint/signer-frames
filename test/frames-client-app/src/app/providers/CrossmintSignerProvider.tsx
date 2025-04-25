@@ -158,7 +158,7 @@ export default function CrossmintSignerProvider({
             },
             options: defaultEventOptions,
           });
-          if (response?.signature == null) {
+          if (!response || response.status === 'error' || !response.signature) {
             throw new Error('Failed to sign message');
           }
           return bs58.decode(response.signature);
@@ -206,7 +206,7 @@ export default function CrossmintSignerProvider({
           console.log('Response received:', response);
 
           // Validate response
-          if (!response || response.signature == null) {
+          if (!response || response.status === 'error' || !response.signature) {
             throw new Error('Failed to sign transaction: No signature returned');
           }
 
@@ -264,7 +264,7 @@ export default function CrossmintSignerProvider({
     if (iframeWindow.current == null || jwt == null || apiKey == null) {
       throw new Error('Failed to create signer. The component has not been initialized');
     }
-    await iframeWindow.current?.sendAction({
+    const response = await iframeWindow.current?.sendAction({
       event: 'request:create-signer',
       responseEvent: 'response:create-signer',
       data: {
@@ -274,9 +274,14 @@ export default function CrossmintSignerProvider({
         },
         data: {
           authId: user?.email ? `email:${user.email}` : user?.id || '',
+          chainLayer: 'solana',
         },
       },
     });
+
+    if (response?.status === 'success' && response.address) {
+      handleAddressFetched(response.address);
+    }
   };
 
   const handleEncryptedOtpEvent = async (encryptedOtp: string, chainLayer: 'solana') => {
@@ -298,7 +303,7 @@ export default function CrossmintSignerProvider({
         },
       },
     });
-    if (response?.address == null) {
+    if (!response || response.status === 'error' || !response.address) {
       throw new Error('Failed to validate encrypted OTP');
     }
     return response.address;

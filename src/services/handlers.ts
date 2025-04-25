@@ -43,7 +43,7 @@ abstract class BaseEventHandler<EventName extends SignerIFrameEventName> {
       return {
         status: 'success',
         ...result,
-      } as SignerOutputEvent<EventName>;
+      };
     } catch (error: unknown) {
       console.error(`[${this.event} handler] Error: ${error}`);
       return {
