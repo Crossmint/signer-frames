@@ -7,8 +7,8 @@ export class SolanaService {
     return Keypair.fromSeed(masterSecret);
   }
 
-  async signMessage(message: string, keypair: Keypair): Promise<string> {
-    const messageBytes = bs58.decode(message);
+  async signMessage(messageBase58: string, keypair: Keypair): Promise<string> {
+    const messageBytes = bs58.decode(messageBase58);
     const signatureBytes = nacl.sign.detached(messageBytes, keypair.secretKey);
     return bs58.encode(signatureBytes);
   }
