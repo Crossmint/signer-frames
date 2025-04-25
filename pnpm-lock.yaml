@@ -12,8 +12,8 @@ importers:
         specifier: 0.2.3
         version: 0.2.3
       '@crossmint/client-signers':
-        specifier: 0.0.3
-        version: 0.0.3
+        specifier: 0.0.4
+        version: 0.0.4
       '@noble/ed25519':
         specifier: ^1.7.2
         version: 1.7.5
@@ -53,7 +53,7 @@ importers:
         version: 3.1.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@6.3.2(@types/node@20.17.30))(vitest@3.1.1)
       '@vitest/coverage-v8':
         specifier: ^3.1.1
-        version: 3.1.1(@vitest/browser@3.1.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@6.3.2(@types/node@20.17.30))(vitest@3.1.1))(vitest@3.1.1(@types/node@20.17.30)(@vitest/browser@3.1.1)(happy-dom@17.4.4)(jsdom@26.1.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)))
+        version: 3.1.1(@vitest/browser@3.1.1)(vitest@3.1.1)
       bs58:
         specifier: ^6.0.0
         version: 6.0.0
@@ -104,7 +104,7 @@ importers:
         version: 3.1.1(@types/node@20.17.30)(@vitest/browser@3.1.1)(happy-dom@17.4.4)(jsdom@26.1.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))
       vitest-mock-extended:
         specifier: ^3.1.0
-        version: 3.1.0(typescript@5.8.3)(vitest@3.1.1(@types/node@20.17.30)(@vitest/browser@3.1.1)(happy-dom@17.4.4)(jsdom@26.1.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)))
+        version: 3.1.0(typescript@5.8.3)(vitest@3.1.1)
 
 packages:
 
@@ -290,8 +290,8 @@ packages:
   '@crossmint/client-sdk-window@0.2.3':
     resolution: {integrity: sha512-Xh2F7z8ddKCEZPuuRxjHwGSy1x3JpGn3LX7PKX764UuknbDSqruiSJhONY6dY6eelfyY/glyFEnAkCXi3SVnxw==}
 
-  '@crossmint/client-signers@0.0.3':
-    resolution: {integrity: sha512-Y1AkNXUSg1bKzW8BiQpAgsAqUoMEeuMXx6G7PxoBAdXAQ23sFAyNM6liZVJbTLe0dj3u6cu1U1hSBWA6Tv2TaQ==}
+  '@crossmint/client-signers@0.0.4':
+    resolution: {integrity: sha512-5qEkZI5U3EF79Mllp5LEUonI3WWZBuaygSrCz1KBJJzK6+FGHT88BPw4ZFtdKlj0cgTo+/+Tl7rPx5N0ESRj+Q==}
 
   '@csstools/color-helpers@5.0.2':
     resolution: {integrity: sha512-JqWH1vsgdGcw2RR6VliXXdA0/59LttzlU8UlRT/iUUsEeWfYq8I+K0yhihEUTTHLRm1EXvpsCx3083EU15ecsA==}
@@ -3305,7 +3305,7 @@ snapshots:
       nanoid: 5.0.9
       zod: 3.22.4
 
-  '@crossmint/client-signers@0.0.3':
+  '@crossmint/client-signers@0.0.4':
     dependencies:
       zod: 3.22.4
 
@@ -4065,7 +4065,7 @@ snapshots:
       - utf-8-validate
       - vite
 
-  '@vitest/coverage-v8@3.1.1(@vitest/browser@3.1.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@6.3.2(@types/node@20.17.30))(vitest@3.1.1))(vitest@3.1.1(@types/node@20.17.30)(@vitest/browser@3.1.1)(happy-dom@17.4.4)(jsdom@26.1.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)))':
+  '@vitest/coverage-v8@3.1.1(@vitest/browser@3.1.1)(vitest@3.1.1)':
     dependencies:
       '@ampproject/remapping': 2.3.0
       '@bcoe/v8-coverage': 1.0.2
@@ -6118,7 +6118,7 @@ snapshots:
       '@types/node': 20.17.30
       fsevents: 2.3.3
 
-  vitest-mock-extended@3.1.0(typescript@5.8.3)(vitest@3.1.1(@types/node@20.17.30)(@vitest/browser@3.1.1)(happy-dom@17.4.4)(jsdom@26.1.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))):
+  vitest-mock-extended@3.1.0(typescript@5.8.3)(vitest@3.1.1):
     dependencies:
       ts-essentials: 10.0.4(typescript@5.8.3)
       typescript: 5.8.3

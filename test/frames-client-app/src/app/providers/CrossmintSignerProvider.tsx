@@ -146,7 +146,6 @@ export default function CrossmintSignerProvider({
             event: 'request:sign-message',
             responseEvent: 'response:sign-message',
             data: {
-              deviceId: 'device id placeholder',
               authData: {
                 jwt: jwt as NonNullable<typeof jwt>,
                 apiKey,
@@ -184,7 +183,6 @@ export default function CrossmintSignerProvider({
 
           // Prepare request
           const requestData = {
-            deviceId: 'device id placeholder',
             authData: {
               jwt: jwt as NonNullable<typeof jwt>,
               apiKey,
@@ -270,7 +268,6 @@ export default function CrossmintSignerProvider({
       event: 'request:create-signer',
       responseEvent: 'response:create-signer',
       data: {
-        deviceId: 'deviceId placeholder',
         authData: {
           jwt: jwt as NonNullable<typeof jwt>,
           apiKey,
@@ -291,7 +288,6 @@ export default function CrossmintSignerProvider({
       event: 'request:send-otp',
       responseEvent: 'response:send-otp',
       data: {
-        deviceId: 'deviceId placeholder',
         authData: {
           jwt,
           apiKey,

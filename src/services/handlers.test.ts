@@ -91,7 +91,6 @@ describe('EventHandlers', () => {
     it('should measure function execution time in callback', async () => {
       const handler = new CreateSignerEventHandler(mockCrossmintApiService, mockShardingService);
       const testInput: SignerInputEvent<'create-signer'> = {
-        deviceId: testDeviceId,
         authData: testAuthData,
         data: { authId: 'test-auth-id' },
       };
@@ -116,7 +115,6 @@ describe('EventHandlers', () => {
     it('should call createSigner with correct parameters', async () => {
       const handler = new CreateSignerEventHandler(mockCrossmintApiService, mockShardingService);
       const testInput: SignerInputEvent<'create-signer'> = {
-        deviceId: testDeviceId,
         authData: testAuthData,
         data: { authId: 'test-auth-id' },
       };
@@ -145,7 +143,6 @@ describe('EventHandlers', () => {
     it('should process OTP and store key shards', async () => {
       const handler = new SendOtpEventHandler(mockCrossmintApiService, mockShardingService);
       const testInput: SignerInputEvent<'send-otp'> = {
-        deviceId: testDeviceId,
         authData: testAuthData,
         data: {
           encryptedOtp: '123456',
@@ -192,7 +189,6 @@ describe('EventHandlers', () => {
     it('should retrieve and reconstruct the key', async () => {
       const handler = new GetPublicKeyEventHandler(mockShardingService);
       const testInput: SignerInputEvent<'get-public-key'> = {
-        deviceId: testDeviceId,
         authData: testAuthData,
         data: {
           chainLayer: 'solana',
@@ -222,7 +218,6 @@ describe('EventHandlers', () => {
     it('should sign a message for supported chain layers', async () => {
       const handler = new SignMessageEventHandler(mockShardingService, mockEd25519Service);
       const testInput: SignerInputEvent<'sign-message'> = {
-        deviceId: testDeviceId,
         authData: testAuthData,
         data: {
           chainLayer: 'solana',
@@ -253,7 +248,6 @@ describe('EventHandlers', () => {
     it('should throw "Not implemented" error for unsupported chain layers', async () => {
       const handler = new SignMessageEventHandler(mockShardingService, mockEd25519Service);
       const testInput: SignerInputEvent<'sign-message'> = {
-        deviceId: testDeviceId,
         authData: testAuthData,
         data: {
           chainLayer: 'evm', // Use EVM to trigger the 'not implemented' error
@@ -290,7 +284,6 @@ describe('EventHandlers', () => {
     it('should sign the transaction', async () => {
       const handler = new SignTransactionEventHandler(mockShardingService, mockEd25519Service);
       const testInput: SignerInputEvent<'sign-transaction'> = {
-        deviceId: testDeviceId,
         authData: testAuthData,
         data: {
           transaction: serializedTransaction,
