@@ -16,13 +16,16 @@ export interface RecombinedKeys {
 	publicKey: string;
 }
 
+const AUTH_SHARE_KEY = "auth-share";
+const DEVICE_SHARE_KEY = "device-share";
+
 export class ShardingService {
 	constructor(
 		private readonly ed25519Service: Ed25519Service = new Ed25519Service(),
 		private readonly api: CrossmintApiService = new CrossmintApiService(),
 	) {}
 
-	public getOrCreateDeviceId(): string {
+	public getDeviceId(): string {
 		console.log("[ShardingService] Attempting to get device ID from storage");
 
 		const existing = localStorage.getItem("deviceId");
@@ -40,6 +43,51 @@ export class ShardingService {
 		return deviceId;
 	}
 
+	public async getLocalKeyInstance(
+		authData: { jwt: string; apiKey: string },
+		chainLayer: ChainLayer,
+	) {
+		const deviceShare = this.getDeviceShare();
+		if (!deviceShare) {
+			throw new Error("Device share not found");
+		}
+
+		let authShare = this.getCachedAuthShare();
+		if (!authShare) {
+			const deviceId = this.getDeviceId();
+			const { keyShare } = await this.api.getAuthShard(deviceId, authData);
+			this.cacheAuthShare(keyShare);
+			authShare = keyShare;
+		}
+
+		const { privateKey, publicKey } = await this.recombineShards(
+			base64Decode(deviceShare),
+			base64Decode(authShare),
+			chainLayer,
+		);
+
+		return {
+			privateKey,
+			publicKey,
+		};
+	}
+
+	storeDeviceShare(share: string): void {
+		localStorage.setItem(DEVICE_SHARE_KEY, share);
+	}
+
+	cacheAuthShare(share: string): void {
+		sessionStorage.setItem(AUTH_SHARE_KEY, share);
+	}
+
+	getDeviceShare(): string | null {
+		return localStorage.getItem(DEVICE_SHARE_KEY);
+	}
+
+	getCachedAuthShare(): string | null {
+		return sessionStorage.getItem(AUTH_SHARE_KEY);
+	}
+
 	/**
 	 * Recombines key shards to recover the private key and derive the public key
 	 * @param shard1 First key shard
@@ -47,7 +95,7 @@ export class ShardingService {
 	 * @param chainLayer The blockchain layer (solana, evm, etc.)
 	 * @returns The recombined private key and public key
 	 */
-	async recombineShards(
+	private async recombineShards(
 		shard1: Uint8Array,
 		shard2: Uint8Array,
 		chainLayer: ChainLayer,
@@ -64,44 +112,6 @@ export class ShardingService {
 				`Failed to recombine key shards: ${error instanceof Error ? error.message : String(error)}`,
 			);
 		}
-	}
-
-	async getLocalKeyInstance(
-		deviceId: string,
-		authData: { jwt: string; apiKey: string },
-		chainLayer: ChainLayer,
-	) {
-		let authShare = this.getCachedAuthShare();
-		if (!authShare) {
-			const { keyShare } = await this.api.getAuthShard(deviceId, authData);
-			await this.cacheAuthShare(keyShare);
-			authShare = keyShare;
-		}
-
-		const { privateKey, publicKey } = await this.reconstructKey(
-			authShare,
-			chainLayer,
-		);
-		return {
-			privateKey,
-			publicKey,
-		};
-	}
-
-	async reconstructKey(
-		authShare: string,
-		chainLayer: ChainLayer,
-	): Promise<RecombinedKeys> {
-		const deviceShare = this.getDeviceShare();
-		if (!deviceShare) {
-			throw new Error("Device share not found");
-		}
-
-		return this.recombineShards(
-			base64Decode(deviceShare),
-			base64Decode(authShare),
-			chainLayer,
-		);
 	}
 
 	/**
@@ -128,21 +138,5 @@ export class ShardingService {
 			default:
 				throw new Error(`Unsupported chain layer: ${chainLayer}`);
 		}
-	}
-
-	storeDeviceShare(share: string): void {
-		localStorage.setItem("device-share", share);
-	}
-
-	cacheAuthShare(share: string): void {
-		sessionStorage.setItem("auth-share", share);
-	}
-
-	getDeviceShare(): string | null {
-		return localStorage.getItem("device-share");
-	}
-
-	getCachedAuthShare(): string | null {
-		return sessionStorage.getItem("auth-share");
 	}
 }

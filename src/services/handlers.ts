@@ -5,7 +5,7 @@ import type {
 } from "@crossmint/client-signers";
 import type { CrossmintApiService } from "./api";
 import type { ShardingService } from "./sharding-service";
-import { base58Decode, base58Encode, base64Decode } from "../utils";
+import { base58Decode, base58Encode } from "../utils";
 import type { Ed25519Service } from "./ed25519";
 import { Keypair, PublicKey, VersionedTransaction } from "@solana/web3.js";
 const DEFAULT_TIMEOUT_MS = 10_000;
@@ -66,16 +66,7 @@ export class CreateSignerEventHandler extends BaseEventHandler<"create-signer"> 
 			throw new Error("API service is not available");
 		}
 
-		console.log("local storage items");
-		console.log(localStorage.getItem("deviceId"));
-		console.log(localStorage.getItem("device-share"));
-		console.log(localStorage.getItem("auth-share"));
-
-		const deviceId = this.shardingService.getOrCreateDeviceId();
-		// if (this.shardingService.getDeviceShare() != null) {
-		// 	return {};
-		// }
-
+		const deviceId = this.shardingService.getDeviceId();
 		await this.api.createSigner(deviceId, payload.authData, payload.data);
 		return {};
 	}
@@ -91,7 +82,7 @@ export class SendOtpEventHandler extends BaseEventHandler<"send-otp"> {
 	event = "request:send-otp" as const;
 	responseEvent = "response:send-otp" as const;
 	handler = async (payload: SignerInputEvent<"send-otp">) => {
-		const deviceId = this.shardingService.getOrCreateDeviceId();
+		const deviceId = this.shardingService.getDeviceId();
 		const response = await this.api.sendOtp(deviceId, payload.authData, {
 			otp: payload.data.encryptedOtp,
 		});
@@ -99,9 +90,8 @@ export class SendOtpEventHandler extends BaseEventHandler<"send-otp"> {
 		this.shardingService.storeDeviceShare(response.shares.device);
 		this.shardingService.cacheAuthShare(response.shares.auth);
 
-		const { publicKey } = await this.shardingService.recombineShards(
-			base64Decode(response.shares.device),
-			base64Decode(response.shares.auth),
+		const { publicKey } = await this.shardingService.getLocalKeyInstance(
+			payload.authData,
 			payload.data.chainLayer,
 		);
 		return {
@@ -118,7 +108,6 @@ export class GetPublicKeyEventHandler extends BaseEventHandler<"get-public-key">
 	responseEvent = "response:get-public-key" as const;
 	handler = async (payload: SignerInputEvent<"get-public-key">) => {
 		const { publicKey } = await this.shardingService.getLocalKeyInstance(
-			payload.deviceId,
 			payload.authData,
 			payload.data.chainLayer,
 		);
@@ -140,7 +129,6 @@ export class SignMessageEventHandler extends BaseEventHandler<"sign-message"> {
 	async handler(payload: SignerInputEvent<"sign-message">) {
 		const { privateKey, publicKey } =
 			await this.shardingService.getLocalKeyInstance(
-				payload.deviceId,
 				payload.authData,
 				payload.data.chainLayer,
 			);
@@ -167,7 +155,6 @@ export class SignTransactionEventHandler extends BaseEventHandler<"sign-transact
 	handler = async (payload: SignerInputEvent<"sign-transaction">) => {
 		const { privateKey, publicKey } =
 			await this.shardingService.getLocalKeyInstance(
-				payload.deviceId,
 				payload.authData,
 				payload.data.chainLayer,
 			);
