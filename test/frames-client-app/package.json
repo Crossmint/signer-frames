@@ -1,41 +1,44 @@
 {
-  "name": "frames-testing-app",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
-  },
-  "dependencies": {
-    "@crossmint/client-sdk-react-ui": "1.18.2",
-    "@crossmint/client-sdk-window": "0.2.3",
-    "@crossmint/client-signers": "0.0.3",
-    "@radix-ui/react-dialog": "^1.1.11",
-    "@radix-ui/themes": "^3.2.1",
-    "@solana/web3.js": "^1.98.1",
-    "@tailwindcss/postcss": "^4.1.4",
-    "bs58": "^6.0.0",
-    "frames-testing-app": "link:",
-    "next": "15.3.1",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "tweetnacl": "^1.0.3",
-    "uuid": "^11.1.0",
-    "zod": "^3.24.3"
-  },
-  "devDependencies": {
-    "@eslint/eslintrc": "^3",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@types/uuid": "^10.0.0",
-    "autoprefixer": "^10.4.21",
-    "eslint": "^9",
-    "eslint-config-next": "15.3.1",
-    "postcss": "^8.5.3",
-    "tailwindcss": "^4.1.4",
-    "typescript": "^5"
-  }
+	"name": "frames-testing-app",
+	"version": "0.1.0",
+	"private": true,
+	"scripts": {
+		"dev": "next dev --turbopack",
+		"build": "next build",
+		"start": "next start",
+		"lint": "next lint",
+		"format": "prettier --write \"src/**/*.{js,ts,jsx,tsx}\"",
+		"format:check": "prettier --check \"src/**/*.{js,ts,jsx,tsx}\""
+	},
+	"dependencies": {
+		"@crossmint/client-sdk-react-ui": "1.18.2",
+		"@crossmint/client-sdk-window": "0.2.3",
+		"@crossmint/client-signers": "0.0.3",
+		"@radix-ui/react-dialog": "^1.1.11",
+		"@radix-ui/themes": "^3.2.1",
+		"@solana/web3.js": "^1.98.1",
+		"@tailwindcss/postcss": "^4.1.4",
+		"bs58": "^6.0.0",
+		"frames-testing-app": "link:",
+		"next": "15.3.1",
+		"react": "^19.0.0",
+		"react-dom": "^19.0.0",
+		"tweetnacl": "^1.0.3",
+		"uuid": "^11.1.0",
+		"zod": "^3.24.3"
+	},
+	"devDependencies": {
+		"@eslint/eslintrc": "^3",
+		"@types/node": "^20",
+		"@types/react": "^19",
+		"@types/react-dom": "^19",
+		"@types/uuid": "^10.0.0",
+		"autoprefixer": "^10.4.21",
+		"eslint": "^9",
+		"eslint-config-next": "15.3.1",
+		"postcss": "^8.5.3",
+		"prettier": "^3.5.3",
+		"tailwindcss": "^4.1.4",
+		"typescript": "^5"
+	}
 }
