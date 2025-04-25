@@ -91,7 +91,7 @@ class XMIF {
 			messenger.on(handler.event, async (payload) => {
 				// @ts-expect-error The payload types from different handlers are incompatible
 				// but at runtime each handler only receives payloads it can handle
-				const response = await handler.handler(payload);
+				const response = await handler.callback(payload);
 				messenger.send(handler.responseEvent, response);
 			});
 		}

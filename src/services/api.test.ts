@@ -44,7 +44,7 @@ describe('CrossmintApiService', () => {
 
       const result = apiService.getBaseUrl('sk_development_123');
 
-      expect(result).toBe('https://localhost:3000/api/unstable/wallets/ncs');
+      expect(result).toBe('http://localhost:3000/api/unstable/wallets/ncs');
     });
 
     it('should generate correct URL for staging environment', () => {

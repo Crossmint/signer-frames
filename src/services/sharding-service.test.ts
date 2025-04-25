@@ -147,7 +147,7 @@ describe('ShardingService', () => {
       await shardingService.storeAuthKeyShardLocally(testKeyShard);
 
       expect(mockStorageService.storeItem).toHaveBeenCalledWith(
-        ActualStores.DEVICE_SHARES,
+        ActualStores.AUTH_SHARES,
         {
           id: testKeyShard.deviceId,
           data: testKeyShard.data,
