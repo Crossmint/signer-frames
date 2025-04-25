@@ -32,12 +32,25 @@ export interface EventHandler {
 abstract class BaseEventHandler<EventName extends SignerIFrameEventName> {
   abstract event: `request:${EventName}`;
   abstract responseEvent: `response:${EventName}`;
-  abstract handler(payload: SignerInputEvent<EventName>): Promise<SignerOutputEvent<EventName>>;
+  abstract handler(
+    payload: SignerInputEvent<EventName>
+  ): Promise<Omit<SignerOutputEvent<EventName>, 'status'>>;
   async callback(payload: SignerInputEvent<EventName>): Promise<SignerOutputEvent<EventName>> {
-    const result = await measureFunctionTime(`[${this.event} handler]`, async () =>
-      this.handler(payload)
-    );
-    return result;
+    try {
+      const result = await measureFunctionTime(`[${this.event} handler]`, async () =>
+        this.handler(payload)
+      );
+      return {
+        status: 'success',
+        ...result,
+      };
+    } catch (error: unknown) {
+      console.error(`[${this.event} handler] Error: ${error}`);
+      return {
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
   }
   options = {
     timeoutMs: DEFAULT_TIMEOUT_MS,
@@ -58,6 +71,17 @@ export class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> 
       throw new Error('API service is not available');
     }
 
+    if (this.shardingService.getDeviceShare() != null) {
+      const { publicKey } = await this.shardingService.getLocalKeyInstance(
+        payload.authData,
+        payload.data.chainLayer
+      );
+      return {
+        address: publicKey,
+      };
+    }
+
+    console.log('Signer not yet initialized, creating a new one...');
     const deviceId = this.shardingService.getDeviceId();
     await this.api.createSigner(deviceId, payload.authData, payload.data);
     return {};

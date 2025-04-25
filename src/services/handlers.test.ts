@@ -92,7 +92,7 @@ describe('EventHandlers', () => {
       const handler = new CreateSignerEventHandler(mockCrossmintApiService, mockShardingService);
       const testInput: SignerInputEvent<'create-signer'> = {
         authData: testAuthData,
-        data: { authId: 'test-auth-id' },
+        data: { authId: 'test-auth-id', chainLayer: 'solana' },
       };
 
       mockCrossmintApiService.createSigner.mockResolvedValue({} as Response);
@@ -116,20 +116,43 @@ describe('EventHandlers', () => {
       const handler = new CreateSignerEventHandler(mockCrossmintApiService, mockShardingService);
       const testInput: SignerInputEvent<'create-signer'> = {
         authData: testAuthData,
-        data: { authId: 'test-auth-id' },
+        data: { authId: 'test-auth-id', chainLayer: 'solana' },
       };
 
       mockCrossmintApiService.createSigner.mockResolvedValue({} as Response);
+      mockShardingService.getLocalKeyInstance.mockRejectedValue({});
 
       const result = await handler.handler(testInput);
 
-      expect(mockShardingService.getDeviceId).toHaveBeenCalled();
+      expect(mockShardingService.getDeviceId).toHaveBeenCalledOnce();
       expect(mockCrossmintApiService.createSigner).toHaveBeenCalledWith(
         testDeviceId,
         testInput.authData,
-        { authId: 'test-auth-id' }
+        { authId: 'test-auth-id', chainLayer: 'solana' }
       );
       expect(result).toEqual({});
+    });
+
+    it('should return the address if it retrieves the signer correctly', async () => {
+      const handler = new CreateSignerEventHandler(mockCrossmintApiService, mockShardingService);
+      const testInput: SignerInputEvent<'create-signer'> = {
+        authData: testAuthData,
+        data: { authId: 'test-auth-id', chainLayer: 'solana' },
+      };
+
+      mockCrossmintApiService.createSigner.mockResolvedValue({} as Response);
+      mockShardingService.getLocalKeyInstance.mockResolvedValue({
+        privateKey: testPrivateKey,
+        publicKey: testPublicKey,
+      });
+      mockShardingService.getDeviceShare.mockReturnValue('device-share-base64');
+
+      const result = await handler.handler(testInput);
+
+      expect(mockCrossmintApiService.createSigner).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        address: testPublicKey,
+      });
     });
   });
 
