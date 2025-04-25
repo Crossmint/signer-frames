@@ -43,9 +43,19 @@ export default function SignMessageForm() {
 
       // Convert the signature to a base64 string for display
       const signatureBase58 = bs58.encode(signedMessage);
-
       setSignature(signatureBase58);
-      setSuccess('Message signed successfully!');
+
+      const isValid = nacl.sign.detached.verify(
+        messageBytes,
+        signedMessage,
+        solanaSigner.publicKey.toBytes()
+      );
+
+      if (isValid) {
+        setSuccess('Message signed successfully');
+      } else {
+        setError('Invalid signature :(');
+      }
     } catch (err) {
       console.error('Error signing message:', err);
       setError(err instanceof Error ? err.message : 'Failed to sign message');

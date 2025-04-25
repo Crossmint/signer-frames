@@ -11,7 +11,7 @@ import {
   SignMessageEventHandler,
   SignTransactionEventHandler,
 } from './services/handlers';
-import { Ed25519Service } from './services/ed25519';
+import { SolanaService } from './services/SolanaService';
 
 // Define window augmentation
 declare global {
@@ -28,13 +28,13 @@ class XMIF {
     private readonly eventsService = new EventsService(),
     private readonly crossmintApiService = new CrossmintApiService(),
     readonly shardingService = new ShardingService(),
-    readonly ed25519Service = new Ed25519Service(),
+    readonly solanaService = new SolanaService(),
     private readonly handlers = [
-      new CreateSignerEventHandler(crossmintApiService, shardingService),
-      new SendOtpEventHandler(crossmintApiService, shardingService),
-      new GetPublicKeyEventHandler(shardingService),
-      new SignMessageEventHandler(shardingService, ed25519Service),
-      new SignTransactionEventHandler(shardingService, ed25519Service),
+      new CreateSignerEventHandler(crossmintApiService, shardingService, solanaService),
+      new SendOtpEventHandler(crossmintApiService, shardingService, solanaService),
+      new GetPublicKeyEventHandler(shardingService, solanaService),
+      new SignMessageEventHandler(shardingService, solanaService),
+      new SignTransactionEventHandler(shardingService, solanaService),
     ]
   ) {}
 

@@ -5,9 +5,7 @@ import type {
 } from '@crossmint/client-signers';
 import type { CrossmintApiService } from './api';
 import type { ShardingService } from './sharding-service';
-import { base58Decode, base58Encode } from '../utils';
-import type { Ed25519Service } from './ed25519';
-import { Keypair, PublicKey, VersionedTransaction } from '@solana/web3.js';
+import type { SolanaService } from './SolanaService';
 const DEFAULT_TIMEOUT_MS = 10_000;
 
 const measureFunctionTime = async <T>(fnName: string, fn: () => Promise<T>): Promise<T> => {
@@ -60,7 +58,8 @@ abstract class BaseEventHandler<EventName extends SignerIFrameEventName> {
 export class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> {
   constructor(
     private readonly api: CrossmintApiService,
-    private readonly shardingService: ShardingService
+    private readonly shardingService: ShardingService,
+    private readonly solanaService: SolanaService
   ) {
     super();
   }
@@ -72,12 +71,10 @@ export class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> 
     }
 
     if (this.shardingService.getDeviceShare() != null) {
-      const { publicKey } = await this.shardingService.getLocalKeyInstance(
-        payload.authData,
-        payload.data.chainLayer
-      );
+      const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
+      const keypair = this.solanaService.getKeypair(masterSecret);
       return {
-        address: publicKey,
+        address: keypair.publicKey.toBase58(),
       };
     }
 
@@ -91,7 +88,8 @@ export class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> 
 export class SendOtpEventHandler extends BaseEventHandler<'send-otp'> {
   constructor(
     private readonly api: CrossmintApiService,
-    private readonly shardingService: ShardingService
+    private readonly shardingService: ShardingService,
+    private readonly solanaService: SolanaService
   ) {
     super();
   }
@@ -106,29 +104,26 @@ export class SendOtpEventHandler extends BaseEventHandler<'send-otp'> {
     this.shardingService.storeDeviceShare(response.shares.device);
     this.shardingService.cacheAuthShare(response.shares.auth);
 
-    const { publicKey } = await this.shardingService.getLocalKeyInstance(
-      payload.authData,
-      payload.data.chainLayer
-    );
+    const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
     return {
-      address: publicKey,
+      address: this.solanaService.getKeypair(masterSecret).publicKey.toBase58(),
     };
   };
 }
 
 export class GetPublicKeyEventHandler extends BaseEventHandler<'get-public-key'> {
-  constructor(private readonly shardingService: ShardingService) {
+  constructor(
+    private readonly shardingService: ShardingService,
+    private readonly solanaService: SolanaService
+  ) {
     super();
   }
   event = 'request:get-public-key' as const;
   responseEvent = 'response:get-public-key' as const;
   handler = async (payload: SignerInputEvent<'get-public-key'>) => {
-    const { publicKey } = await this.shardingService.getLocalKeyInstance(
-      payload.authData,
-      payload.data.chainLayer
-    );
+    const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
     return {
-      publicKey,
+      publicKey: this.solanaService.getKeypair(masterSecret).publicKey.toBase58(),
     };
   };
 }
@@ -136,55 +131,49 @@ export class GetPublicKeyEventHandler extends BaseEventHandler<'get-public-key'>
 export class SignMessageEventHandler extends BaseEventHandler<'sign-message'> {
   constructor(
     private readonly shardingService: ShardingService,
-    private readonly ed25519Service: Ed25519Service
+    private readonly solanaService: SolanaService
   ) {
     super();
   }
   event = 'request:sign-message' as const;
   responseEvent = 'response:sign-message' as const;
   async handler(payload: SignerInputEvent<'sign-message'>) {
-    const { privateKey, publicKey } = await this.shardingService.getLocalKeyInstance(
-      payload.authData,
-      payload.data.chainLayer
-    );
-    if (payload.data.chainLayer === 'solana') {
-      const signature = await this.ed25519Service.signMessage(payload.data.message, privateKey);
-      return { signature, publicKey };
+    if (payload.data.chainLayer !== 'solana') {
+      throw new Error('Chain layer not implemented');
     }
-    throw new Error('Chain layer not implemented');
+
+    const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
+    const keypair = this.solanaService.getKeypair(masterSecret);
+    const signature = await this.solanaService.signMessage(payload.data.message, keypair);
+    return { signature, publicKey: keypair.publicKey.toBase58() };
   }
 }
 
 export class SignTransactionEventHandler extends BaseEventHandler<'sign-transaction'> {
   constructor(
     private readonly shardingService: ShardingService,
-    private readonly ed25519Service: Ed25519Service
+    private readonly solanaService: SolanaService
   ) {
     super();
   }
   event = 'request:sign-transaction' as const;
   responseEvent = 'response:sign-transaction' as const;
   handler = async (payload: SignerInputEvent<'sign-transaction'>) => {
-    const { privateKey, publicKey } = await this.shardingService.getLocalKeyInstance(
-      payload.authData,
-      payload.data.chainLayer
-    );
-    if (payload.data.chainLayer === 'solana') {
-      // TODO: try to delete the solana dependency
-      const transaction = await VersionedTransaction.deserialize(
-        base58Decode(payload.data.transaction)
-      );
-      const signerIndex = transaction.message.staticAccountKeys.findIndex(key =>
-        key.equals(new PublicKey(publicKey))
-      );
-      const kp = Keypair.fromSecretKey(this.ed25519Service.getSecretKey(privateKey, publicKey));
-      await transaction.sign([kp]);
-      return {
-        publicKey,
-        transaction: base58Encode(transaction.serialize()),
-        signature: base58Encode(transaction.signatures[signerIndex]),
-      };
+    if (payload.data.chainLayer !== 'solana') {
+      throw new Error('Chain layer not implemented');
     }
-    throw new Error('Chain layer not implemented');
+
+    const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
+    const keypair = this.solanaService.getKeypair(masterSecret);
+    const { transaction, signature } = await this.solanaService.signTransaction(
+      payload.data.transaction,
+      keypair
+    );
+
+    return {
+      publicKey: keypair.publicKey.toBase58(),
+      transaction,
+      signature,
+    };
   };
 }
