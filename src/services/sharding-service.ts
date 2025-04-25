@@ -18,26 +18,29 @@ export interface RecombinedKeys {
 
 const AUTH_SHARE_KEY = 'auth-share';
 const DEVICE_SHARE_KEY = 'device-share';
+const LOG_PREFIX = '[ShardingService]';
 
 export class ShardingService {
   constructor(
     private readonly ed25519Service: Ed25519Service = new Ed25519Service(),
     private readonly api: CrossmintApiService = new CrossmintApiService()
-  ) {}
+  ) {
+    console.log(`${LOG_PREFIX} Initializing ShardingService`);
+  }
 
   public getDeviceId(): string {
-    console.log('[ShardingService] Attempting to get device ID from storage');
+    console.log(`${LOG_PREFIX} Attempting to get device ID from storage`);
 
     const existing = localStorage.getItem('deviceId');
     if (existing != null) {
-      console.log('[ShardingService] Found existing device ID:', existing);
+      console.log(`${LOG_PREFIX} Found existing device ID: ${existing.substring(0, 8)}...`);
       return existing;
     }
 
-    console.log('[ShardingService] No existing device ID found, generating new one');
+    console.log(`${LOG_PREFIX} No existing device ID found, generating new one`);
     const deviceId = crypto.randomUUID();
     localStorage.setItem('deviceId', deviceId);
-    console.log('[ShardingService] Successfully stored new device ID');
+    console.log(`${LOG_PREFIX} Successfully stored new device ID: ${deviceId.substring(0, 8)}...`);
     return deviceId;
   }
 
@@ -45,6 +48,8 @@ export class ShardingService {
     authData: { jwt: string; apiKey: string },
     chainLayer: ChainLayer
   ) {
+    console.log(`${LOG_PREFIX} Getting local key instance for chain: ${chainLayer}`);
+
     const deviceShare = this.getDeviceShare();
     if (!deviceShare) {
       throw new Error('Device share not found');
@@ -52,12 +57,14 @@ export class ShardingService {
 
     let authShare = this.getCachedAuthShare();
     if (!authShare) {
+      console.log(`${LOG_PREFIX} Auth share not found in cache, fetching from API`);
       const deviceId = this.getDeviceId();
       const { keyShare } = await this.api.getAuthShard(deviceId, authData);
       this.cacheAuthShare(keyShare);
       authShare = keyShare;
     }
 
+    console.log(`${LOG_PREFIX} Recombining key shards for ${chainLayer}`);
     const { privateKey, publicKey } = await this.recombineShards(
       base64Decode(deviceShare),
       base64Decode(authShare),
@@ -99,13 +106,25 @@ export class ShardingService {
     chainLayer: ChainLayer
   ): Promise<RecombinedKeys> {
     try {
+      console.log(`${LOG_PREFIX} Combining shards using shamir-secret-sharing`);
+      console.log(
+        `${LOG_PREFIX} Shard 1 length: ${shard1.length}, Shard 2 length: ${shard2.length}`
+      );
+
       const privateKey = await combine([shard1, shard2]);
+      console.log(
+        `${LOG_PREFIX} Shards combined successfully, private key length: ${privateKey.length}`
+      );
+
+      console.log(`${LOG_PREFIX} Deriving public key for chain layer: ${chainLayer}`);
       const publicKey = await this.computePublicKey(privateKey, chainLayer);
+
       return {
         privateKey,
         publicKey,
       };
     } catch (error) {
+      console.error(`${LOG_PREFIX} Failed to recombine key shards:`, error);
       throw new Error(
         `Failed to recombine key shards: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -120,15 +139,25 @@ export class ShardingService {
    */
   private async computePublicKey(privateKey: Uint8Array, chainLayer: ChainLayer): Promise<string> {
     if (privateKey.length !== 32) {
-      throw new Error(`Invalid private key length: ${privateKey.length}. Expected 32 bytes.`);
+      const errorMsg = `Invalid private key length: ${privateKey.length}. Expected 32 bytes.`;
+      console.error(`${LOG_PREFIX} ${errorMsg}`);
+      throw new Error(errorMsg);
     }
 
+    console.log(`${LOG_PREFIX} Computing public key for chain layer: ${chainLayer}`);
     switch (chainLayer) {
-      case 'solana':
-        return await this.ed25519Service.getPublicKey(privateKey);
+      case 'solana': {
+        const publicKey = await this.ed25519Service.getPublicKey(privateKey);
+        console.log(
+          `${LOG_PREFIX} Public key generated for Solana: ${publicKey.substring(0, 8)}...`
+        );
+        return publicKey;
+      }
       case 'evm':
+        console.error(`${LOG_PREFIX} EVM key derivation not yet implemented`);
         throw new Error('EVM key derivation not yet implemented');
       default:
+        console.error(`${LOG_PREFIX} Unsupported chain layer: ${chainLayer}`);
         throw new Error(`Unsupported chain layer: ${chainLayer}`);
     }
   }
