@@ -12,27 +12,21 @@ importers:
         specifier: 0.2.3
         version: 0.2.3
       '@crossmint/client-signers':
-        specifier: 0.0.3
-        version: 0.0.3
+        specifier: 0.0.6
+        version: 0.0.6
       '@noble/ed25519':
         specifier: ^1.7.2
         version: 1.7.5
       '@noble/hashes':
         specifier: ^1.7.2
         version: 1.7.2
-      crossmint-signers:
-        specifier: 'link:'
-        version: 'link:'
-      shamir-secret-sharing:
-        specifier: ^0.0.4
-        version: 0.0.4
-      zod:
-        specifier: 3.22.4
-        version: 3.22.4
-    devDependencies:
       '@solana/web3.js':
         specifier: ^1.98.0
         version: 1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
+      shamir-secret-sharing:
+        specifier: ^0.0.4
+        version: 0.0.4
+    devDependencies:
       '@testing-library/jest-dom':
         specifier: ^6.6.3
         version: 6.6.3
@@ -296,8 +290,8 @@ packages:
   '@crossmint/client-sdk-window@0.2.3':
     resolution: {integrity: sha512-Xh2F7z8ddKCEZPuuRxjHwGSy1x3JpGn3LX7PKX764UuknbDSqruiSJhONY6dY6eelfyY/glyFEnAkCXi3SVnxw==}
 
-  '@crossmint/client-signers@0.0.3':
-    resolution: {integrity: sha512-Y1AkNXUSg1bKzW8BiQpAgsAqUoMEeuMXx6G7PxoBAdXAQ23sFAyNM6liZVJbTLe0dj3u6cu1U1hSBWA6Tv2TaQ==}
+  '@crossmint/client-signers@0.0.6':
+    resolution: {integrity: sha512-fhzR40ZpgyPuep6JHoPJnGDMUYBHufhTabE99KseKFGACp10zTA4IRSSBRYlQ0YrdUo9U0gCS6yC8yUZnYN1jg==}
 
   '@csstools/color-helpers@5.0.2':
     resolution: {integrity: sha512-JqWH1vsgdGcw2RR6VliXXdA0/59LttzlU8UlRT/iUUsEeWfYq8I+K0yhihEUTTHLRm1EXvpsCx3083EU15ecsA==}
@@ -3311,7 +3305,7 @@ snapshots:
       nanoid: 5.0.9
       zod: 3.22.4
 
-  '@crossmint/client-signers@0.0.3':
+  '@crossmint/client-signers@0.0.6':
     dependencies:
       zod: 3.22.4
 

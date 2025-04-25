@@ -5,8 +5,7 @@ import type {
 } from '@crossmint/client-signers';
 import type { CrossmintApiService } from './api';
 import type { ShardingService } from './sharding-service';
-import { base64Decode } from '../utils';
-import type { Ed25519Service } from './ed25519';
+import type { SolanaService } from './SolanaService';
 const DEFAULT_TIMEOUT_MS = 10_000;
 
 const measureFunctionTime = async <T>(fnName: string, fn: () => Promise<T>): Promise<T> => {
@@ -31,12 +30,25 @@ export interface EventHandler {
 abstract class BaseEventHandler<EventName extends SignerIFrameEventName> {
   abstract event: `request:${EventName}`;
   abstract responseEvent: `response:${EventName}`;
-  abstract handler(payload: SignerInputEvent<EventName>): Promise<SignerOutputEvent<EventName>>;
+  abstract handler(
+    payload: SignerInputEvent<EventName>
+  ): Promise<Omit<SignerOutputEvent<EventName>, 'status'>>;
   async callback(payload: SignerInputEvent<EventName>): Promise<SignerOutputEvent<EventName>> {
-    const result = await measureFunctionTime(`[${this.event} handler]`, async () =>
-      this.handler(payload)
-    );
-    return result;
+    try {
+      const result = await measureFunctionTime(`[${this.event} handler]`, async () =>
+        this.handler(payload)
+      );
+      return {
+        status: 'success',
+        ...result,
+      };
+    } catch (error: unknown) {
+      console.error(`[${this.event} handler] Error: ${error}`);
+      return {
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
   }
   options = {
     timeoutMs: DEFAULT_TIMEOUT_MS,
@@ -44,7 +56,11 @@ abstract class BaseEventHandler<EventName extends SignerIFrameEventName> {
 }
 
 export class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> {
-  constructor(private readonly api: CrossmintApiService) {
+  constructor(
+    private readonly api: CrossmintApiService,
+    private readonly shardingService: ShardingService,
+    private readonly solanaService: SolanaService
+  ) {
     super();
   }
   event = 'request:create-signer' as const;
@@ -53,7 +69,18 @@ export class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> 
     if (!this.api) {
       throw new Error('API service is not available');
     }
-    await this.api.createSigner(payload.deviceId, payload.authData, payload.data);
+
+    if (this.shardingService.getDeviceShare() != null) {
+      const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
+      const keypair = this.solanaService.getKeypair(masterSecret);
+      return {
+        address: keypair.publicKey.toBase58(),
+      };
+    }
+
+    console.log('Signer not yet initialized, creating a new one...');
+    const deviceId = this.shardingService.getDeviceId();
+    await this.api.createSigner(deviceId, payload.authData, payload.data);
     return {};
   }
 }
@@ -61,103 +88,92 @@ export class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> 
 export class SendOtpEventHandler extends BaseEventHandler<'send-otp'> {
   constructor(
     private readonly api: CrossmintApiService,
-    private readonly shardingService: ShardingService
+    private readonly shardingService: ShardingService,
+    private readonly solanaService: SolanaService
   ) {
     super();
   }
   event = 'request:send-otp' as const;
   responseEvent = 'response:send-otp' as const;
   handler = async (payload: SignerInputEvent<'send-otp'>) => {
-    const response = await this.api.sendOtp(payload.deviceId, payload.authData, {
+    const deviceId = this.shardingService.getDeviceId();
+    const response = await this.api.sendOtp(deviceId, payload.authData, {
       otp: payload.data.encryptedOtp,
     });
-    await Promise.all([
-      this.shardingService.storeDeviceKeyShardLocally({
-        deviceId: payload.deviceId,
-        data: response.shares.device,
-      }),
-      this.shardingService.storeAuthKeyShardLocally({
-        deviceId: payload.deviceId,
-        data: response.shares.auth,
-      }),
-    ]);
-    const { publicKey } = await this.shardingService.recombineShards(
-      base64Decode(response.shares.device),
-      base64Decode(response.shares.auth),
-      payload.data.chainLayer
-    );
+
+    this.shardingService.storeDeviceShare(response.shares.device);
+    this.shardingService.cacheAuthShare(response.shares.auth);
+
+    const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
     return {
-      address: publicKey,
+      address: this.solanaService.getKeypair(masterSecret).publicKey.toBase58(),
     };
   };
 }
 
 export class GetPublicKeyEventHandler extends BaseEventHandler<'get-public-key'> {
   constructor(
-    private readonly api: CrossmintApiService,
-    private readonly shardingService: ShardingService
+    private readonly shardingService: ShardingService,
+    private readonly solanaService: SolanaService
   ) {
     super();
   }
   event = 'request:get-public-key' as const;
   responseEvent = 'response:get-public-key' as const;
   handler = async (payload: SignerInputEvent<'get-public-key'>) => {
-    let authShard = await this.shardingService.tryGetAuthKeyShardFromLocal(payload.deviceId);
-    if (!authShard) {
-      const { keyShare } = await this.api.getAuthShard(payload.deviceId, payload.authData);
-      authShard = {
-        deviceId: payload.deviceId,
-        data: keyShare,
-      };
-      await this.shardingService.storeAuthKeyShardLocally(authShard);
-    }
-
-    const { publicKey } = await this.shardingService.reconstructKey(
-      authShard,
-      payload.data.chainLayer
-    );
+    const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
     return {
-      publicKey,
+      publicKey: this.solanaService.getKeypair(masterSecret).publicKey.toBase58(),
     };
   };
 }
 
 export class SignMessageEventHandler extends BaseEventHandler<'sign-message'> {
   constructor(
-    private readonly api: CrossmintApiService,
     private readonly shardingService: ShardingService,
-    private readonly ed25519Service: Ed25519Service
+    private readonly solanaService: SolanaService
   ) {
     super();
   }
   event = 'request:sign-message' as const;
   responseEvent = 'response:sign-message' as const;
   async handler(payload: SignerInputEvent<'sign-message'>) {
-    let authShard = await this.shardingService.tryGetAuthKeyShardFromLocal(payload.deviceId);
-    if (!authShard) {
-      const { keyShare } = await this.api.getAuthShard(payload.deviceId, payload.authData);
-      authShard = {
-        deviceId: payload.deviceId,
-        data: keyShare,
-      };
-      await this.shardingService.storeAuthKeyShardLocally(authShard);
+    if (payload.data.chainLayer !== 'solana') {
+      throw new Error('Chain layer not implemented');
     }
-    const { privateKey, publicKey } = await this.shardingService.reconstructKey(
-      authShard,
-      payload.data.chainLayer
-    );
-    if (payload.data.chainLayer === 'solana') {
-      const signature = await this.ed25519Service.signMessage(payload.data.message, privateKey);
-      return { signature, publicKey };
-    }
-    throw new Error('Chain layer not implemented');
+
+    const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
+    const keypair = this.solanaService.getKeypair(masterSecret);
+    const signature = await this.solanaService.signMessage(payload.data.message, keypair);
+    return { signature, publicKey: keypair.publicKey.toBase58() };
   }
 }
 
 export class SignTransactionEventHandler extends BaseEventHandler<'sign-transaction'> {
+  constructor(
+    private readonly shardingService: ShardingService,
+    private readonly solanaService: SolanaService
+  ) {
+    super();
+  }
   event = 'request:sign-transaction' as const;
   responseEvent = 'response:sign-transaction' as const;
   handler = async (payload: SignerInputEvent<'sign-transaction'>) => {
-    throw new Error('Not implemented');
+    if (payload.data.chainLayer !== 'solana') {
+      throw new Error('Chain layer not implemented');
+    }
+
+    const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
+    const keypair = this.solanaService.getKeypair(masterSecret);
+    const { transaction, signature } = await this.solanaService.signTransaction(
+      payload.data.transaction,
+      keypair
+    );
+
+    return {
+      publicKey: keypair.publicKey.toBase58(),
+      transaction,
+      signature,
+    };
   };
 }

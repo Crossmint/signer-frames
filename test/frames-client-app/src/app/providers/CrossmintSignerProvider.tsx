@@ -12,7 +12,6 @@ import { IFrameWindow } from '@crossmint/client-sdk-window';
 import { useAuth, useCrossmint } from '@crossmint/client-sdk-react-ui';
 import bs58 from 'bs58';
 import { PublicKey, type VersionedTransaction } from '@solana/web3.js';
-import { v4 as uuidv4 } from 'uuid';
 import OTPDialog from '../components/OTPDialog';
 
 // Simple initializing component to show while connecting to the iframe
@@ -68,8 +67,6 @@ export interface CrossmintSignerContext {
   error: Error | null;
   initSigner: (chainLayer: 'solana') => void;
   solanaSigner: CrossmintSolanaSigner | null;
-  deviceId: string | null;
-  setDeviceId: (deviceId: string) => void;
 }
 
 const CrossmintSignerContext = createContext<CrossmintSignerContext | null>(null);
@@ -86,13 +83,14 @@ export type CrossmintSignerProviderProps = {
   children: ReactNode;
   iframeUrl?: URL;
   apiKey?: string;
+  autoInitialize?: boolean;
 };
 
 export default function CrossmintSignerProvider({
   children,
   iframeUrl = new URL(process.env?.NEXT_PUBLIC_SECURE_ENDPOINT_URL ?? 'secure.crossmint.com'),
+  autoInitialize = true,
 }: CrossmintSignerProviderProps) {
-  const [deviceId, setDeviceId] = useState<string | null>(null);
   const [otpDialogOpen, setOtpDialogOpen] = useState(false);
   const [isInitializingSigner, setIsInitializingSigner] = useState(false);
   const [solanaSigner, setSolanaSigner] = useState<CrossmintSolanaSigner | null>(null);
@@ -115,27 +113,6 @@ export default function CrossmintSignerProvider({
       setOtpDialogOpen(false);
     }
   }, [solanaSigner, otpDialogOpen]);
-
-  // Load deviceId from localStorage on component mount
-  useEffect(() => {
-    const storedDeviceId = localStorage.getItem('deviceId');
-    if (storedDeviceId) {
-      setDeviceId(storedDeviceId);
-    }
-  }, []);
-
-  // Update deviceId in state and localStorage
-  const updateDeviceId = useCallback((newDeviceId: string) => {
-    localStorage.setItem('deviceId', newDeviceId);
-    setDeviceId(newDeviceId);
-  }, []);
-
-  // Generate a new device ID
-  const generateNewDeviceId = useCallback(() => {
-    const newDeviceId = uuidv4();
-    updateDeviceId(newDeviceId);
-    return newDeviceId;
-  }, [updateDeviceId]);
 
   const initIFrameWindow = useCallback(async () => {
     if (iframe.current == null) {
@@ -167,14 +144,10 @@ export default function CrossmintSignerProvider({
       signMessage: async (message: Uint8Array): Promise<Uint8Array> => {
         try {
           assertInitialized();
-          if (deviceId == null) {
-            throw new Error('Device ID not initialized');
-          }
           const response = await iframeWindow.current?.sendAction({
             event: 'request:sign-message',
             responseEvent: 'response:sign-message',
             data: {
-              deviceId,
               authData: {
                 jwt: jwt as NonNullable<typeof jwt>,
                 apiKey,
@@ -187,7 +160,7 @@ export default function CrossmintSignerProvider({
             },
             options: defaultEventOptions,
           });
-          if (response?.signature == null) {
+          if (!response || response.status === 'error' || !response.signature) {
             throw new Error('Failed to sign message');
           }
           return bs58.decode(response.signature);
@@ -198,34 +171,53 @@ export default function CrossmintSignerProvider({
       },
       signTransaction: async (transaction: VersionedTransaction): Promise<VersionedTransaction> => {
         try {
+          console.log('signTransaction called for address:', address);
+
+          // Basic validations
           assertInitialized();
-          if (deviceId == null || solanaSigner == null) {
-            throw new Error('Device ID or Solana signer not initialized');
+          if (!iframeWindow.current) {
+            throw new Error('iframeWindow is not initialized');
           }
-          const response = await iframeWindow.current?.sendAction({
+
+          // Get serialized transaction
+          const serializedTx = bs58.encode(transaction.serialize());
+          console.log(`Transaction serialized: ${serializedTx.substring(0, 20)}...`);
+
+          // Prepare request
+          const requestData = {
+            authData: {
+              jwt: jwt as NonNullable<typeof jwt>,
+              apiKey,
+            },
+            data: {
+              transaction: serializedTx,
+              chainLayer: 'solana' as const,
+              encoding: 'base58' as const,
+            },
+          };
+          console.log('Request prepared');
+
+          // Send request
+          console.log('Sending signature request');
+          const response = await iframeWindow.current.sendAction({
             event: 'request:sign-transaction',
             responseEvent: 'response:sign-transaction',
-            data: {
-              deviceId,
-              authData: {
-                jwt: jwt as NonNullable<typeof jwt>,
-                apiKey,
-              },
-              data: {
-                transaction: bs58.encode(transaction.serialize()),
-                chainLayer: 'solana',
-                encoding: 'base58',
-              },
-            },
+            data: requestData,
             options: defaultEventOptions,
           });
-          if (response?.signature == null) {
-            throw new Error('Failed to sign transaction');
+          console.log('Response received:', response);
+
+          // Validate response
+          if (!response || response.status === 'error' || !response.signature) {
+            throw new Error('Failed to sign transaction: No signature returned');
           }
-          transaction.addSignature(
-            new PublicKey(solanaSigner.address),
-            bs58.decode(response.signature)
-          );
+
+          // Add signature to transaction
+          const signerPublicKey = new PublicKey(address);
+          const signature = bs58.decode(response.signature);
+          console.log('Adding signature to transaction');
+          transaction.addSignature(signerPublicKey, signature);
+
           return transaction;
         } catch (error) {
           console.error('Failed to sign transaction:', error);
@@ -254,12 +246,6 @@ export default function CrossmintSignerProvider({
         return;
       }
 
-      // We'll use the provided deviceId instead of generating one
-      if (!deviceId) {
-        console.error('No device ID provided');
-        return;
-      }
-
       setIsInitializingSigner(true);
 
       // Initialize the iframe window if not already done
@@ -272,17 +258,24 @@ export default function CrossmintSignerProvider({
       }
     } catch (error) {
       console.error('Error creating signer:', error);
+      setIsInitializingSigner(false);
       throw error;
     }
-  }, [
-    isInitialized,
-    isInitializing,
-    isInitializingSigner,
-    jwt,
-    apiKey,
-    deviceId,
-    initIFrameWindow,
-  ]);
+  }, [isInitialized, isInitializing, isInitializingSigner, jwt, apiKey, initIFrameWindow]);
+
+  // Initialize signer automatically when component mounts if autoInitialize is true
+  useEffect(() => {
+    if (
+      autoInitialize &&
+      jwt &&
+      apiKey &&
+      !solanaSigner &&
+      !isInitializingSigner &&
+      !isInitializing
+    ) {
+      initSigner();
+    }
+  }, [autoInitialize, jwt, apiKey, solanaSigner, isInitializingSigner, isInitializing, initSigner]);
 
   // Handle OTP dialog event handlers
   const handleCreateSignerEvent = async () => {
@@ -290,35 +283,35 @@ export default function CrossmintSignerProvider({
     if (iframeWindow.current == null || jwt == null || apiKey == null) {
       throw new Error('Failed to create signer. The component has not been initialized');
     }
-    if (deviceId == null) {
-      throw new Error('Device ID not initialized');
-    }
-    await iframeWindow.current?.sendAction({
+    const response = await iframeWindow.current?.sendAction({
       event: 'request:create-signer',
       responseEvent: 'response:create-signer',
       data: {
-        deviceId,
         authData: {
           jwt: jwt as NonNullable<typeof jwt>,
           apiKey,
         },
         data: {
           authId: user?.email ? `email:${user.email}` : user?.id || '',
+          chainLayer: 'solana',
         },
       },
     });
+
+    if (response?.status === 'success' && response.address) {
+      handleAddressFetched(response.address);
+    }
   };
 
   const handleEncryptedOtpEvent = async (encryptedOtp: string, chainLayer: 'solana') => {
     assertInitialized();
-    if (iframeWindow.current == null || jwt == null || apiKey == null || deviceId == null) {
+    if (iframeWindow.current == null || jwt == null || apiKey == null) {
       throw new Error('Failed to create signer. The component has not been initialized');
     }
     const response = await iframeWindow.current.sendAction({
       event: 'request:send-otp',
       responseEvent: 'response:send-otp',
       data: {
-        deviceId,
         authData: {
           jwt,
           apiKey,
@@ -329,7 +322,7 @@ export default function CrossmintSignerProvider({
         },
       },
     });
-    if (response?.address == null) {
+    if (!response || response.status === 'error' || !response.address) {
       throw new Error('Failed to validate encrypted OTP');
     }
     return response.address;
@@ -348,8 +341,6 @@ export default function CrossmintSignerProvider({
           error,
           initSigner,
           solanaSigner,
-          deviceId,
-          setDeviceId: updateDeviceId,
         }}
       >
         <>

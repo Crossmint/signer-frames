@@ -1,12 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mock, mockDeep, mockReset } from 'vitest-mock-extended';
 import XMIF from './index';
-import { EventsService, StorageService, CrossmintApiService } from './services/index.js';
+import { EventsService, CrossmintApiService } from './services/index.js';
 import type { HandshakeChild } from '@crossmint/client-sdk-window';
 import type { signerInboundEvents, signerOutboundEvents } from '@crossmint/client-signers';
-
-// Define handler function type for events
-type EventHandler = (data: Record<string, unknown>) => Promise<unknown>;
 
 // Create mock functions for console
 const mockConsoleLog = vi.fn();
@@ -25,7 +22,6 @@ const mockMessenger = mock<HandshakeChild<typeof signerInboundEvents, typeof sig
 
 // Mock the services
 const mockEventsService = mockDeep<EventsService>();
-const mockStorageService = mockDeep<StorageService>();
 const mockCrossmintApiService = mockDeep<CrossmintApiService>();
 
 // Configure getMessenger to return our messenger mock
@@ -35,17 +31,16 @@ mockEventsService.getMessenger.mockReturnValue(mockMessenger);
 vi.mock('./services/index.js', () => {
   return {
     EventsService: vi.fn().mockImplementation(() => mockEventsService),
-    StorageService: vi.fn().mockImplementation(() => mockStorageService),
     CrossmintApiService: vi.fn().mockImplementation(() => mockCrossmintApiService),
   };
 });
 
 // Create a test data object that's used for all event handlers
-const testEventData = {
-  version: 1,
-  jwt: 'test.jwt.token',
-  authId: 'test-auth-id',
-};
+// const testEventData = {
+//   version: 1,
+//   jwt: 'test.jwt.token',
+//   authId: 'test-auth-id',
+// };
 
 // Define the window extension type
 interface CustomWindow extends Window {
@@ -59,11 +54,8 @@ describe('XMIF', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockReset(mockEventsService);
-    mockReset(mockStorageService);
     mockReset(mockCrossmintApiService);
     mockReset(mockMessenger);
-
-    mockStorageService.initDatabase.mockResolvedValue({} as IDBDatabase);
 
     mockEventsService.getMessenger.mockReturnValue(mockMessenger);
     mockMessenger.on.mockReturnValue('handler-id');
@@ -72,7 +64,7 @@ describe('XMIF', () => {
 
     global.window = { ...originalWindow };
 
-    xmifInstance = new XMIF(mockEventsService, mockStorageService, mockCrossmintApiService);
+    xmifInstance = new XMIF(mockEventsService, mockCrossmintApiService);
   });
 
   afterEach(() => {
@@ -92,38 +84,27 @@ describe('XMIF', () => {
 
       expect(defaultInstance).toBeInstanceOf(XMIF);
       expect(EventsService).toHaveBeenCalled();
-      expect(StorageService).toHaveBeenCalled();
       expect(CrossmintApiService).toHaveBeenCalled();
     });
   });
 
   describe('init', () => {
     it('should initialize services in the correct order', async () => {
-      mockStorageService.initDatabase.mockResolvedValue({} as IDBDatabase);
       mockEventsService.initMessenger.mockResolvedValue(undefined);
       mockCrossmintApiService.init.mockResolvedValue(undefined);
 
       await xmifInstance.init();
 
-      expect(mockStorageService.initDatabase).toHaveBeenCalled();
       expect(mockCrossmintApiService.init).toHaveBeenCalled();
       expect(mockEventsService.initMessenger).toHaveBeenCalled();
 
       const calls = mockConsoleLog.mock.calls.map(call => call[0]);
       expect(calls).toContain('Initializing XMIF framework...');
-      expect(calls).toContain('-- Initializing IndexedDB client...');
-      expect(calls).toContain('-- IndexedDB client initialized!');
       expect(calls).toContain('-- Initializing Crossmint API...');
       expect(calls).toContain('-- Crossmint API initialized!');
       expect(calls).toContain('-- Initializing events handlers...');
       expect(calls).toContain('-- Events handlers initialized!');
 
-      expect(calls.indexOf('-- Initializing IndexedDB client...')).toBeLessThan(
-        calls.indexOf('-- IndexedDB client initialized!')
-      );
-      expect(calls.indexOf('-- IndexedDB client initialized!')).toBeLessThan(
-        calls.indexOf('-- Initializing Crossmint API...')
-      );
       expect(calls.indexOf('-- Initializing Crossmint API...')).toBeLessThan(
         calls.indexOf('-- Crossmint API initialized!')
       );
@@ -199,7 +180,7 @@ describe('XMIF', () => {
       const tempWindow = global.window;
       (global as { window: typeof window | undefined }).window = undefined;
 
-      const xmifInstance = new XMIF(mockEventsService, mockStorageService, mockCrossmintApiService);
+      const xmifInstance = new XMIF(mockEventsService, mockCrossmintApiService);
 
       if (typeof window !== 'undefined') {
         (window as CustomWindow).XMIF = xmifInstance;
@@ -214,14 +195,12 @@ describe('XMIF', () => {
       (window as { XMIF: unknown }).XMIF = null;
 
       // Set up the mock expectations
-      mockStorageService.initDatabase.mockResolvedValue({} as IDBDatabase);
       mockCrossmintApiService.init.mockResolvedValue(undefined);
       mockEventsService.initMessenger.mockResolvedValue(undefined);
       mockEventsService.getMessenger.mockReturnValue(mockMessenger);
 
       // Ensure mocks are properly set up
       vi.mocked(EventsService).mockImplementation(() => mockEventsService);
-      vi.mocked(StorageService).mockImplementation(() => mockStorageService);
       vi.mocked(CrossmintApiService).mockImplementation(() => mockCrossmintApiService);
 
       const browserInstance = new XMIF();
@@ -240,11 +219,9 @@ describe('XMIF', () => {
 
       // Verify services were instantiated
       expect(EventsService).toHaveBeenCalled();
-      expect(StorageService).toHaveBeenCalled();
       expect(CrossmintApiService).toHaveBeenCalled();
 
       // Verify initialization was properly called
-      expect(mockStorageService.initDatabase).toHaveBeenCalled();
       expect(mockCrossmintApiService.init).toHaveBeenCalled();
       expect(mockEventsService.initMessenger).toHaveBeenCalled();
 

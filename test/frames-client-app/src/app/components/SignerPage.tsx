@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useAuth } from '@crossmint/client-sdk-react-ui';
 import { useCrossmintSigner } from '../providers/CrossmintSignerProvider';
 import SignMessageForm from './SignMessageForm';
@@ -14,15 +14,11 @@ interface ExtendedUser {
 
 export default function SignerPage() {
   const { logout, user } = useAuth();
-  const { initSigner, solanaSigner, deviceId, setDeviceId } = useCrossmintSigner();
-  const [deviceIdInput, setDeviceIdInput] = useState('');
+  const { initSigner, solanaSigner } = useCrossmintSigner();
 
   // Handler for creating a signer
   const handleCreateSigner = () => {
-    if (deviceIdInput.trim()) {
-      setDeviceId(deviceIdInput);
-      initSigner('solana');
-    }
+    initSigner('solana');
   };
 
   // Get display name from user object
@@ -49,11 +45,6 @@ export default function SignerPage() {
           <div className="mt-2 text-sm text-gray-600">
             Logged in as: <span className="font-medium">{getUserDisplayName()}</span>
           </div>
-          {deviceId && (
-            <div className="mt-1 text-sm text-gray-600">
-              Device ID: <span className="font-mono">{deviceId}</span>
-            </div>
-          )}
           {solanaSigner?.address && (
             <div className="mt-1 text-sm text-gray-600">
               Signer Address: <span className="font-mono">{solanaSigner.address}</span>
@@ -65,26 +56,10 @@ export default function SignerPage() {
         {!solanaSigner ? (
           <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
             <h2 className="text-lg font-semibold mb-4">Create Signer</h2>
-            <div className="mb-4">
-              <label htmlFor="deviceId" className="block text-sm font-medium text-gray-700 mb-1">
-                Device ID
-              </label>
-              <input
-                id="deviceId"
-                type="text"
-                value={deviceIdInput}
-                onChange={e => setDeviceIdInput(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md"
-                placeholder="Enter a device ID"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                This will be used to identify your signer device
-              </p>
-            </div>
+            <div className="mb-4" />
             <button
               type="button"
               onClick={handleCreateSigner}
-              disabled={!deviceIdInput.trim()}
               className="w-full py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               Create Signer

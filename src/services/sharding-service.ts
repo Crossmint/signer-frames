@@ -1,55 +1,49 @@
-import { CrossmintApiService } from './api';
-import { StorageService } from './storage';
 import { combine } from 'shamir-secret-sharing';
-import { Stores } from './storage';
-import { utils } from '@noble/ed25519';
-import { Ed25519Service } from './ed25519';
-import { base64Decode } from '../utils';
+import { CrossmintApiService } from './api';
 
-// Supported chain layers
-export type ChainLayer = 'solana' | 'evm';
+const AUTH_SHARE_KEY = 'auth-share';
+const DEVICE_SHARE_KEY = 'device-share';
+const LOG_PREFIX = '[ShardingService]';
 
-// Key shard structure
-export interface KeyShard {
-  deviceId: string;
-  data: string;
-}
-
-export interface RecombinedKeys {
-  privateKey: Uint8Array;
-  publicKey: string;
-}
-
+// Chain agnostic secret sharding service
 export class ShardingService {
-  constructor(
-    private readonly storageService: StorageService = new StorageService(),
-    private readonly crossmintApiService: CrossmintApiService = new CrossmintApiService(),
-    private readonly ed25519Service: Ed25519Service = new Ed25519Service()
-  ) {}
-
-  async init(): Promise<void> {
-    await this.storageService.initDatabase();
+  constructor(private readonly api: CrossmintApiService = new CrossmintApiService()) {
+    console.log(`${LOG_PREFIX} Initializing ShardingService`);
   }
 
-  /**
-   * Recombines key shards to recover the private key and derive the public key
-   * @param shard1 First key shard
-   * @param shard2 Second key shard
-   * @param chainLayer The blockchain layer (solana, evm, etc.)
-   * @returns The recombined private key and public key
-   */
-  async recombineShards(
-    shard1: Uint8Array,
-    shard2: Uint8Array,
-    chainLayer: ChainLayer
-  ): Promise<RecombinedKeys> {
+  public getDeviceId(): string {
+    console.log(`${LOG_PREFIX} Attempting to get device ID from storage`);
+
+    const existing = localStorage.getItem('deviceId');
+    if (existing != null) {
+      console.log(`${LOG_PREFIX} Found existing device ID: ${existing.substring(0, 8)}...`);
+      return existing;
+    }
+
+    console.log(`${LOG_PREFIX} No existing device ID found, generating new one`);
+    const deviceId = crypto.randomUUID();
+    localStorage.setItem('deviceId', deviceId);
+    console.log(`${LOG_PREFIX} Successfully stored new device ID: ${deviceId.substring(0, 8)}...`);
+    return deviceId;
+  }
+
+  public async getMasterSecret(authData: { jwt: string; apiKey: string }) {
+    const deviceShare = this.getDeviceShare();
+    if (!deviceShare) {
+      throw new Error('Device share not found');
+    }
+
+    let authShare = this.getCachedAuthShare();
+    if (!authShare) {
+      console.log(`${LOG_PREFIX} Auth share not found in cache, fetching from API`);
+      const deviceId = this.getDeviceId();
+      const { keyShare } = await this.api.getAuthShard(deviceId, authData);
+      this.cacheAuthShare(keyShare);
+      authShare = keyShare;
+    }
+
     try {
-      const privateKey = await combine([shard1, shard2]);
-      const publicKey = await this.computePublicKey(privateKey, chainLayer);
-      return {
-        privateKey,
-        publicKey,
-      };
+      return await combine([this.base64ToBytes(deviceShare), this.base64ToBytes(authShare)]);
     } catch (error) {
       throw new Error(
         `Failed to recombine key shards: ${error instanceof Error ? error.message : String(error)}`
@@ -57,97 +51,23 @@ export class ShardingService {
     }
   }
 
-  async reconstructKey(authShard: KeyShard, chainLayer: ChainLayer): Promise<RecombinedKeys> {
-    const { deviceId, data } = authShard;
-    const deviceShard = await this.getDeviceKeyShardFromLocal(deviceId);
-    if (!deviceShard) {
-      throw new Error(`Device shard not found in IndexedDB for deviceId: ${deviceId}`);
-    }
-    return this.recombineShards(base64Decode(deviceShard.data), base64Decode(data), chainLayer);
+  storeDeviceShare(share: string): void {
+    localStorage.setItem(DEVICE_SHARE_KEY, share);
   }
 
-  /**
-   * Computes a public key from a private key for a specific chain
-   * @param privateKey The private key as Uint8Array
-   * @param chainLayer The blockchain layer (solana, evm, etc.)
-   * @returns The formatted public key as a string
-   */
-  private async computePublicKey(privateKey: Uint8Array, chainLayer: ChainLayer): Promise<string> {
-    if (privateKey.length !== 32) {
-      throw new Error(`Invalid private key length: ${privateKey.length}. Expected 32 bytes.`);
-    }
-
-    switch (chainLayer) {
-      case 'solana':
-        return await this.ed25519Service.getPublicKey(privateKey);
-      case 'evm':
-        throw new Error('EVM key derivation not yet implemented');
-      default:
-        throw new Error(`Unsupported chain layer: ${chainLayer}`);
-    }
+  cacheAuthShare(share: string): void {
+    sessionStorage.setItem(AUTH_SHARE_KEY, share);
   }
 
-  /**
-   * Stores a device key shard in the local storage. It does not expire
-   * @param shard The key shard to store
-   */
-  async storeDeviceKeyShardLocally(shard: KeyShard): Promise<void> {
-    await this.storeKeyShardLocallyInStore(shard, Stores.DEVICE_SHARES);
+  getDeviceShare(): string | null {
+    return localStorage.getItem(DEVICE_SHARE_KEY);
   }
 
-  /**
-   * Stores an auth key shard in the local storage. Expires in 5 minutes
-   * @param shard The key shard to store
-   */
-  async storeAuthKeyShardLocally(shard: KeyShard): Promise<void> {
-    await this.storeKeyShardLocallyInStore(shard, Stores.AUTH_SHARES, 60 * 5 * 1_000);
+  getCachedAuthShare(): string | null {
+    return sessionStorage.getItem(AUTH_SHARE_KEY);
   }
 
-  private async storeKeyShardLocallyInStore(
-    shard: KeyShard,
-    storeName: Stores,
-    expiresIn?: number
-  ): Promise<void> {
-    await this.storageService.storeItem(
-      storeName,
-      {
-        id: shard.deviceId,
-        data: shard.data,
-        type: 'base64KeyShard',
-        created: Date.now(),
-      },
-      expiresIn
-    );
-  }
-
-  /**
-   * Retrieves a device key shard from local storage
-   * @param shardId The ID of the shard to retrieve
-   * @returns The key shard or null if not found
-   */
-  async getDeviceKeyShardFromLocal(shardId: string): Promise<KeyShard | null> {
-    return this.getShardFromStore(Stores.DEVICE_SHARES, shardId);
-  }
-
-  /**
-   * Retrieves an auth key shard from local storage
-   * @param shardId The ID of the shard to retrieve
-   * @returns The key shard or null if not found
-   */
-  async tryGetAuthKeyShardFromLocal(shardId: string): Promise<KeyShard | null> {
-    return this.getShardFromStore(Stores.AUTH_SHARES, shardId);
-  }
-
-  private async getShardFromStore(storeName: Stores, shardId: string): Promise<KeyShard | null> {
-    const item = await this.storageService.getItem(storeName, shardId);
-
-    if (!item) {
-      return null;
-    }
-
-    return {
-      deviceId: item.id,
-      data: item.data as string,
-    };
+  private base64ToBytes(base64: string): Uint8Array {
+    return Uint8Array.from(atob(base64), c => c.charCodeAt(0));
   }
 }

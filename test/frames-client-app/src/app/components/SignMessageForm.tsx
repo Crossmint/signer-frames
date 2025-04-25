@@ -3,6 +3,13 @@
 import React, { useState } from 'react';
 import { useCrossmintSigner } from '../providers/CrossmintSignerProvider';
 import bs58 from 'bs58';
+import {
+  type PublicKey,
+  SystemProgram,
+  TransactionMessage,
+  VersionedTransaction,
+} from '@solana/web3.js';
+import nacl from 'tweetnacl';
 
 export default function SignMessageForm() {
   const { solanaSigner } = useCrossmintSigner();
@@ -10,6 +17,11 @@ export default function SignMessageForm() {
   const [signature, setSignature] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [transactionSignature, setTransactionSignature] = useState<string | null>(null);
+  const [transactionLoading, setTransactionLoading] = useState(false);
+  const [preSignedTx, setPreSignedTx] = useState<string | null>(null);
+  const [postSignedTx, setPostSignedTx] = useState<string | null>(null);
 
   const handleSignMessage = async () => {
     if (!message.trim() || !solanaSigner) {
@@ -18,6 +30,7 @@ export default function SignMessageForm() {
 
     setLoading(true);
     setError(null);
+    setSuccess(null);
     setSignature(null);
 
     try {
@@ -30,8 +43,19 @@ export default function SignMessageForm() {
 
       // Convert the signature to a base64 string for display
       const signatureBase58 = bs58.encode(signedMessage);
-
       setSignature(signatureBase58);
+
+      const isValid = nacl.sign.detached.verify(
+        messageBytes,
+        signedMessage,
+        solanaSigner.publicKey.toBytes()
+      );
+
+      if (isValid) {
+        setSuccess('Message signed successfully');
+      } else {
+        setError('Invalid signature :(');
+      }
     } catch (err) {
       console.error('Error signing message:', err);
       setError(err instanceof Error ? err.message : 'Failed to sign message');
@@ -40,10 +64,118 @@ export default function SignMessageForm() {
     }
   };
 
+  const handleSignTransaction = async () => {
+    if (!solanaSigner) {
+      console.log('No signer available in handleSignTransaction');
+      return;
+    }
+
+    console.log('Starting transaction signing with signer:', solanaSigner);
+
+    setTransactionLoading(true);
+    setError(null);
+    setSuccess(null);
+    setTransactionSignature(null);
+    setPreSignedTx(null);
+    setPostSignedTx(null);
+
+    try {
+      const transaction = createDummyTransaction();
+      console.log('Created dummy transaction');
+
+      // Serialize and encode the unsigned transaction
+      const unsignedTxSerialized = bs58.encode(transaction.serialize());
+      console.log('Unsigned transaction serialized');
+      setPreSignedTx(unsignedTxSerialized);
+
+      console.log('About to sign transaction with signer:', solanaSigner);
+      const signedTransaction = await solanaSigner.signTransaction(transaction);
+      console.log('Transaction signed successfully');
+
+      const signedTxSerialized = bs58.encode(signedTransaction.serialize());
+      console.log('Signed transaction serialized');
+
+      setPostSignedTx(signedTxSerialized);
+      setTransactionSignature(signedTxSerialized);
+
+      const isCorrectlySigned = verifyTransactionSignature(
+        signedTransaction,
+        solanaSigner.publicKey
+      );
+      if (isCorrectlySigned) {
+        setSuccess('Transaction signed successfully with the correct signer!');
+      } else {
+        setError('Transaction signature verification failed. Incorrect signer.');
+      }
+    } catch (err) {
+      console.error('Error signing transaction:', err);
+      setError(err instanceof Error ? err.message : 'Failed to sign transaction');
+    } finally {
+      setTransactionLoading(false);
+    }
+  };
+
+  const verifyTransactionSignature = (
+    tx: VersionedTransaction,
+    signerPubkey: PublicKey
+  ): boolean => {
+    try {
+      if (!tx.signatures || tx.signatures.length === 0) {
+        return false;
+      }
+      const serializedMessage = tx.message.serialize();
+      for (let i = 0; i < tx.signatures.length; i++) {
+        const signature = tx.signatures[i];
+        const pubkey = tx.message.staticAccountKeys[i].toBytes();
+        if (!nacl.sign.detached.verify(serializedMessage, signature, pubkey)) {
+          return false;
+        }
+      }
+      return true;
+    } catch (err) {
+      console.error('Error verifying transaction signature:', err);
+      return false;
+    }
+  };
+
+  const createDummyTransaction = (): VersionedTransaction => {
+    if (!solanaSigner) {
+      throw new Error('No signer available');
+    }
+
+    return new VersionedTransaction(
+      new TransactionMessage({
+        payerKey: solanaSigner.publicKey,
+        instructions: [
+          SystemProgram.transfer({
+            fromPubkey: solanaSigner.publicKey,
+            toPubkey: solanaSigner.publicKey,
+            lamports: 1000000000,
+          }),
+        ],
+        recentBlockhash: '11111111111111111111111111111111',
+      }).compileToV0Message()
+    );
+  };
+
   const handleReset = () => {
     setMessage('');
     setSignature(null);
+    setTransactionSignature(null);
+    setPreSignedTx(null);
+    setPostSignedTx(null);
     setError(null);
+    setSuccess(null);
+  };
+
+  const logSignerState = () => {
+    console.log('Current Signer State:', {
+      solanaSigner,
+      deviceId: solanaSigner?.address || 'none',
+      publicKey: solanaSigner?.publicKey?.toString() || 'none',
+      signMessageFn: solanaSigner?.signMessage ? 'Available' : 'Not Available',
+      signTransactionFn: solanaSigner?.signTransaction ? 'Available' : 'Not Available',
+    });
   };
 
   if (!solanaSigner) {
@@ -55,6 +187,9 @@ export default function SignMessageForm() {
       <h2 className="text-lg font-semibold mb-4">Sign a Message</h2>
 
       {error && <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-md text-sm">{error}</div>}
+      {success && (
+        <div className="mb-4 p-3 bg-green-50 text-green-700 rounded-md text-sm">{success}</div>
+      )}
 
       <div className="mb-4">
         <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
@@ -70,40 +205,104 @@ export default function SignMessageForm() {
         />
       </div>
 
-      {!signature ? (
+      <div className="flex flex-col space-y-4">
+        {!signature && !transactionSignature ? (
+          <div className="flex space-x-4">
+            <button
+              type="button"
+              onClick={handleSignMessage}
+              disabled={loading || !message.trim() || transactionLoading}
+              className="flex-1 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
+            >
+              {loading ? (
+                <>
+                  <div className="animate-spin h-5 w-5 mr-2 border-2 border-white border-t-transparent rounded-full" />
+                  Signing...
+                </>
+              ) : (
+                'Sign Message'
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSignTransaction}
+              disabled={loading || transactionLoading}
+              className="flex-1 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
+            >
+              {transactionLoading ? (
+                <>
+                  <div className="animate-spin h-5 w-5 mr-2 border-2 border-white border-t-transparent rounded-full" />
+                  Signing Tx...
+                </>
+              ) : (
+                'Sign Transaction'
+              )}
+            </button>
+          </div>
+        ) : (
+          <>
+            {signature && (
+              <div className="mb-4">
+                <h3 className="text-sm font-medium text-gray-700 mb-1">Message Signature</h3>
+                <div className="p-3 bg-gray-50 rounded-md overflow-x-auto">
+                  <code className="text-xs text-gray-800 font-mono break-all">{signature}</code>
+                </div>
+              </div>
+            )}
+
+            {preSignedTx && (
+              <div className="mb-4">
+                <h3 className="text-sm font-medium text-gray-700 mb-1">Pre-Signed Transaction</h3>
+                <div className="p-3 bg-gray-50 rounded-md overflow-x-auto">
+                  <code className="text-xs text-gray-800 font-mono break-all">
+                    {Buffer.from(bs58.decode(preSignedTx)).toString('base64')}
+                  </code>
+                </div>
+              </div>
+            )}
+
+            {postSignedTx && (
+              <div className="mb-4">
+                <h3 className="text-sm font-medium text-gray-700 mb-1">Post-Signed Transaction</h3>
+                <div className="p-3 bg-gray-50 rounded-md overflow-x-auto">
+                  <code className="text-xs text-gray-800 font-mono break-all">
+                    {Buffer.from(bs58.decode(postSignedTx)).toString('base64')}
+                  </code>
+                </div>
+              </div>
+            )}
+
+            {transactionSignature && !postSignedTx && (
+              <div className="mb-4">
+                <h3 className="text-sm font-medium text-gray-700 mb-1">Transaction Signature</h3>
+                <div className="p-3 bg-gray-50 rounded-md overflow-x-auto">
+                  <code className="text-xs text-gray-800 font-mono break-all">
+                    {transactionSignature}
+                  </code>
+                </div>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleReset}
+              className="w-full py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
+            >
+              Start Over
+            </button>
+          </>
+        )}
+
+        {/* Debug button */}
         <button
           type="button"
-          onClick={handleSignMessage}
-          disabled={loading || !message.trim()}
-          className="w-full py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
+          onClick={logSignerState}
+          className="py-2 px-4 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 mt-2"
         >
-          {loading ? (
-            <>
-              <div className="animate-spin h-5 w-5 mr-2 border-2 border-white border-t-transparent rounded-full" />
-              Signing...
-            </>
-          ) : (
-            'Sign Message'
-          )}
+          Debug Signer
         </button>
-      ) : (
-        <>
-          <div className="mb-4">
-            <h3 className="text-sm font-medium text-gray-700 mb-1">Signature</h3>
-            <div className="p-3 bg-gray-50 rounded-md overflow-x-auto">
-              <code className="text-xs text-gray-800 font-mono break-all">{signature}</code>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleReset}
-            className="w-full py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
-          >
-            Sign Another Message
-          </button>
-        </>
-      )}
+      </div>
     </div>
   );
 }

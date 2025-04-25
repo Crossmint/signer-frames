@@ -15,8 +15,8 @@ importers:
         specifier: 0.2.3
         version: 0.2.3
       '@crossmint/client-signers':
-        specifier: 0.0.3
-        version: 0.0.3
+        specifier: 0.0.6
+        version: 0.0.6
       '@radix-ui/react-dialog':
         specifier: ^1.1.11
         version: 1.1.11(@types/react-dom@19.1.2(@types/react@19.1.2))(@types/react@19.1.2)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -44,6 +44,9 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.1.0(react@19.1.0)
+      tweetnacl:
+        specifier: ^1.0.3
+        version: 1.0.3
       uuid:
         specifier: ^11.1.0
         version: 11.1.0
@@ -78,6 +81,9 @@ importers:
       postcss:
         specifier: ^8.5.3
         version: 8.5.3
+      prettier:
+        specifier: ^3.5.3
+        version: 3.5.3
       tailwindcss:
         specifier: ^4.1.4
         version: 4.1.4
@@ -813,8 +819,8 @@ packages:
   '@crossmint/client-sdk-window@0.2.3':
     resolution: {integrity: sha512-Xh2F7z8ddKCEZPuuRxjHwGSy1x3JpGn3LX7PKX764UuknbDSqruiSJhONY6dY6eelfyY/glyFEnAkCXi3SVnxw==}
 
-  '@crossmint/client-signers@0.0.3':
-    resolution: {integrity: sha512-Y1AkNXUSg1bKzW8BiQpAgsAqUoMEeuMXx6G7PxoBAdXAQ23sFAyNM6liZVJbTLe0dj3u6cu1U1hSBWA6Tv2TaQ==}
+  '@crossmint/client-signers@0.0.6':
+    resolution: {integrity: sha512-fhzR40ZpgyPuep6JHoPJnGDMUYBHufhTabE99KseKFGACp10zTA4IRSSBRYlQ0YrdUo9U0gCS6yC8yUZnYN1jg==}
 
   '@crossmint/common-sdk-auth@1.0.24':
     resolution: {integrity: sha512-IzpK3RIAlEoR+rmDd7cYcttLyI2tcnI5D9v3Ep9aQ2RYTj77jcKZ41uytxKRZBe3+TEXitRom56doUYTZ1PI6A==}
@@ -5657,6 +5663,11 @@ packages:
     resolution: {integrity: sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g==}
     engines: {node: '>= 0.8.0'}
 
+  prettier@3.5.3:
+    resolution: {integrity: sha512-QQtaxnoDJeAkDvDKWCLiwIXkTgRhwYDEQCghU9Z6q03iyek/rxRh/2lC3HB7P8sWT2xC/y5JDctPLBIGzHKbhw==}
+    engines: {node: '>=14'}
+    hasBin: true
+
   pretty-format@26.6.2:
     resolution: {integrity: sha512-7AeGuCYNGmycyQbCqd/3PWH4eOoX/OiCa0uphp57NVTeAGdJGaAliecxwBDHYQCIvrW7aDBZCYeNTP/WX69mkg==}
     engines: {node: '>= 10'}
@@ -7890,7 +7901,7 @@ snapshots:
       nanoid: 5.0.9
       zod: 3.22.4
 
-  '@crossmint/client-signers@0.0.3':
+  '@crossmint/client-signers@0.0.6':
     dependencies:
       zod: 3.22.4
 
@@ -14136,6 +14147,8 @@ snapshots:
   preact@10.26.5: {}
 
   prelude-ls@1.2.1: {}
+
+  prettier@3.5.3: {}
 
   pretty-format@26.6.2:
     dependencies:
