@@ -138,6 +138,27 @@ export class ShardingService {
     return this.getShardFromStore(Stores.AUTH_SHARES, shardId);
   }
 
+  async getLocalKeyInstance(
+    deviceId: string,
+    authData: { jwt: string; apiKey: string },
+    chainLayer: ChainLayer
+  ): Promise<RecombinedKeys> {
+    let authShard = await this.tryGetAuthKeyShardFromLocal(deviceId);
+    if (!authShard) {
+      const { keyShare } = await this.crossmintApiService.getAuthShard(deviceId, authData);
+      authShard = {
+        deviceId: deviceId,
+        data: keyShare,
+      };
+      await this.storeAuthKeyShardLocally(authShard);
+    }
+    const { privateKey, publicKey } = await this.reconstructKey(authShard, chainLayer);
+    return {
+      privateKey,
+      publicKey,
+    };
+  }
+
   private async getShardFromStore(storeName: Stores, shardId: string): Promise<KeyShard | null> {
     const item = await this.storageService.getItem(storeName, shardId);
 

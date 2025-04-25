@@ -11,6 +11,14 @@ import type { CrossmintApiService } from './api';
 import type { ShardingService } from './sharding-service';
 import type { SignerInputEvent } from '@crossmint/client-signers';
 import type { Ed25519Service } from './ed25519';
+import {
+  Keypair,
+  PublicKey,
+  SystemProgram,
+  TransactionMessage,
+  VersionedTransaction,
+} from '@solana/web3.js';
+import { base58Decode, base58Encode } from '../utils';
 
 // Mock base64Decode
 vi.mock('../utils', () => ({
@@ -144,13 +152,13 @@ describe('EventHandlers', () => {
 
   describe('GetPublicKeyEventHandler', () => {
     it('should have correct event names', () => {
-      const handler = new GetPublicKeyEventHandler(mockCrossmintApiService, mockShardingService);
+      const handler = new GetPublicKeyEventHandler(mockShardingService);
       expect(handler.event).toBe('request:get-public-key');
       expect(handler.responseEvent).toBe('response:get-public-key');
     });
 
     it('should retrieve and reconstruct the key', async () => {
-      const handler = new GetPublicKeyEventHandler(mockCrossmintApiService, mockShardingService);
+      const handler = new GetPublicKeyEventHandler(mockShardingService);
       const testInput: SignerInputEvent<'get-public-key'> = {
         deviceId: testDeviceId,
         authData: testAuthData,
@@ -193,21 +201,13 @@ describe('EventHandlers', () => {
     });
 
     it('should have correct event names', () => {
-      const handler = new SignMessageEventHandler(
-        mockCrossmintApiService,
-        mockShardingService,
-        mockEd25519Service
-      );
+      const handler = new SignMessageEventHandler(mockShardingService, mockEd25519Service);
       expect(handler.event).toBe('request:sign-message');
       expect(handler.responseEvent).toBe('response:sign-message');
     });
 
     it('should throw "Not implemented" error for unsupported chain layers', async () => {
-      const handler = new SignMessageEventHandler(
-        mockCrossmintApiService,
-        mockShardingService,
-        mockEd25519Service
-      );
+      const handler = new SignMessageEventHandler(mockShardingService, mockEd25519Service);
       const testInput: SignerInputEvent<'sign-message'> = {
         deviceId: testDeviceId,
         authData: testAuthData,
@@ -234,17 +234,63 @@ describe('EventHandlers', () => {
   });
 
   describe('SignTransactionEventHandler', () => {
+    const mockEd25519Service = mockDeep<Ed25519Service>();
+    const mockShardingService = mockDeep<ShardingService>();
+    const mockSigner = Keypair.generate();
+    let serializedTransaction: string;
+
+    beforeEach(() => {
+      mockReset(mockEd25519Service);
+      mockShardingService.reconstructKey.mockResolvedValue({
+        privateKey: testPrivateKey,
+        publicKey: testPublicKey,
+      });
+
+      const transaction = new VersionedTransaction(
+        new TransactionMessage({
+          recentBlockhash: '11111111111111111111111111111111',
+          payerKey: mockSigner.publicKey,
+          instructions: [
+            SystemProgram.transfer({
+              fromPubkey: mockSigner.publicKey,
+              toPubkey: new PublicKey('22222222222222222222222222222222'),
+              lamports: 1,
+            }),
+          ],
+        }).compileToV0Message()
+      );
+      serializedTransaction = base58Encode(transaction.serialize());
+    });
+
     it('should have correct event names', () => {
-      const handler = new SignTransactionEventHandler();
+      const handler = new SignTransactionEventHandler(mockShardingService, mockEd25519Service);
       expect(handler.event).toBe('request:sign-transaction');
       expect(handler.responseEvent).toBe('response:sign-transaction');
     });
 
-    it('should throw "Not implemented" error', async () => {
-      const handler = new SignTransactionEventHandler();
-      const testInput = {} as SignerInputEvent<'sign-transaction'>;
+    it('should sign the transaction', async () => {
+      const handler = new SignTransactionEventHandler(mockShardingService, mockEd25519Service);
+      const testInput: SignerInputEvent<'sign-transaction'> = {
+        deviceId: testDeviceId,
+        authData: testAuthData,
+        data: {
+          transaction: serializedTransaction,
+          chainLayer: 'solana',
+          encoding: 'base58',
+        },
+      };
 
-      await expect(handler.handler(testInput)).rejects.toThrow('Not implemented');
+      const result = await handler.handler(testInput);
+      const signedTransaction = VersionedTransaction.deserialize(
+        base58Decode(serializedTransaction)
+      );
+      signedTransaction.sign([mockSigner]);
+
+      expect(result).toEqual({
+        publicKey: testPublicKey,
+        transaction: base58Encode(signedTransaction.serialize()),
+        signature: base58Encode(signedTransaction.signatures[0]),
+      });
     });
   });
 });
