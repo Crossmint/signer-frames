@@ -3,7 +3,13 @@
 import React, { useState } from 'react';
 import { useCrossmintSigner } from '../providers/CrossmintSignerProvider';
 import bs58 from 'bs58';
-import { SystemProgram, TransactionMessage, VersionedTransaction } from '@solana/web3.js';
+import {
+  type PublicKey,
+  SystemProgram,
+  TransactionMessage,
+  VersionedTransaction,
+} from '@solana/web3.js';
+import nacl from 'tweetnacl';
 
 export default function SignMessageForm() {
   const { solanaSigner } = useCrossmintSigner();
@@ -11,6 +17,7 @@ export default function SignMessageForm() {
   const [signature, setSignature] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [transactionSignature, setTransactionSignature] = useState<string | null>(null);
   const [transactionLoading, setTransactionLoading] = useState(false);
   const [preSignedTx, setPreSignedTx] = useState<string | null>(null);
@@ -23,6 +30,7 @@ export default function SignMessageForm() {
 
     setLoading(true);
     setError(null);
+    setSuccess(null);
     setSignature(null);
 
     try {
@@ -37,6 +45,7 @@ export default function SignMessageForm() {
       const signatureBase58 = bs58.encode(signedMessage);
 
       setSignature(signatureBase58);
+      setSuccess('Message signed successfully!');
     } catch (err) {
       console.error('Error signing message:', err);
       setError(err instanceof Error ? err.message : 'Failed to sign message');
@@ -55,6 +64,7 @@ export default function SignMessageForm() {
 
     setTransactionLoading(true);
     setError(null);
+    setSuccess(null);
     setTransactionSignature(null);
     setPreSignedTx(null);
     setPostSignedTx(null);
@@ -77,11 +87,44 @@ export default function SignMessageForm() {
 
       setPostSignedTx(signedTxSerialized);
       setTransactionSignature(signedTxSerialized);
+
+      const isCorrectlySigned = verifyTransactionSignature(
+        signedTransaction,
+        solanaSigner.publicKey
+      );
+      if (isCorrectlySigned) {
+        setSuccess('Transaction signed successfully with the correct signer!');
+      } else {
+        setError('Transaction signature verification failed. Incorrect signer.');
+      }
     } catch (err) {
       console.error('Error signing transaction:', err);
       setError(err instanceof Error ? err.message : 'Failed to sign transaction');
     } finally {
       setTransactionLoading(false);
+    }
+  };
+
+  const verifyTransactionSignature = (
+    tx: VersionedTransaction,
+    signerPubkey: PublicKey
+  ): boolean => {
+    try {
+      if (!tx.signatures || tx.signatures.length === 0) {
+        return false;
+      }
+      const serializedMessage = tx.message.serialize();
+      for (let i = 0; i < tx.signatures.length; i++) {
+        const signature = tx.signatures[i];
+        const pubkey = tx.message.staticAccountKeys[i].toBytes();
+        if (!nacl.sign.detached.verify(serializedMessage, signature, pubkey)) {
+          return false;
+        }
+      }
+      return true;
+    } catch (err) {
+      console.error('Error verifying transaction signature:', err);
+      return false;
     }
   };
 
@@ -92,7 +135,7 @@ export default function SignMessageForm() {
 
     return new VersionedTransaction(
       new TransactionMessage({
-        payerKey: SystemProgram.programId,
+        payerKey: solanaSigner.publicKey,
         instructions: [
           SystemProgram.transfer({
             fromPubkey: solanaSigner.publicKey,
@@ -112,6 +155,7 @@ export default function SignMessageForm() {
     setPreSignedTx(null);
     setPostSignedTx(null);
     setError(null);
+    setSuccess(null);
   };
 
   const logSignerState = () => {
@@ -133,6 +177,9 @@ export default function SignMessageForm() {
       <h2 className="text-lg font-semibold mb-4">Sign a Message</h2>
 
       {error && <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-md text-sm">{error}</div>}
+      {success && (
+        <div className="mb-4 p-3 bg-green-50 text-green-700 rounded-md text-sm">{success}</div>
+      )}
 
       <div className="mb-4">
         <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
@@ -198,7 +245,9 @@ export default function SignMessageForm() {
               <div className="mb-4">
                 <h3 className="text-sm font-medium text-gray-700 mb-1">Pre-Signed Transaction</h3>
                 <div className="p-3 bg-gray-50 rounded-md overflow-x-auto">
-                  <code className="text-xs text-gray-800 font-mono break-all">{preSignedTx}</code>
+                  <code className="text-xs text-gray-800 font-mono break-all">
+                    {Buffer.from(bs58.decode(preSignedTx)).toString('base64')}
+                  </code>
                 </div>
               </div>
             )}
@@ -207,7 +256,9 @@ export default function SignMessageForm() {
               <div className="mb-4">
                 <h3 className="text-sm font-medium text-gray-700 mb-1">Post-Signed Transaction</h3>
                 <div className="p-3 bg-gray-50 rounded-md overflow-x-auto">
-                  <code className="text-xs text-gray-800 font-mono break-all">{postSignedTx}</code>
+                  <code className="text-xs text-gray-800 font-mono break-all">
+                    {Buffer.from(bs58.decode(postSignedTx)).toString('base64')}
+                  </code>
                 </div>
               </div>
             )}
