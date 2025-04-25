@@ -2,8 +2,8 @@ import {
 	ChildWindow,
 	type HandshakeChild,
 	type HandshakeOptions,
-	RNWebViewChild,
 } from "@crossmint/client-sdk-window";
+import { RNWebViewChild } from "@crossmint/client-sdk-rn-window";
 import {
 	signerInboundEvents,
 	signerOutboundEvents,
