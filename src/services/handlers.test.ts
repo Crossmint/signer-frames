@@ -145,11 +145,11 @@ describe('EventHandlers', () => {
         privateKey: testPrivateKey,
         publicKey: testPublicKey,
       });
+      mockShardingService.getDeviceShare.mockReturnValue('device-share-base64');
 
       const result = await handler.handler(testInput);
 
-      expect(mockShardingService.getDeviceId).toHaveBeenCalledTimes(0);
-      expect(mockCrossmintApiService.createSigner).toHaveBeenCalledTimes(0);
+      expect(mockCrossmintApiService.createSigner).not.toHaveBeenCalled();
       expect(result).toEqual({
         address: testPublicKey,
       });

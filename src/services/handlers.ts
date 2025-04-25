@@ -71,8 +71,7 @@ export class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> 
       throw new Error('API service is not available');
     }
 
-    // We try to get the signer key, if not found, then we create a new signer
-    try {
+    if (this.shardingService.getDeviceShare() != null) {
       const { publicKey } = await this.shardingService.getLocalKeyInstance(
         payload.authData,
         payload.data.chainLayer
@@ -80,9 +79,9 @@ export class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> 
       return {
         address: publicKey,
       };
-    } catch (error: unknown) {
-      console.log('Signer is not yet initialized, creating new signer...');
     }
+
+    console.log('Signer not yet initialized, creating a new one...');
     const deviceId = this.shardingService.getDeviceId();
     await this.api.createSigner(deviceId, payload.authData, payload.data);
     return {};
