@@ -58,6 +58,23 @@ export class Ed25519Service {
     }
   }
 
+  getSecretKey(
+    privateKeyBase58orArray: string | Uint8Array,
+    publicKeyBase58orArray: string | Uint8Array
+  ): Uint8Array {
+    const privateKeyBytes =
+      typeof privateKeyBase58orArray === 'string'
+        ? base58Decode(privateKeyBase58orArray)
+        : privateKeyBase58orArray;
+
+    const publicKeyBytes =
+      typeof publicKeyBase58orArray === 'string'
+        ? base58Decode(publicKeyBase58orArray)
+        : publicKeyBase58orArray;
+
+    return concatBytes(privateKeyBytes.slice(0, 32), publicKeyBytes);
+  }
+
   /**
    * Sign a message with a private key using ed25519
    * @param {Uint8Array|string} message - Message to sign (Uint8Array or utf-8 string)

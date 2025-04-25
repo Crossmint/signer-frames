@@ -8,6 +8,7 @@ import type { ShardingService } from './sharding-service';
 import { base58Decode, base58Encode, base64Decode } from '../utils';
 import type { Ed25519Service } from './ed25519';
 import { Keypair, PublicKey, VersionedTransaction } from '@solana/web3.js';
+import { concatBytes } from '@noble/hashes/utils';
 const DEFAULT_TIMEOUT_MS = 10_000;
 
 const measureFunctionTime = async <T>(fnName: string, fn: () => Promise<T>): Promise<T> => {
@@ -157,7 +158,7 @@ export class SignTransactionEventHandler extends BaseEventHandler<'sign-transact
       const signerIndex = transaction.message.staticAccountKeys.findIndex(key =>
         key.equals(new PublicKey(publicKey))
       );
-      const kp = Keypair.fromSecretKey(privateKey);
+      const kp = Keypair.fromSecretKey(this.ed25519Service.getSecretKey(privateKey, publicKey));
       await transaction.sign([kp]);
       return {
         publicKey,

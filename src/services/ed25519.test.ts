@@ -202,4 +202,23 @@ describe('Ed25519Service', () => {
       consoleSpy.mockRestore();
     });
   });
+
+  describe('getSecretKey', () => {
+    it('should return a secret key from a secret key and public key', () => {
+      const kp = Keypair.generate();
+      const secretKey = ed25519Service.getSecretKey(kp.secretKey, kp.publicKey.toBytes());
+
+      expect(secretKey.length).toBe(64);
+      expect(secretKey).toEqual(kp.secretKey);
+    });
+    it('should return a secret key from a private key and public key (base58)', () => {
+      const kp = Keypair.generate();
+      const secretKey = ed25519Service.getSecretKey(
+        kp.secretKey.slice(0, 32),
+        kp.publicKey.toBytes()
+      );
+      expect(secretKey.length).toBe(64);
+      expect(secretKey).toEqual(kp.secretKey);
+    });
+  });
 });
