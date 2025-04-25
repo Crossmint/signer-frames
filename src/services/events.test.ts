@@ -16,6 +16,10 @@ vi.mock('@crossmint/client-sdk-window', () => ({
   HandshakeChild: vi.fn().mockImplementation(() => mockHandshakeChild),
 }));
 
+vi.mock('@crossmint/client-sdk-rn-window', () => ({
+  RNWebViewChild: vi.fn(),
+}));
+
 vi.mock('@crossmint/client-signers', async () => {
   const actual = await vi.importActual('@crossmint/client-signers');
   return {

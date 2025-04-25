@@ -1,5 +1,13 @@
-import { HandshakeChild, type HandshakeOptions } from '@crossmint/client-sdk-window';
-import { signerInboundEvents, signerOutboundEvents } from '@crossmint/client-signers';
+import {
+	ChildWindow,
+	type HandshakeChild,
+	type HandshakeOptions,
+} from "@crossmint/client-sdk-window";
+import { RNWebViewChild } from "@crossmint/client-sdk-rn-window";
+import {
+	signerInboundEvents,
+	signerOutboundEvents,
+} from "@crossmint/client-signers";
 
 export class EventsService {
   private static messenger: HandshakeChild<
@@ -20,12 +28,17 @@ export class EventsService {
       return;
     }
 
-    EventsService.messenger = new HandshakeChild(window.parent, '*', {
-      incomingEvents: signerInboundEvents,
-      outgoingEvents: signerOutboundEvents,
-      handshakeOptions: options?.handshakeOptions,
-      targetOrigin: options?.targetOrigin,
-    });
+    EventsService.messenger =
+      'ReactNativeWebView' in window && window.ReactNativeWebView != null
+        ? new RNWebViewChild({
+            incomingEvents: signerInboundEvents,
+            outgoingEvents: signerOutboundEvents,
+          })
+        : new ChildWindow(window.parent, options?.targetOrigin ?? '*', {
+            incomingEvents: signerInboundEvents,
+            outgoingEvents: signerOutboundEvents,
+            handshakeOptions: options?.handshakeOptions,
+          });
 
     await EventsService.messenger.handshakeWithParent();
   }
