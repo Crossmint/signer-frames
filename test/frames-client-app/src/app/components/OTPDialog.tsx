@@ -92,14 +92,13 @@ export default function OTPDialog({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasError, setHasError] = useState(false);
-  const { deviceId } = useCrossmintSigner();
 
   // Automatically start signer creation when dialog opens if device ID is available
   useEffect(() => {
-    if (open && deviceId && !showOtpInput && !loading) {
+    if (open && !showOtpInput && !loading) {
       handleCreateSigner();
     }
-  }, [open, deviceId, showOtpInput, loading]);
+  }, [open, showOtpInput, loading]);
 
   // Clear dialog state when closed
   useEffect(() => {

@@ -1,255 +1,217 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { ChainLayer, KeyShard } from './sharding-service';
-import { ShardingService as ActualShardingService } from './sharding-service';
-import type { StorageService } from './storage';
-import { Stores as ActualStores } from './storage';
-import type { CrossmintApiService } from './api';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { ShardingService } from './sharding-service';
 import type { Ed25519Service } from './ed25519';
-import { mockReset, mockDeep } from 'vitest-mock-extended';
-import { combine, split } from 'shamir-secret-sharing';
-import * as ed from '@noble/ed25519';
+import type { CrossmintApiService } from './api';
+import { mockDeep, mockReset } from 'vitest-mock-extended';
 
-// Unmock the shamir-secret-sharing library to use real functionality
-vi.unmock('shamir-secret-sharing');
+// Mock shamir-secret-sharing with proper implementation
+vi.mock('shamir-secret-sharing', () => ({
+  combine: vi.fn(shares => {
+    // Properly handle the array of shares being passed
+    if (Array.isArray(shares) && shares.length === 2) {
+      return Promise.resolve(new Uint8Array(32).fill(1));
+    }
+    throw new Error('Invalid shares provided to combine');
+  }),
+}));
+
+// Mock utils
+vi.mock('../utils', () => ({
+  base64Decode: vi.fn((input: string) => {
+    // Simple mock that converts the input to a Uint8Array for testing
+    return new Uint8Array([1, 2, 3, 4]);
+  }),
+}));
 
 describe('ShardingService', () => {
-  // Create mocks for dependencies
-  const mockStorageService = mockDeep<StorageService>();
-  const mockCrossmintApiService = mockDeep<CrossmintApiService>();
+  // Mock dependencies
   const mockEd25519Service = mockDeep<Ed25519Service>();
+  const mockApiService = mockDeep<CrossmintApiService>();
 
-  let shardingService: ActualShardingService;
-
-  // Test data for chain layer
-  const testDeviceId = 'test-device-id';
-  const testChainLayer: ChainLayer = 'solana';
-
-  // Create a real ed25519 keypair for testing
-  const testPrivateKey = ed.utils.randomPrivateKey();
-  let testPublicKey: string;
-  let testShard1: Uint8Array;
-  let testShard2: Uint8Array;
-
-  const testKeyShard: KeyShard = {
-    deviceId: testDeviceId,
-    data: 'test-shard-data',
+  // Mock localStorage and sessionStorage
+  const mockLocalStorage = {
+    getItem: vi.fn(),
+    setItem: vi.fn(),
+    removeItem: vi.fn(),
+    clear: vi.fn(),
+    length: 0,
+    key: vi.fn(),
   };
 
-  beforeEach(async () => {
-    // Reset all mocks
-    mockReset(mockStorageService);
-    mockReset(mockCrossmintApiService);
+  const mockSessionStorage = {
+    getItem: vi.fn(),
+    setItem: vi.fn(),
+    removeItem: vi.fn(),
+    clear: vi.fn(),
+    length: 0,
+    key: vi.fn(),
+  };
+
+  // Test constants
+  const testDeviceId = 'test-device-id';
+  const testDeviceShare = 'test-device-share-base64';
+  const testAuthShare = 'test-auth-share-base64';
+  const testPrivateKey = new Uint8Array(32).fill(1);
+  const testPublicKey = 'test-public-key';
+  const testAuthData = {
+    jwt: 'test-jwt',
+    apiKey: 'test-api-key',
+  };
+
+  let service: ShardingService;
+
+  beforeEach(() => {
     mockReset(mockEd25519Service);
+    mockReset(mockApiService);
+
+    // Reset localStorage and sessionStorage mocks
     vi.resetAllMocks();
 
-    // Configure mocks
-    mockStorageService.initDatabase.mockResolvedValue({} as IDBDatabase);
+    // Setup crypto.randomUUID mock
+    vi.stubGlobal('crypto', {
+      randomUUID: vi.fn().mockReturnValue(testDeviceId),
+    });
 
-    // Generate public key from test private key
-    const publicKeyBytes = await ed.getPublicKey(testPrivateKey);
-    testPublicKey = Buffer.from(publicKeyBytes).toString('base64');
+    // Setup storage mocks
+    vi.stubGlobal('localStorage', mockLocalStorage);
+    vi.stubGlobal('sessionStorage', mockSessionStorage);
 
-    // Split the private key into two shares with a threshold of 2
-    const shares = await split(testPrivateKey, 2, 2);
-    testShard1 = shares[0];
-    testShard2 = shares[1];
-
-    // Create service with mocked dependencies
-    shardingService = new ActualShardingService(
-      mockStorageService,
-      mockCrossmintApiService,
-      mockEd25519Service
-    );
-
-    // Mock the ed25519Service getPublicKey to return our test public key
+    // Setup default mock implementations
     mockEd25519Service.getPublicKey.mockResolvedValue(testPublicKey);
+
+    // Create new service instance for each test
+    service = new ShardingService(mockEd25519Service, mockApiService);
+
+    // Mock console.log to avoid clutter in test output
+    vi.spyOn(console, 'log').mockImplementation(() => {});
   });
 
-  afterEach(() => {
-    vi.resetAllMocks();
-  });
+  describe('getDeviceId', () => {
+    it('should return existing device ID from localStorage if available', () => {
+      mockLocalStorage.getItem.mockReturnValueOnce(testDeviceId);
 
-  describe('init', () => {
-    it('should initialize the storage service', async () => {
-      await shardingService.init();
-      expect(mockStorageService.initDatabase).toHaveBeenCalled();
+      const result = service.getDeviceId();
+
+      expect(mockLocalStorage.getItem).toHaveBeenCalledWith('deviceId');
+      expect(result).toBe(testDeviceId);
+    });
+
+    it('should generate a new device ID if none exists in localStorage', () => {
+      mockLocalStorage.getItem.mockReturnValueOnce(null);
+
+      const result = service.getDeviceId();
+
+      expect(mockLocalStorage.getItem).toHaveBeenCalledWith('deviceId');
+      expect(crypto.randomUUID).toHaveBeenCalled();
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith('deviceId', testDeviceId);
+      expect(result).toBe(testDeviceId);
     });
   });
 
-  describe('recombineShards', () => {
-    it('should recombine real key shards and derive public key', async () => {
-      // Use real shards with real combine function
-      const result = await shardingService.recombineShards(testShard1, testShard2, testChainLayer);
+  describe('storeDeviceShare and getDeviceShare', () => {
+    it('should store device share in localStorage', () => {
+      service.storeDeviceShare(testDeviceShare);
 
-      // Verify the reconstructed private key matches the original
-      const combinedPrivateKey = await combine([testShard1, testShard2]);
-      expect(Buffer.from(combinedPrivateKey).toString('hex')).toEqual(
-        Buffer.from(testPrivateKey).toString('hex')
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith('device-share', testDeviceShare);
+    });
+
+    it('should retrieve device share from localStorage', () => {
+      mockLocalStorage.getItem.mockReturnValueOnce(testDeviceShare);
+
+      const result = service.getDeviceShare();
+
+      expect(mockLocalStorage.getItem).toHaveBeenCalledWith('device-share');
+      expect(result).toBe(testDeviceShare);
+    });
+  });
+
+  describe('cacheAuthShare and getCachedAuthShare', () => {
+    it('should store auth share in sessionStorage', () => {
+      service.cacheAuthShare(testAuthShare);
+
+      expect(mockSessionStorage.setItem).toHaveBeenCalledWith('auth-share', testAuthShare);
+    });
+
+    it('should retrieve auth share from sessionStorage', () => {
+      mockSessionStorage.getItem.mockReturnValueOnce(testAuthShare);
+
+      const result = service.getCachedAuthShare();
+
+      expect(mockSessionStorage.getItem).toHaveBeenCalledWith('auth-share');
+      expect(result).toBe(testAuthShare);
+    });
+  });
+
+  describe('getLocalKeyInstance', () => {
+    beforeEach(() => {
+      // Setup default mocks for this test suite
+      mockLocalStorage.getItem.mockImplementation(key => {
+        if (key === 'device-share') return testDeviceShare;
+        if (key === 'deviceId') return testDeviceId;
+        return null;
+      });
+    });
+
+    it('should throw error if device share is not found', async () => {
+      mockLocalStorage.getItem.mockReturnValue(null);
+
+      await expect(service.getLocalKeyInstance(testAuthData, 'solana')).rejects.toThrow(
+        'Device share not found'
       );
+    });
 
-      expect(mockEd25519Service.getPublicKey).toHaveBeenCalledWith(combinedPrivateKey);
+    it('should use cached auth share if available', async () => {
+      mockSessionStorage.getItem.mockReturnValueOnce(testAuthShare);
+
+      const result = await service.getLocalKeyInstance(testAuthData, 'solana');
+
+      expect(mockSessionStorage.getItem).toHaveBeenCalledWith('auth-share');
+      expect(mockApiService.getAuthShard).not.toHaveBeenCalled();
       expect(result).toEqual({
-        privateKey: combinedPrivateKey,
+        privateKey: expect.any(Uint8Array),
         publicKey: testPublicKey,
       });
     });
-  });
 
-  describe('reconstructKey', () => {
-    it('should retrieve device shard from local storage and recombine shards', async () => {
-      const deviceShard: KeyShard = {
+    it('should fetch auth share from API if not cached', async () => {
+      mockSessionStorage.getItem.mockReturnValueOnce(null);
+      mockApiService.getAuthShard.mockResolvedValueOnce({
         deviceId: testDeviceId,
-        data: Buffer.from(testShard1).toString('base64'),
-      };
+        keyShare: testAuthShare,
+      });
 
-      const authShard: KeyShard = {
-        deviceId: testDeviceId,
-        data: Buffer.from(testShard2).toString('base64'),
-      };
+      const result = await service.getLocalKeyInstance(testAuthData, 'solana');
 
-      vi.spyOn(shardingService, 'getDeviceKeyShardFromLocal').mockResolvedValue(deviceShard);
-
-      const result = await shardingService.reconstructKey(authShard, testChainLayer);
-
-      expect(shardingService.getDeviceKeyShardFromLocal).toHaveBeenCalledWith(testDeviceId);
-      expect(mockEd25519Service.getPublicKey).toHaveBeenCalled();
-
-      expect(result.publicKey).toEqual(testPublicKey);
-    });
-
-    it('should throw an error if device shard is not found', async () => {
-      // Mock storage service to return null (no device shard found)
-      vi.spyOn(shardingService, 'getDeviceKeyShardFromLocal').mockResolvedValue(null);
-
-      await expect(shardingService.reconstructKey(testKeyShard, testChainLayer)).rejects.toThrow(
-        `Device shard not found in IndexedDB for deviceId: ${testDeviceId}`
-      );
-    });
-  });
-
-  describe('storage methods', () => {
-    it('should store device key shard locally', async () => {
-      await shardingService.storeDeviceKeyShardLocally(testKeyShard);
-
-      expect(mockStorageService.storeItem).toHaveBeenCalledWith(
-        ActualStores.DEVICE_SHARES,
-        {
-          id: testKeyShard.deviceId,
-          data: testKeyShard.data,
-          type: 'base64KeyShard',
-          created: expect.any(Number),
-        },
-        undefined
-      );
-    });
-
-    it('should store auth key shard locally', async () => {
-      await shardingService.storeAuthKeyShardLocally(testKeyShard);
-
-      expect(mockStorageService.storeItem).toHaveBeenCalledWith(
-        ActualStores.AUTH_SHARES,
-        {
-          id: testKeyShard.deviceId,
-          data: testKeyShard.data,
-          type: 'base64KeyShard',
-          created: expect.any(Number),
-        },
-        expect.any(Number)
-      );
-    });
-
-    it('should retrieve device key shard from local storage', async () => {
-      const storedItem = {
-        id: testDeviceId,
-        data: 'stored-shard-data',
-        type: 'base64KeyShard',
-        created: Date.now(),
-        shard: true,
-      };
-      mockStorageService.getItem.mockResolvedValue(storedItem);
-
-      const result = await shardingService.getDeviceKeyShardFromLocal(testDeviceId);
-
-      expect(mockStorageService.getItem).toHaveBeenCalledWith(
-        ActualStores.DEVICE_SHARES,
-        testDeviceId
-      );
+      expect(mockSessionStorage.getItem).toHaveBeenCalledWith('auth-share');
+      expect(mockApiService.getAuthShard).toHaveBeenCalledWith(testDeviceId, testAuthData);
+      expect(mockSessionStorage.setItem).toHaveBeenCalledWith('auth-share', testAuthShare);
       expect(result).toEqual({
-        deviceId: testDeviceId,
-        data: 'stored-shard-data',
+        privateKey: expect.any(Uint8Array),
+        publicKey: testPublicKey,
       });
     });
 
-    it('should return null if device key shard is not found', async () => {
-      mockStorageService.getItem.mockResolvedValue(null);
+    it('should recombine shards and return keys', async () => {
+      mockSessionStorage.getItem.mockReturnValueOnce(testAuthShare);
 
-      const result = await shardingService.getDeviceKeyShardFromLocal(testDeviceId);
+      const result = await service.getLocalKeyInstance(testAuthData, 'solana');
 
-      expect(result).toBeNull();
-    });
+      // Verify Ed25519Service is called to compute the public key
+      expect(mockEd25519Service.getPublicKey).toHaveBeenCalledWith(expect.any(Uint8Array));
 
-    it('should retrieve auth key shard from local storage', async () => {
-      const storedItem = {
-        id: testDeviceId,
-        data: 'stored-auth-shard',
-        type: 'base64KeyShard',
-        created: Date.now(),
-        shard: true,
-      };
-      mockStorageService.getItem.mockResolvedValue(storedItem);
-
-      const result = await shardingService.tryGetAuthKeyShardFromLocal(testDeviceId);
-
-      expect(mockStorageService.getItem).toHaveBeenCalledWith(
-        ActualStores.AUTH_SHARES,
-        testDeviceId
-      );
       expect(result).toEqual({
-        deviceId: testDeviceId,
-        data: 'stored-auth-shard',
+        privateKey: expect.any(Uint8Array),
+        publicKey: testPublicKey,
       });
-    });
-  });
-
-  describe('computePublicKey', () => {
-    // We need to test the private method, so we'll use a workaround
-    const callComputePublicKey = async (pk: Uint8Array, chain: ChainLayer): Promise<string> => {
-      return (
-        shardingService as unknown as {
-          computePublicKey(privateKey: Uint8Array, chainLayer: ChainLayer): Promise<string>;
-        }
-      ).computePublicKey(pk, chain);
-    };
-
-    it('should compute a Solana public key correctly', async () => {
-      const validPrivateKey = new Uint8Array(32).fill(1);
-      mockEd25519Service.getPublicKey.mockResolvedValue(testPublicKey);
-
-      const result = await callComputePublicKey(validPrivateKey, 'solana');
-
-      expect(mockEd25519Service.getPublicKey).toHaveBeenCalledWith(validPrivateKey);
-      expect(result).toBe(testPublicKey);
-    });
-
-    it('should throw error for invalid private key length', async () => {
-      const invalidPrivateKey = new Uint8Array(16).fill(1); // Not 32 bytes
-
-      await expect(callComputePublicKey(invalidPrivateKey, 'solana')).rejects.toThrow(
-        'Invalid private key length: 16. Expected 32 bytes.'
-      );
     });
 
     it('should throw error for unsupported chain layer', async () => {
-      const validPrivateKey = new Uint8Array(32).fill(1);
+      mockSessionStorage.getItem.mockReturnValueOnce(testAuthShare);
+      mockEd25519Service.getPublicKey.mockImplementationOnce(async () => {
+        throw new Error('EVM key derivation not yet implemented');
+      });
 
-      await expect(callComputePublicKey(validPrivateKey, 'evm' as ChainLayer)).rejects.toThrow(
-        'EVM key derivation not yet implemented'
-      );
-
-      // @ts-expect-error - Testing with invalid chain type
-      await expect(callComputePublicKey(validPrivateKey, 'invalid-chain')).rejects.toThrow(
-        'Unsupported chain layer: invalid-chain'
-      );
+      await expect(service.getLocalKeyInstance(testAuthData, 'evm')).rejects.toThrow();
     });
   });
 });

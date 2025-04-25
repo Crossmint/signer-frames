@@ -12,7 +12,6 @@ import { IFrameWindow } from '@crossmint/client-sdk-window';
 import { useAuth, useCrossmint } from '@crossmint/client-sdk-react-ui';
 import bs58 from 'bs58';
 import { PublicKey, type VersionedTransaction } from '@solana/web3.js';
-import { v4 as uuidv4 } from 'uuid';
 import OTPDialog from '../components/OTPDialog';
 
 // Simple initializing component to show while connecting to the iframe
@@ -68,8 +67,6 @@ export interface CrossmintSignerContext {
   error: Error | null;
   initSigner: (chainLayer: 'solana') => void;
   solanaSigner: CrossmintSolanaSigner | null;
-  deviceId: string | null;
-  setDeviceId: (deviceId: string) => void;
 }
 
 const CrossmintSignerContext = createContext<CrossmintSignerContext | null>(null);
@@ -92,7 +89,6 @@ export default function CrossmintSignerProvider({
   children,
   iframeUrl = new URL(process.env?.NEXT_PUBLIC_SECURE_ENDPOINT_URL ?? 'secure.crossmint.com'),
 }: CrossmintSignerProviderProps) {
-  const [deviceId, setDeviceId] = useState<string | null>(null);
   const [otpDialogOpen, setOtpDialogOpen] = useState(false);
   const [isInitializingSigner, setIsInitializingSigner] = useState(false);
   const [solanaSigner, setSolanaSigner] = useState<CrossmintSolanaSigner | null>(null);
@@ -115,27 +111,6 @@ export default function CrossmintSignerProvider({
       setOtpDialogOpen(false);
     }
   }, [solanaSigner, otpDialogOpen]);
-
-  // Load deviceId from localStorage on component mount
-  useEffect(() => {
-    const storedDeviceId = localStorage.getItem('deviceId');
-    if (storedDeviceId) {
-      setDeviceId(storedDeviceId);
-    }
-  }, []);
-
-  // Update deviceId in state and localStorage
-  const updateDeviceId = useCallback((newDeviceId: string) => {
-    localStorage.setItem('deviceId', newDeviceId);
-    setDeviceId(newDeviceId);
-  }, []);
-
-  // Generate a new device ID
-  const generateNewDeviceId = useCallback(() => {
-    const newDeviceId = uuidv4();
-    updateDeviceId(newDeviceId);
-    return newDeviceId;
-  }, [updateDeviceId]);
 
   const initIFrameWindow = useCallback(async () => {
     if (iframe.current == null) {
@@ -167,14 +142,11 @@ export default function CrossmintSignerProvider({
       signMessage: async (message: Uint8Array): Promise<Uint8Array> => {
         try {
           assertInitialized();
-          if (deviceId == null) {
-            throw new Error('Device ID not initialized');
-          }
           const response = await iframeWindow.current?.sendAction({
             event: 'request:sign-message',
             responseEvent: 'response:sign-message',
             data: {
-              deviceId,
+              deviceId: 'device id placeholder',
               authData: {
                 jwt: jwt as NonNullable<typeof jwt>,
                 apiKey,
@@ -202,9 +174,6 @@ export default function CrossmintSignerProvider({
 
           // Basic validations
           assertInitialized();
-          if (deviceId == null) {
-            throw new Error('Device ID not initialized');
-          }
           if (!iframeWindow.current) {
             throw new Error('iframeWindow is not initialized');
           }
@@ -215,7 +184,7 @@ export default function CrossmintSignerProvider({
 
           // Prepare request
           const requestData = {
-            deviceId,
+            deviceId: 'device id placeholder',
             authData: {
               jwt: jwt as NonNullable<typeof jwt>,
               apiKey,
@@ -277,14 +246,6 @@ export default function CrossmintSignerProvider({
         return;
       }
 
-      // We'll use the provided deviceId instead of generating one
-      if (!deviceId) {
-        console.error('No device ID provided');
-        return;
-      }
-
-      setIsInitializingSigner(true);
-
       // Initialize the iframe window if not already done
       if (!isInitialized && !isInitializing) {
         initIFrameWindow().then(() => {
@@ -297,15 +258,7 @@ export default function CrossmintSignerProvider({
       console.error('Error creating signer:', error);
       throw error;
     }
-  }, [
-    isInitialized,
-    isInitializing,
-    isInitializingSigner,
-    jwt,
-    apiKey,
-    deviceId,
-    initIFrameWindow,
-  ]);
+  }, [isInitialized, isInitializing, isInitializingSigner, jwt, apiKey, initIFrameWindow]);
 
   // Handle OTP dialog event handlers
   const handleCreateSignerEvent = async () => {
@@ -313,14 +266,11 @@ export default function CrossmintSignerProvider({
     if (iframeWindow.current == null || jwt == null || apiKey == null) {
       throw new Error('Failed to create signer. The component has not been initialized');
     }
-    if (deviceId == null) {
-      throw new Error('Device ID not initialized');
-    }
     await iframeWindow.current?.sendAction({
       event: 'request:create-signer',
       responseEvent: 'response:create-signer',
       data: {
-        deviceId,
+        deviceId: 'deviceId placeholder',
         authData: {
           jwt: jwt as NonNullable<typeof jwt>,
           apiKey,
@@ -334,14 +284,14 @@ export default function CrossmintSignerProvider({
 
   const handleEncryptedOtpEvent = async (encryptedOtp: string, chainLayer: 'solana') => {
     assertInitialized();
-    if (iframeWindow.current == null || jwt == null || apiKey == null || deviceId == null) {
+    if (iframeWindow.current == null || jwt == null || apiKey == null) {
       throw new Error('Failed to create signer. The component has not been initialized');
     }
     const response = await iframeWindow.current.sendAction({
       event: 'request:send-otp',
       responseEvent: 'response:send-otp',
       data: {
-        deviceId,
+        deviceId: 'deviceId placeholder',
         authData: {
           jwt,
           apiKey,
@@ -371,8 +321,6 @@ export default function CrossmintSignerProvider({
           error,
           initSigner,
           solanaSigner,
-          deviceId,
-          setDeviceId: updateDeviceId,
         }}
       >
         <>

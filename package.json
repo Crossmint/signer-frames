@@ -24,12 +24,6 @@
     "format": "prettier --write \"src/**/*.{js,ts}\"",
     "format:check": "prettier --check \"src/**/*.{js,ts}\""
   },
-  "keywords": [
-    "solana",
-    "ethereum",
-    "crypto",
-    "ed25519"
-  ],
   "author": "",
   "license": "MIT",
   "devDependencies": {

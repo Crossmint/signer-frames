@@ -58,9 +58,6 @@ vi.mock('@solana/web3.js', async () => {
   };
 });
 
-// Now import mocked modules
-// import { base58Decode, base58Encode, base64Decode } from '../utils';
-
 // Define common test data
 const testDeviceId = 'test-device-id';
 const testAuthData = {
@@ -85,11 +82,14 @@ describe('EventHandlers', () => {
 
     // Mock console.log to avoid clutter in test output
     vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    // Setup common mock behaviors
+    mockShardingService.getDeviceId.mockReturnValue(testDeviceId);
   });
 
   describe('BaseEventHandler', () => {
     it('should measure function execution time in callback', async () => {
-      const handler = new CreateSignerEventHandler(mockCrossmintApiService);
+      const handler = new CreateSignerEventHandler(mockCrossmintApiService, mockShardingService);
       const testInput: SignerInputEvent<'create-signer'> = {
         deviceId: testDeviceId,
         authData: testAuthData,
@@ -108,13 +108,13 @@ describe('EventHandlers', () => {
 
   describe('CreateSignerEventHandler', () => {
     it('should have correct event names', () => {
-      const handler = new CreateSignerEventHandler(mockCrossmintApiService);
+      const handler = new CreateSignerEventHandler(mockCrossmintApiService, mockShardingService);
       expect(handler.event).toBe('request:create-signer');
       expect(handler.responseEvent).toBe('response:create-signer');
     });
 
     it('should call createSigner with correct parameters', async () => {
-      const handler = new CreateSignerEventHandler(mockCrossmintApiService);
+      const handler = new CreateSignerEventHandler(mockCrossmintApiService, mockShardingService);
       const testInput: SignerInputEvent<'create-signer'> = {
         deviceId: testDeviceId,
         authData: testAuthData,
@@ -125,9 +125,10 @@ describe('EventHandlers', () => {
 
       const result = await handler.handler(testInput);
 
+      expect(mockShardingService.getDeviceId).toHaveBeenCalled();
       expect(mockCrossmintApiService.createSigner).toHaveBeenCalledWith(
         testDeviceId,
-        testAuthData,
+        testInput.authData,
         { authId: 'test-auth-id' }
       );
       expect(result).toEqual({});
@@ -160,33 +161,22 @@ describe('EventHandlers', () => {
       };
 
       mockCrossmintApiService.sendOtp.mockResolvedValue(mockedResponse);
-      mockShardingService.recombineShards.mockResolvedValue({
+      mockShardingService.getLocalKeyInstance.mockResolvedValue({
         privateKey: testPrivateKey,
         publicKey: testPublicKey,
       });
 
       const result = await handler.handler(testInput);
 
+      expect(mockShardingService.getDeviceId).toHaveBeenCalled();
       expect(mockCrossmintApiService.sendOtp).toHaveBeenCalledWith(testDeviceId, testAuthData, {
         otp: '123456',
       });
 
-      expect(mockShardingService.storeDeviceKeyShardLocally).toHaveBeenCalledWith({
-        deviceId: testDeviceId,
-        data: 'device-share-base64',
-      });
+      expect(mockShardingService.storeDeviceShare).toHaveBeenCalledWith('device-share-base64');
+      expect(mockShardingService.cacheAuthShare).toHaveBeenCalledWith('auth-share-base64');
 
-      expect(mockShardingService.storeAuthKeyShardLocally).toHaveBeenCalledWith({
-        deviceId: testDeviceId,
-        data: 'auth-share-base64',
-      });
-
-      // This function should now receive Uint8Arrays from base64Decode
-      expect(mockShardingService.recombineShards).toHaveBeenCalledWith(
-        expect.any(Uint8Array),
-        expect.any(Uint8Array),
-        'solana'
-      );
+      expect(mockShardingService.getLocalKeyInstance).toHaveBeenCalledWith(testAuthData, 'solana');
 
       expect(result).toEqual({ address: testPublicKey });
     });
@@ -209,7 +199,6 @@ describe('EventHandlers', () => {
         },
       };
 
-      // Update mock to match the new implementation
       mockShardingService.getLocalKeyInstance.mockResolvedValue({
         privateKey: testPrivateKey,
         publicKey: testPublicKey,
@@ -217,11 +206,7 @@ describe('EventHandlers', () => {
 
       const result = await handler.handler(testInput);
 
-      expect(mockShardingService.getLocalKeyInstance).toHaveBeenCalledWith(
-        testDeviceId,
-        testAuthData,
-        'solana'
-      );
+      expect(mockShardingService.getLocalKeyInstance).toHaveBeenCalledWith(testAuthData, 'solana');
 
       expect(result).toEqual({ publicKey: testPublicKey });
     });
@@ -255,11 +240,7 @@ describe('EventHandlers', () => {
 
       const result = await handler.handler(testInput);
 
-      expect(mockShardingService.getLocalKeyInstance).toHaveBeenCalledWith(
-        testDeviceId,
-        testAuthData,
-        'solana'
-      );
+      expect(mockShardingService.getLocalKeyInstance).toHaveBeenCalledWith(testAuthData, 'solana');
 
       expect(mockEd25519Service.signMessage).toHaveBeenCalledWith('test message', testPrivateKey);
 
@@ -320,11 +301,7 @@ describe('EventHandlers', () => {
 
       const result = await handler.handler(testInput);
 
-      expect(mockShardingService.getLocalKeyInstance).toHaveBeenCalledWith(
-        testDeviceId,
-        testAuthData,
-        'solana'
-      );
+      expect(mockShardingService.getLocalKeyInstance).toHaveBeenCalledWith(testAuthData, 'solana');
 
       expect(result).toEqual({
         publicKey: testPublicKey,

@@ -2,8 +2,7 @@
  * XMIF - Main Framework Entry Point
  */
 
-import { EventsService, StorageService, CrossmintApiService } from './services';
-import type { StorageItem, Stores } from './services/storage';
+import { EventsService, CrossmintApiService } from './services';
 import { ShardingService } from './services/sharding-service';
 import {
   CreateSignerEventHandler,
@@ -25,15 +24,13 @@ declare global {
  * Main XMIF class
  */
 class XMIF {
-  // Services
   constructor(
     private readonly eventsService = new EventsService(),
-    private readonly storageService = new StorageService(),
     private readonly crossmintApiService = new CrossmintApiService(),
-    private readonly shardingService = new ShardingService(storageService, crossmintApiService),
-    private readonly ed25519Service = new Ed25519Service(),
+    readonly shardingService = new ShardingService(),
+    readonly ed25519Service = new Ed25519Service(),
     private readonly handlers = [
-      new CreateSignerEventHandler(crossmintApiService),
+      new CreateSignerEventHandler(crossmintApiService, shardingService),
       new SendOtpEventHandler(crossmintApiService, shardingService),
       new GetPublicKeyEventHandler(shardingService),
       new SignMessageEventHandler(shardingService, ed25519Service),
@@ -48,10 +45,6 @@ class XMIF {
   async init(): Promise<void> {
     console.log('Initializing XMIF framework...');
 
-    console.log('-- Initializing IndexedDB client...');
-    await this.storageService.initDatabase();
-    console.log('-- IndexedDB client initialized!');
-
     console.log('-- Initializing Crossmint API...');
     await this.crossmintApiService.init();
     console.log('-- Crossmint API initialized!');
@@ -60,25 +53,6 @@ class XMIF {
     await this.eventsService.initMessenger();
     this.registerHandlers();
     console.log('-- Events handlers initialized!');
-  }
-
-  /**
-   * Get all items from a specified store
-   * @param {Stores} storeName - The name of the object store
-   * @returns {Promise<StorageItem[]>} A promise that resolves to an array of items
-   */
-  async listItems(storeName: Stores): Promise<StorageItem[]> {
-    return this.storageService.listItems(storeName);
-  }
-
-  /**
-   * Get a specific item from a store
-   * @param {Stores} storeName - The name of the object store
-   * @param {string} id - The ID of the item to retrieve
-   * @returns {Promise<StorageItem | null>} A promise that resolves to the item or null
-   */
-  async getItem(storeName: Stores, id: string): Promise<StorageItem | null> {
-    return this.storageService.getItem(storeName, id);
   }
 
   private registerHandlers() {

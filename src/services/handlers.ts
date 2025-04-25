@@ -5,7 +5,7 @@ import type {
 } from '@crossmint/client-signers';
 import type { CrossmintApiService } from './api';
 import type { ShardingService } from './sharding-service';
-import { base58Decode, base58Encode, base64Decode } from '../utils';
+import { base58Decode, base58Encode } from '../utils';
 import type { Ed25519Service } from './ed25519';
 import { Keypair, PublicKey, VersionedTransaction } from '@solana/web3.js';
 const DEFAULT_TIMEOUT_MS = 10_000;
@@ -45,7 +45,10 @@ abstract class BaseEventHandler<EventName extends SignerIFrameEventName> {
 }
 
 export class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> {
-  constructor(private readonly api: CrossmintApiService) {
+  constructor(
+    private readonly api: CrossmintApiService,
+    private readonly shardingService: ShardingService
+  ) {
     super();
   }
   event = 'request:create-signer' as const;
@@ -54,7 +57,9 @@ export class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> 
     if (!this.api) {
       throw new Error('API service is not available');
     }
-    await this.api.createSigner(payload.deviceId, payload.authData, payload.data);
+
+    const deviceId = this.shardingService.getDeviceId();
+    await this.api.createSigner(deviceId, payload.authData, payload.data);
     return {};
   }
 }
@@ -69,22 +74,16 @@ export class SendOtpEventHandler extends BaseEventHandler<'send-otp'> {
   event = 'request:send-otp' as const;
   responseEvent = 'response:send-otp' as const;
   handler = async (payload: SignerInputEvent<'send-otp'>) => {
-    const response = await this.api.sendOtp(payload.deviceId, payload.authData, {
+    const deviceId = this.shardingService.getDeviceId();
+    const response = await this.api.sendOtp(deviceId, payload.authData, {
       otp: payload.data.encryptedOtp,
     });
-    await Promise.all([
-      this.shardingService.storeDeviceKeyShardLocally({
-        deviceId: payload.deviceId,
-        data: response.shares.device,
-      }),
-      this.shardingService.storeAuthKeyShardLocally({
-        deviceId: payload.deviceId,
-        data: response.shares.auth,
-      }),
-    ]);
-    const { publicKey } = await this.shardingService.recombineShards(
-      base64Decode(response.shares.device),
-      base64Decode(response.shares.auth),
+
+    this.shardingService.storeDeviceShare(response.shares.device);
+    this.shardingService.cacheAuthShare(response.shares.auth);
+
+    const { publicKey } = await this.shardingService.getLocalKeyInstance(
+      payload.authData,
       payload.data.chainLayer
     );
     return {
@@ -101,7 +100,6 @@ export class GetPublicKeyEventHandler extends BaseEventHandler<'get-public-key'>
   responseEvent = 'response:get-public-key' as const;
   handler = async (payload: SignerInputEvent<'get-public-key'>) => {
     const { publicKey } = await this.shardingService.getLocalKeyInstance(
-      payload.deviceId,
       payload.authData,
       payload.data.chainLayer
     );
@@ -122,7 +120,6 @@ export class SignMessageEventHandler extends BaseEventHandler<'sign-message'> {
   responseEvent = 'response:sign-message' as const;
   async handler(payload: SignerInputEvent<'sign-message'>) {
     const { privateKey, publicKey } = await this.shardingService.getLocalKeyInstance(
-      payload.deviceId,
       payload.authData,
       payload.data.chainLayer
     );
@@ -145,7 +142,6 @@ export class SignTransactionEventHandler extends BaseEventHandler<'sign-transact
   responseEvent = 'response:sign-transaction' as const;
   handler = async (payload: SignerInputEvent<'sign-transaction'>) => {
     const { privateKey, publicKey } = await this.shardingService.getLocalKeyInstance(
-      payload.deviceId,
       payload.authData,
       payload.data.chainLayer
     );
