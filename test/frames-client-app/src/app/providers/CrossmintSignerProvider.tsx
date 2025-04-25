@@ -83,11 +83,13 @@ export type CrossmintSignerProviderProps = {
   children: ReactNode;
   iframeUrl?: URL;
   apiKey?: string;
+  autoInitialize?: boolean;
 };
 
 export default function CrossmintSignerProvider({
   children,
   iframeUrl = new URL(process.env?.NEXT_PUBLIC_SECURE_ENDPOINT_URL ?? 'secure.crossmint.com'),
+  autoInitialize = true,
 }: CrossmintSignerProviderProps) {
   const [otpDialogOpen, setOtpDialogOpen] = useState(false);
   const [isInitializingSigner, setIsInitializingSigner] = useState(false);
@@ -244,6 +246,8 @@ export default function CrossmintSignerProvider({
         return;
       }
 
+      setIsInitializingSigner(true);
+
       // Initialize the iframe window if not already done
       if (!isInitialized && !isInitializing) {
         initIFrameWindow().then(() => {
@@ -254,9 +258,24 @@ export default function CrossmintSignerProvider({
       }
     } catch (error) {
       console.error('Error creating signer:', error);
+      setIsInitializingSigner(false);
       throw error;
     }
   }, [isInitialized, isInitializing, isInitializingSigner, jwt, apiKey, initIFrameWindow]);
+
+  // Initialize signer automatically when component mounts if autoInitialize is true
+  useEffect(() => {
+    if (
+      autoInitialize &&
+      jwt &&
+      apiKey &&
+      !solanaSigner &&
+      !isInitializingSigner &&
+      !isInitializing
+    ) {
+      initSigner();
+    }
+  }, [autoInitialize, jwt, apiKey, solanaSigner, isInitializingSigner, isInitializing, initSigner]);
 
   // Handle OTP dialog event handlers
   const handleCreateSignerEvent = async () => {
