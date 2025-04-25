@@ -5,9 +5,6 @@ import { EventsService, StorageService, CrossmintApiService } from './services/i
 import type { HandshakeChild } from '@crossmint/client-sdk-window';
 import type { signerInboundEvents, signerOutboundEvents } from '@crossmint/client-signers';
 
-// Define handler function type for events
-type EventHandler = (data: Record<string, unknown>) => Promise<unknown>;
-
 // Create mock functions for console
 const mockConsoleLog = vi.fn();
 
@@ -41,11 +38,11 @@ vi.mock('./services/index.js', () => {
 });
 
 // Create a test data object that's used for all event handlers
-const testEventData = {
-  version: 1,
-  jwt: 'test.jwt.token',
-  authId: 'test-auth-id',
-};
+// const testEventData = {
+//   version: 1,
+//   jwt: 'test.jwt.token',
+//   authId: 'test-auth-id',
+// };
 
 // Define the window extension type
 interface CustomWindow extends Window {

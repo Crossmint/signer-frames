@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mock } from 'vitest-mock-extended';
 import { StorageService, type StorageItem, Stores } from './storage';
-import { ApplicationError } from '../errors';
 
 const mockDatabase = mock<IDBDatabase>();
 const mockObjectStore = mock<IDBObjectStore>();
@@ -175,7 +174,7 @@ describe('StorageService', () => {
       vi.spyOn(storage, 'initDatabase').mockResolvedValue(mockDatabase);
 
       // Mock put operation to return success
-      mockObjectStore.put.mockImplementation(value => {
+      mockObjectStore.put.mockImplementation(() => {
         // Capture the stored item
         const request = {} as IDBRequest;
         setTimeout(() => {
@@ -622,12 +621,11 @@ describe('StorageService Database Initialization', () => {
     const storageService = new StorageService();
     let upgradeCalled = false;
 
-    // Use proper type instead of Function
-    let dbPromiseResolve: (value: void | PromiseLike<void>) => void;
-
-    const dbPromise = new Promise<void>(resolve => {
-      dbPromiseResolve = resolve;
-    });
+    // Comment out unused variables
+    // let dbPromiseResolve: (value: void | PromiseLike<void>) => void;
+    // const dbPromise = new Promise<void>(resolve => {
+    //   dbPromiseResolve = resolve;
+    // });
 
     // Act - Start database initialization
     const promise = storageService.initDatabase();

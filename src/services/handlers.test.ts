@@ -59,7 +59,7 @@ vi.mock('@solana/web3.js', async () => {
 });
 
 // Now import mocked modules
-import { base58Decode, base58Encode, base64Decode } from '../utils';
+// import { base58Decode, base58Encode, base64Decode } from '../utils';
 
 // Define common test data
 const testDeviceId = 'test-device-id';

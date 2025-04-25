@@ -17,11 +17,6 @@ import { ApplicationError } from '../errors';
 const DB_NAME = 'CrossmintVault';
 const DB_VERSION = 2;
 
-interface StoredItem {
-  readonly value: string;
-  readonly expiry: number;
-}
-
 interface ExpirableItem extends StorageItem {
   expires: number;
 }

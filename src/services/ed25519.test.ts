@@ -57,7 +57,7 @@ describe('Ed25519Service', () => {
       try {
         await ed25519Service.getPublicKey(invalidKeyBase58);
         expect(true).toBe(false);
-      } catch (error) {
+      } catch (_e) {
         expect(consoleSpy).toHaveBeenCalled();
       }
 
@@ -113,7 +113,7 @@ describe('Ed25519Service', () => {
       try {
         await ed25519Service.signMessage(MESSAGE, invalidSignatureKey);
         expect(true).toBe(false);
-      } catch (error) {
+      } catch (_e) {
         expect(consoleSpy).toHaveBeenCalled();
       }
 
