@@ -30,7 +30,7 @@ class XMIF {
     readonly shardingService = new ShardingService(),
     readonly solanaService = new SolanaService(),
     private readonly handlers = [
-      new CreateSignerEventHandler(crossmintApiService, shardingService),
+      new CreateSignerEventHandler(crossmintApiService, shardingService, solanaService),
       new SendOtpEventHandler(crossmintApiService, shardingService, solanaService),
       new GetPublicKeyEventHandler(shardingService, solanaService),
       new SignMessageEventHandler(shardingService, solanaService),

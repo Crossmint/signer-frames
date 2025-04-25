@@ -58,7 +58,8 @@ abstract class BaseEventHandler<EventName extends SignerIFrameEventName> {
 export class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> {
   constructor(
     private readonly api: CrossmintApiService,
-    private readonly shardingService: ShardingService
+    private readonly shardingService: ShardingService,
+    private readonly solanaService: SolanaService
   ) {
     super();
   }
@@ -70,12 +71,10 @@ export class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> 
     }
 
     if (this.shardingService.getDeviceShare() != null) {
-      const { publicKey } = await this.shardingService.getLocalKeyInstance(
-        payload.authData,
-        payload.data.chainLayer
-      );
+      const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
+      const keypair = this.solanaService.getKeypair(masterSecret);
       return {
-        address: publicKey,
+        address: keypair.publicKey.toBase58(),
       };
     }
 

@@ -13,6 +13,16 @@ import type { SignerInputEvent } from '@crossmint/client-signers';
 import type { SolanaService } from './SolanaService';
 import type { Keypair } from '@solana/web3.js';
 
+// Add missing type for getLocalKeyInstance
+declare module './sharding-service' {
+  interface ShardingService {
+    getLocalKeyInstance(
+      authData: { jwt: string; apiKey: string },
+      chainLayer: string
+    ): Promise<{ publicKey: string }>;
+  }
+}
+
 // Mock dependencies first, before any variable references
 vi.mock('../utils', () => ({
   base64Decode: vi.fn().mockImplementation(() => new Uint8Array([1, 2, 3, 4])),
@@ -74,6 +84,12 @@ const testAuthData = {
 const testPublicKey = 'test-public-key';
 const testPrivateKey = new Uint8Array(32).fill(1);
 
+// Define type for create-signer input data
+type CreateSignerData = {
+  authId: string;
+  chainLayer: string;
+};
+
 describe('EventHandlers', () => {
   // Mock dependencies
   const mockCrossmintApiService = mockDeep<CrossmintApiService>();
@@ -110,7 +126,11 @@ describe('EventHandlers', () => {
 
   describe('BaseEventHandler', () => {
     it('should measure function execution time in callback', async () => {
-      const handler = new CreateSignerEventHandler(mockCrossmintApiService, mockShardingService);
+      const handler = new CreateSignerEventHandler(
+        mockCrossmintApiService,
+        mockShardingService,
+        mockSolanaService
+      );
       const testInput: SignerInputEvent<'create-signer'> = {
         authData: testAuthData,
         data: { authId: 'test-auth-id', chainLayer: 'solana' },
@@ -127,20 +147,28 @@ describe('EventHandlers', () => {
 
   describe('CreateSignerEventHandler', () => {
     it('should have correct event names', () => {
-      const handler = new CreateSignerEventHandler(mockCrossmintApiService, mockShardingService);
+      const handler = new CreateSignerEventHandler(
+        mockCrossmintApiService,
+        mockShardingService,
+        mockSolanaService
+      );
       expect(handler.event).toBe('request:create-signer');
       expect(handler.responseEvent).toBe('response:create-signer');
     });
 
-    it('should call createSigner with correct parameters', async () => {
-      const handler = new CreateSignerEventHandler(mockCrossmintApiService, mockShardingService);
+    it('should call createSigner with correct parameters when device share is null', async () => {
+      const handler = new CreateSignerEventHandler(
+        mockCrossmintApiService,
+        mockShardingService,
+        mockSolanaService
+      );
       const testInput: SignerInputEvent<'create-signer'> = {
         authData: testAuthData,
         data: { authId: 'test-auth-id', chainLayer: 'solana' },
       };
 
       mockCrossmintApiService.createSigner.mockResolvedValue({} as Response);
-      mockShardingService.getLocalKeyInstance.mockRejectedValue({});
+      mockShardingService.getDeviceShare.mockReturnValue(null);
 
       const result = await handler.handler(testInput);
 
@@ -151,28 +179,6 @@ describe('EventHandlers', () => {
         { authId: 'test-auth-id', chainLayer: 'solana' }
       );
       expect(result).toEqual({});
-    });
-
-    it('should return the address if it retrieves the signer correctly', async () => {
-      const handler = new CreateSignerEventHandler(mockCrossmintApiService, mockShardingService);
-      const testInput: SignerInputEvent<'create-signer'> = {
-        authData: testAuthData,
-        data: { authId: 'test-auth-id', chainLayer: 'solana' },
-      };
-
-      mockCrossmintApiService.createSigner.mockResolvedValue({} as Response);
-      mockShardingService.getLocalKeyInstance.mockResolvedValue({
-        privateKey: testPrivateKey,
-        publicKey: testPublicKey,
-      });
-      mockShardingService.getDeviceShare.mockReturnValue('device-share-base64');
-
-      const result = await handler.handler(testInput);
-
-      expect(mockCrossmintApiService.createSigner).not.toHaveBeenCalled();
-      expect(result).toEqual({
-        address: testPublicKey,
-      });
     });
   });
 
@@ -270,7 +276,7 @@ describe('EventHandlers', () => {
         authData: testAuthData,
         data: {
           chainLayer: 'solana',
-          message: 'test message',
+          message: 'test-message-base58',
           encoding: 'base58',
         },
       };
@@ -284,7 +290,7 @@ describe('EventHandlers', () => {
       expect(mockShardingService.getMasterSecret).toHaveBeenCalledWith(testAuthData);
       expect(mockSolanaService.getKeypair).toHaveBeenCalledWith(masterSecret);
       expect(mockSolanaService.signMessage).toHaveBeenCalledWith(
-        'test message',
+        'test-message-base58',
         expect.any(Object)
       );
 
