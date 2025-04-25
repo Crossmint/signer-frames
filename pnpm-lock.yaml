@@ -23,15 +23,9 @@ importers:
       '@solana/web3.js':
         specifier: ^1.98.0
         version: 1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
-      crossmint-signers:
-        specifier: 'link:'
-        version: 'link:'
       shamir-secret-sharing:
         specifier: ^0.0.4
         version: 0.0.4
-      zod:
-        specifier: 3.22.4
-        version: 3.22.4
     devDependencies:
       '@testing-library/jest-dom':
         specifier: ^6.6.3
