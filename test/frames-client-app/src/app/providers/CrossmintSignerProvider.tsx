@@ -160,7 +160,7 @@ export default function CrossmintSignerProvider({
 						event: "request:sign-message",
 						responseEvent: "response:sign-message",
 						data: {
-							deviceId: "deviceId placeholder",
+							deviceId: "device id placeholder",
 							authData: {
 								jwt: jwt as NonNullable<typeof jwt>,
 								apiKey,
@@ -186,34 +186,58 @@ export default function CrossmintSignerProvider({
 				transaction: VersionedTransaction,
 			): Promise<VersionedTransaction> => {
 				try {
+					console.log("signTransaction called for address:", address);
+
+					// Basic validations
 					assertInitialized();
-					if (solanaSigner == null) {
-						throw new Error("Device ID or Solana signer not initialized");
+					if (!iframeWindow.current) {
+						throw new Error("iframeWindow is not initialized");
 					}
-					const response = await iframeWindow.current?.sendAction({
+
+					// Get serialized transaction
+					const serializedTx = bs58.encode(transaction.serialize());
+					console.log(
+						`Transaction serialized: ${serializedTx.substring(0, 20)}...`,
+					);
+
+					// Prepare request
+					const requestData = {
+						deviceId: "device id placeholder",
+						authData: {
+							jwt: jwt as NonNullable<typeof jwt>,
+							apiKey,
+						},
+						data: {
+							transaction: serializedTx,
+							chainLayer: "solana" as const,
+							encoding: "base58" as const,
+						},
+					};
+					console.log("Request prepared");
+
+					// Send request
+					console.log("Sending signature request");
+					const response = await iframeWindow.current.sendAction({
 						event: "request:sign-transaction",
 						responseEvent: "response:sign-transaction",
-						data: {
-							deviceId: "deviceId placeholder",
-							authData: {
-								jwt: jwt as NonNullable<typeof jwt>,
-								apiKey,
-							},
-							data: {
-								transaction: bs58.encode(transaction.serialize()),
-								chainLayer: "solana",
-								encoding: "base58",
-							},
-						},
+						data: requestData,
 						options: defaultEventOptions,
 					});
-					if (response?.signature == null) {
-						throw new Error("Failed to sign transaction");
+					console.log("Response received:", response);
+
+					// Validate response
+					if (!response || response.signature == null) {
+						throw new Error(
+							"Failed to sign transaction: No signature returned",
+						);
 					}
-					transaction.addSignature(
-						new PublicKey(solanaSigner.address),
-						bs58.decode(response.signature),
-					);
+
+					// Add signature to transaction
+					const signerPublicKey = new PublicKey(address);
+					const signature = bs58.decode(response.signature);
+					console.log("Adding signature to transaction");
+					transaction.addSignature(signerPublicKey, signature);
+
 					return transaction;
 				} catch (error) {
 					console.error("Failed to sign transaction:", error);
@@ -241,8 +265,6 @@ export default function CrossmintSignerProvider({
 			if (isInitializingSigner || !jwt || !apiKey) {
 				return;
 			}
-
-			setIsInitializingSigner(true);
 
 			// Initialize the iframe window if not already done
 			if (!isInitialized && !isInitializing) {

@@ -2,7 +2,20 @@
  * CrossmintApiService - Handles interaction with Crossmint API
  */
 
+import {
+	calculateBackoff,
+	defaultRetryConfig,
+	shouldRetry,
+	type RetryConfig,
+} from "./backoff";
+
 export class CrossmintApiService {
+	private retryConfig: RetryConfig;
+
+	constructor(retryConfig: Partial<RetryConfig> = {}) {
+		this.retryConfig = { ...defaultRetryConfig, ...retryConfig };
+	}
+
 	async init() {}
 
 	public getBaseUrl(apiKey: string) {
@@ -33,6 +46,48 @@ export class CrossmintApiService {
 		};
 	}
 
+	/**
+	 * Makes a fetch request with retry capability
+	 */
+	protected async fetchWithRetry(
+		url: string,
+		options: RequestInit,
+		retryCount = 0,
+	): Promise<Response> {
+		try {
+			const response = await fetch(url, options);
+
+			// Check if we need to retry based on status code
+			if (shouldRetry(response.status, retryCount, this.retryConfig)) {
+				// Calculate delay with respect to Retry-After header if present (especially for 429)
+				const retryAfterHeader = response.headers.get("Retry-After");
+				const delayMs = calculateBackoff(
+					retryCount,
+					this.retryConfig,
+					retryAfterHeader || undefined,
+				);
+
+				// Wait before retrying
+				await new Promise((resolve) => setTimeout(resolve, delayMs));
+
+				// Recursive retry with incremented retry count
+				return this.fetchWithRetry(url, options, retryCount + 1);
+			}
+
+			return response;
+		} catch (error) {
+			// Handle network errors (will retry for network issues too)
+			if (retryCount < this.retryConfig.maxRetries) {
+				const delayMs = calculateBackoff(retryCount, this.retryConfig);
+				await new Promise((resolve) => setTimeout(resolve, delayMs));
+				return this.fetchWithRetry(url, options, retryCount + 1);
+			}
+
+			// If max retries reached, throw the error
+			throw error;
+		}
+	}
+
 	async createSigner(
 		deviceId: string,
 		authData: { jwt: string; apiKey: string },
@@ -40,7 +95,7 @@ export class CrossmintApiService {
 			authId: string;
 		},
 	) {
-		const response = await fetch(
+		const response = await this.fetchWithRetry(
 			`${this.getBaseUrl(authData.apiKey)}/${deviceId}`,
 			{
 				method: "POST",
@@ -64,33 +119,33 @@ export class CrossmintApiService {
 			auth: string;
 		};
 	}> {
-		const response = await fetch(
+		const response = await this.fetchWithRetry(
 			`${this.getBaseUrl(authData.apiKey)}/${deviceId}/auth`,
 			{
 				method: "POST",
 				body: JSON.stringify(data),
 				headers: this.getHeaders(authData),
 			},
-		).then((res) => res.json());
+		);
 
-		return response;
+		return response.json();
 	}
 
-	async getAuthShare(
+	async getAuthShard(
 		deviceId: string,
 		authData: { jwt: string; apiKey: string },
 	): Promise<{
 		deviceId: string;
 		keyShare: string;
 	}> {
-		const response = await fetch(
+		const response = await this.fetchWithRetry(
 			`${this.getBaseUrl(authData.apiKey)}/${deviceId}/key-shares`,
 			{
 				headers: this.getHeaders(authData),
 			},
-		).then((res) => res.json());
+		);
 
-		return response;
+		return response.json();
 	}
 }
 

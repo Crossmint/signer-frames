@@ -2,8 +2,7 @@
  * XMIF - Main Framework Entry Point
  */
 
-import { EventsService, StorageService, CrossmintApiService } from "./services";
-import type { StorageItem, Stores } from "./services/storage";
+import { EventsService, CrossmintApiService } from "./services";
 import { ShardingService } from "./services/sharding-service";
 import {
 	CreateSignerEventHandler,

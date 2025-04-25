@@ -40,7 +40,7 @@ jobs:
         run: pnpm install
       
       - name: Run ESLint
-        run: pnpm lint --max-warnings=100 || echo "Linting completed with warnings"
+        run: pnpm lint --max-warnings=100 
       
       - name: Check formatting
         run: pnpm format:check || echo "Formatting check completed with warnings"

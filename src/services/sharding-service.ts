@@ -1,6 +1,7 @@
 import { combine } from "shamir-secret-sharing";
 import { Ed25519Service } from "./ed25519";
 import { base64Decode } from "../utils";
+import { CrossmintApiService } from "./api";
 
 // Supported chain layers
 export type ChainLayer = "solana" | "evm";
@@ -18,6 +19,7 @@ export interface RecombinedKeys {
 export class ShardingService {
 	constructor(
 		private readonly ed25519Service: Ed25519Service = new Ed25519Service(),
+		private readonly api: CrossmintApiService = new CrossmintApiService(),
 	) {}
 
 	public getOrCreateDeviceId(): string {
@@ -64,6 +66,28 @@ export class ShardingService {
 		}
 	}
 
+	async getLocalKeyInstance(
+		deviceId: string,
+		authData: { jwt: string; apiKey: string },
+		chainLayer: ChainLayer,
+	) {
+		let authShare = this.getCachedAuthShare();
+		if (!authShare) {
+			const { keyShare } = await this.api.getAuthShard(deviceId, authData);
+			await this.cacheAuthShare(keyShare);
+			authShare = keyShare;
+		}
+
+		const { privateKey, publicKey } = await this.reconstructKey(
+			authShare,
+			chainLayer,
+		);
+		return {
+			privateKey,
+			publicKey,
+		};
+	}
+
 	async reconstructKey(
 		authShare: string,
 		chainLayer: ChainLayer,
@@ -106,36 +130,18 @@ export class ShardingService {
 		}
 	}
 
-	/**
-	 * Stores a device key shard in the local storage. It does not expire
-	 * @param shard The key shard to store
-	 */
-	async storeDeviceShare(share: string): Promise<void> {
+	storeDeviceShare(share: string): void {
 		localStorage.setItem("device-share", share);
 	}
 
-	/**
-	 * Stores an auth key shard in the local storage. Expires in 5 minutes
-	 * @param shard The key shard to store
-	 */
-	async cacheAuthShare(share: string): Promise<void> {
+	cacheAuthShare(share: string): void {
 		sessionStorage.setItem("auth-share", share);
 	}
 
-	/**
-	 * Retrieves a device key shard from local storage
-	 * @param shardId The ID of the shard to retrieve
-	 * @returns The key shard or null if not found
-	 */
 	getDeviceShare(): string | null {
 		return localStorage.getItem("device-share");
 	}
 
-	/**
-	 * Retrieves an auth key shard from local storage
-	 * @param shardId The ID of the shard to retrieve
-	 * @returns The key shard or null if not found
-	 */
 	getCachedAuthShare(): string | null {
 		return sessionStorage.getItem("auth-share");
 	}

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mock, mockDeep, mockReset } from 'vitest-mock-extended';
+import { mockDeep, mockReset } from 'vitest-mock-extended';
 import { EventsService } from './events';
 import type { HandshakeChild } from '@crossmint/client-sdk-window';
 import type { signerInboundEvents, signerOutboundEvents } from '@crossmint/client-signers';
@@ -70,7 +70,7 @@ describe('EventsService', () => {
     originalInitMessenger = eventsService.initMessenger;
 
     // Mock the initMessenger method to avoid actual execution and browser context issues
-    vi.spyOn(eventsService, 'initMessenger').mockImplementation(async (options?) => {
+    vi.spyOn(eventsService, 'initMessenger').mockImplementation(async (_options?) => {
       // @ts-expect-error - Accessing private static property
       if (EventsService.messenger) {
         console.log('Messenger already initialized');
@@ -133,7 +133,7 @@ describe('EventsService', () => {
 
         // Verify the constructor was called
         expect(handshakeConstructorSpy).toHaveBeenCalled();
-      } catch (e) {
+      } catch (_e) {
         // Expected to possibly error in test environment
       }
     });
