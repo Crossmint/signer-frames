@@ -8,8 +8,8 @@ export class SolanaService {
   }
 
   async signMessage(message: string, keypair: Keypair): Promise<string> {
-    const messageBytes = new TextEncoder().encode(message);
-    const signatureBytes = nacl.sign(messageBytes, keypair.secretKey);
+    const messageBytes = bs58.decode(message);
+    const signatureBytes = nacl.sign.detached(messageBytes, keypair.secretKey);
     return bs58.encode(signatureBytes);
   }
 
@@ -17,11 +17,11 @@ export class SolanaService {
     transactionBase58: string,
     keypair: Keypair
   ): Promise<{ transaction: string; signature: string }> {
-    const transaction = await VersionedTransaction.deserialize(bs58.decode(transactionBase58));
+    const transaction = VersionedTransaction.deserialize(bs58.decode(transactionBase58));
     const signerIndex = transaction.message.staticAccountKeys.findIndex(key =>
       key.equals(keypair.publicKey)
     );
-    await transaction.sign([keypair]);
+    transaction.sign([keypair]);
     return {
       transaction: bs58.encode(transaction.serialize()),
       signature: bs58.encode(transaction.signatures[signerIndex]),
