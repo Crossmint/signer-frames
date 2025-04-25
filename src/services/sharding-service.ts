@@ -2,7 +2,6 @@ import { CrossmintApiService } from './api';
 import { StorageService } from './storage';
 import { combine } from 'shamir-secret-sharing';
 import { Stores } from './storage';
-import { utils } from '@noble/ed25519';
 import { Ed25519Service } from './ed25519';
 import { base64Decode } from '../utils';
 
@@ -136,6 +135,27 @@ export class ShardingService {
    */
   async tryGetAuthKeyShardFromLocal(shardId: string): Promise<KeyShard | null> {
     return this.getShardFromStore(Stores.AUTH_SHARES, shardId);
+  }
+
+  async getLocalKeyInstance(
+    deviceId: string,
+    authData: { jwt: string; apiKey: string },
+    chainLayer: ChainLayer
+  ): Promise<RecombinedKeys> {
+    let authShard = await this.tryGetAuthKeyShardFromLocal(deviceId);
+    if (!authShard) {
+      const { keyShare } = await this.crossmintApiService.getAuthShard(deviceId, authData);
+      authShard = {
+        deviceId: deviceId,
+        data: keyShare,
+      };
+      await this.storeAuthKeyShardLocally(authShard);
+    }
+    const { privateKey, publicKey } = await this.reconstructKey(authShard, chainLayer);
+    return {
+      privateKey,
+      publicKey,
+    };
   }
 
   private async getShardFromStore(storeName: Stores, shardId: string): Promise<KeyShard | null> {

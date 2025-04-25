@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { ShardingService, ChainLayer, KeyShard } from './sharding-service';
+import type { ChainLayer, KeyShard } from './sharding-service';
 import { ShardingService as ActualShardingService } from './sharding-service';
-import type { StorageService, Stores } from './storage';
+import type { StorageService } from './storage';
 import { Stores as ActualStores } from './storage';
 import type { CrossmintApiService } from './api';
 import type { Ed25519Service } from './ed25519';
-import { mock, mockReset, mockDeep } from 'vitest-mock-extended';
+import { mockReset, mockDeep } from 'vitest-mock-extended';
 import { combine, split } from 'shamir-secret-sharing';
 import * as ed from '@noble/ed25519';
 

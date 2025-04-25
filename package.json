@@ -10,7 +10,7 @@
     "build:prod": "pnpm run build:dev && pnpm run build:ts",
     "dev": "pnpm build:prod && pnpm serve:static",
     "serve": "pnpm build:prod && serve -s .",
-    "serve:static": "serve -s .",
+    "serve:static": "serve -s . --listen 54825",
     "serve:prod": "pnpm build:prod && serve -s .",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -63,6 +63,7 @@
   },
   "dependencies": {
     "@crossmint/client-sdk-window": "0.2.3",
+    "@solana/web3.js": "^1.98.0",
     "@crossmint/client-signers": "0.0.3",
     "@noble/ed25519": "^1.7.2",
     "@noble/hashes": "^1.7.2",

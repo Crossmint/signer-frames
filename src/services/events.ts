@@ -9,8 +9,6 @@ import {
 	signerOutboundEvents,
 } from "@crossmint/client-signers";
 
-const EVENT_VERSION = 1;
-
 export class EventsService {
 	private static messenger: HandshakeChild<
 		typeof signerInboundEvents,
