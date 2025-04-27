@@ -1,9 +1,0 @@
-Noble Signature Length: 64
-TweetNaCl Signature Length: 64
-First few bytes (Noble): 56,203,241,88,173
-First few bytes (TweetNaCl): 229,5,64,169,99
-Noble signature verified with Noble: true
-TweetNaCl signature verified with TweetNaCl: true
-TweetNaCl signature verified with Noble (toBase58): false
-TweetNaCl signature verified with Noble (toBytes): false
-Noble signature verified with TweetNaCl: false
