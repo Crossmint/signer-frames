@@ -68,9 +68,13 @@ describe('Ed25519Service', () => {
 
   describe('sign', () => {
     it('should sign a message with a private key (string input)', async () => {
-      const signature = await ed25519Service.sign(MESSAGE, PRIVATE_KEY_BASE58);
+      const signature = await ed25519Service.sign(MESSAGE_BYTES, PRIVATE_KEY_BASE58);
 
-      const isValid = await ed25519Service.verifySignature(MESSAGE, signature, PUBLIC_KEY_BASE58);
+      const isValid = await ed25519Service.verifySignature(
+        MESSAGE_BYTES,
+        signature,
+        PUBLIC_KEY_BASE58
+      );
 
       expect(isValid).toBe(true);
     });
@@ -90,9 +94,9 @@ describe('Ed25519Service', () => {
     it('should sign a message with a 32-byte key', async () => {
       const publicKey = await ed25519Service.getPublicKey(SHORT_PRIVATE_KEY_BASE58);
 
-      const signature = await ed25519Service.sign(MESSAGE, SHORT_PRIVATE_KEY_BASE58);
+      const signature = await ed25519Service.sign(MESSAGE_BYTES, SHORT_PRIVATE_KEY_BASE58);
 
-      const isValid = await ed25519Service.verifySignature(MESSAGE, signature, publicKey);
+      const isValid = await ed25519Service.verifySignature(MESSAGE_BYTES, signature, publicKey);
 
       expect(isValid).toBe(true);
     });
@@ -101,7 +105,7 @@ describe('Ed25519Service', () => {
       const invalidKey = new Uint8Array(40);
       const invalidKeyBase58 = bs58.encode(invalidKey);
 
-      await expect(ed25519Service.sign(MESSAGE, invalidKeyBase58)).rejects.toThrow(
+      await expect(ed25519Service.sign(MESSAGE_BYTES, invalidKeyBase58)).rejects.toThrow(
         'Invalid private key length'
       );
     });
@@ -124,9 +128,13 @@ describe('Ed25519Service', () => {
 
   describe('verifySignature', () => {
     it('should verify a valid signature with a public key (string message)', async () => {
-      const signature = await ed25519Service.sign(MESSAGE, PRIVATE_KEY_BASE58);
+      const signature = await ed25519Service.sign(MESSAGE_BYTES, PRIVATE_KEY_BASE58);
 
-      const result = await ed25519Service.verifySignature(MESSAGE, signature, PUBLIC_KEY_BASE58);
+      const result = await ed25519Service.verifySignature(
+        MESSAGE_BYTES,
+        signature,
+        PUBLIC_KEY_BASE58
+      );
 
       expect(result).toBe(true);
     });
@@ -147,9 +155,13 @@ describe('Ed25519Service', () => {
       const differentKeypair = Keypair.generate();
       const differentPublicKey = bs58.encode(new Uint8Array(differentKeypair.publicKey.toBytes()));
 
-      const signature = await ed25519Service.sign(MESSAGE, PRIVATE_KEY_BASE58);
+      const signature = await ed25519Service.sign(MESSAGE_BYTES, PRIVATE_KEY_BASE58);
 
-      const result = await ed25519Service.verifySignature(MESSAGE, signature, differentPublicKey);
+      const result = await ed25519Service.verifySignature(
+        MESSAGE_BYTES,
+        signature,
+        differentPublicKey
+      );
 
       expect(result).toBe(false);
     });
@@ -158,7 +170,7 @@ describe('Ed25519Service', () => {
       const fakeSignature = bs58.encode(new Uint8Array(64).fill(0));
 
       const result = await ed25519Service.verifySignature(
-        MESSAGE,
+        MESSAGE_BYTES,
         fakeSignature,
         PUBLIC_KEY_BASE58
       );
@@ -167,7 +179,7 @@ describe('Ed25519Service', () => {
     });
 
     it('should return false for an invalid public key length', async () => {
-      const signature = await ed25519Service.sign(MESSAGE, PRIVATE_KEY_BASE58);
+      const signature = await ed25519Service.sign(MESSAGE_BYTES, PRIVATE_KEY_BASE58);
 
       const invalidPublicKey = new Uint8Array(20);
       const invalidPublicKeyBase58 = bs58.encode(invalidPublicKey);
@@ -175,7 +187,7 @@ describe('Ed25519Service', () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       const result = await ed25519Service.verifySignature(
-        MESSAGE,
+        MESSAGE_BYTES,
         signature,
         invalidPublicKeyBase58
       );
@@ -216,7 +228,7 @@ describe('Ed25519Service', () => {
     it('should sign a message with a private key (string input)', async () => {
       const signature = await ed25519Service.signMessage(MESSAGE, PRIVATE_KEY_BASE58);
       const isValid = await ed25519Service.verifySignature(
-        new TextEncoder().encode(MESSAGE),
+        MESSAGE_BYTES,
         signature,
         PUBLIC_KEY_BASE58
       );
