@@ -1,16 +1,17 @@
 import bs58 from 'bs58';
 import { Keypair, VersionedTransaction } from '@solana/web3.js';
-import * as nacl from 'tweetnacl';
+import type { Ed25519Service } from './ed25519';
 
+// TODO: delete this file
 export class SolanaService {
-  public getKeypair(masterSecret: Uint8Array): Keypair {
-    return Keypair.fromSeed(masterSecret);
+  private readonly ed25519Service: Ed25519Service;
+
+  constructor(ed25519Service: Ed25519Service) {
+    this.ed25519Service = ed25519Service;
   }
 
-  async signMessage(messageBase58: string, keypair: Keypair): Promise<string> {
-    const messageBytes = bs58.decode(messageBase58);
-    const signatureBytes = nacl.sign.detached(messageBytes, keypair.secretKey);
-    return bs58.encode(signatureBytes);
+  public async getKeypair(masterSecret: Uint8Array): Promise<Keypair> {
+    return Keypair.fromSecretKey(await this.ed25519Service.secretKeyFromSeed(masterSecret));
   }
 
   async signTransaction(

@@ -5,13 +5,14 @@ import type {
 } from '@crossmint/client-signers';
 import type { CrossmintApiService } from './api';
 import type { ShardingService } from './sharding-service';
-import type { SolanaService } from './SolanaService';
+import type { SolanaService } from './solana';
 import type {
   AttestationService,
   ValidateAttestationDocumentResult,
   EncryptionData,
 } from './attestation';
 import type { Ed25519Service } from './ed25519';
+import bs58 from 'bs58';
 const DEFAULT_TIMEOUT_MS = 10_000;
 
 const measureFunctionTime = async <T>(fnName: string, fn: () => Promise<T>): Promise<T> => {
@@ -120,7 +121,7 @@ export class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> 
 
     if (this.shardingService.getDeviceShare() != null) {
       const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
-      const keypair = this.solanaService.getKeypair(masterSecret);
+      const keypair = await this.solanaService.getKeypair(masterSecret);
       return {
         address: keypair.publicKey.toBase58(),
       };
@@ -154,8 +155,9 @@ export class SendOtpEventHandler extends AttestedEventHandler<'send-otp'> {
     this.shardingService.cacheAuthShare(response.shares.auth);
 
     const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
+    const keypair = await this.solanaService.getKeypair(masterSecret);
     return {
-      address: this.solanaService.getKeypair(masterSecret).publicKey.toBase58(),
+      address: keypair.publicKey.toBase58(),
     };
   };
 }
@@ -163,7 +165,7 @@ export class SendOtpEventHandler extends AttestedEventHandler<'send-otp'> {
 export class GetPublicKeyEventHandler extends BaseEventHandler<'get-public-key'> {
   constructor(
     private readonly shardingService: ShardingService,
-    private readonly solanaService: SolanaService
+    private readonly ed25519Service: Ed25519Service
   ) {
     super();
   }
@@ -171,8 +173,10 @@ export class GetPublicKeyEventHandler extends BaseEventHandler<'get-public-key'>
   responseEvent = 'response:get-public-key' as const;
   handler = async (payload: SignerInputEvent<'get-public-key'>) => {
     const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
+    const secretKey = await this.ed25519Service.secretKeyFromSeed(masterSecret);
+    const publicKey = await this.ed25519Service.getPublicKey(secretKey);
     return {
-      publicKey: this.solanaService.getKeypair(masterSecret).publicKey.toBase58(),
+      publicKey,
     };
   };
 }
@@ -180,7 +184,7 @@ export class GetPublicKeyEventHandler extends BaseEventHandler<'get-public-key'>
 export class SignMessageEventHandler extends BaseEventHandler<'sign-message'> {
   constructor(
     private readonly shardingService: ShardingService,
-    private readonly solanaService: SolanaService
+    private readonly ed25519Service: Ed25519Service
   ) {
     super();
   }
@@ -192,16 +196,20 @@ export class SignMessageEventHandler extends BaseEventHandler<'sign-message'> {
     }
 
     const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
-    const keypair = this.solanaService.getKeypair(masterSecret);
-    const signature = await this.solanaService.signMessage(payload.data.message, keypair);
-    return { signature, publicKey: keypair.publicKey.toBase58() };
+    const secretKey = await this.ed25519Service.secretKeyFromSeed(masterSecret);
+    const signature = await this.ed25519Service.sign(payload.data.message, secretKey);
+    const publicKey = await this.ed25519Service.getPublicKey(secretKey);
+    return {
+      signature: bs58.encode(signature),
+      publicKey,
+    };
   }
 }
 
 export class SignTransactionEventHandler extends BaseEventHandler<'sign-transaction'> {
   constructor(
     private readonly shardingService: ShardingService,
-    private readonly solanaService: SolanaService
+    private readonly solanaService: SolanaService // TODO: just use the ed25519 service
   ) {
     super();
   }
@@ -214,7 +222,7 @@ export class SignTransactionEventHandler extends BaseEventHandler<'sign-transact
     }
 
     const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
-    const keypair = this.solanaService.getKeypair(masterSecret);
+    const keypair = await this.solanaService.getKeypair(masterSecret);
     const { transaction, signature } = await this.solanaService.signTransaction(
       payload.data.transaction,
       keypair

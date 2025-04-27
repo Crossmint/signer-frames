@@ -10,10 +10,11 @@ import { mockDeep, mockReset } from 'vitest-mock-extended';
 import type { CrossmintApiService } from './api';
 import type { ShardingService } from './sharding-service';
 import type { SignerInputEvent } from '@crossmint/client-signers';
-import type { SolanaService } from './SolanaService';
+import type { SolanaService } from './solana';
 import type { Keypair } from '@solana/web3.js';
 import type { AttestationService } from './attestation';
-
+import type { Ed25519Service } from './ed25519';
+import bs58 from 'bs58';
 // Add missing type for getLocalKeyInstance
 declare module './sharding-service' {
   interface ShardingService {
@@ -90,13 +91,14 @@ describe('EventHandlers', () => {
   const mockShardingService = mockDeep<ShardingService>();
   const mockSolanaService = mockDeep<SolanaService>();
   const mockAttestationService = mockDeep<AttestationService>();
-
+  const mockEd25519Service = mockDeep<Ed25519Service>();
   // Reset mocks before each test
   beforeEach(() => {
     mockReset(mockCrossmintApiService);
     mockReset(mockShardingService);
     mockReset(mockSolanaService);
     mockReset(mockAttestationService);
+    mockReset(mockEd25519Service);
     vi.clearAllMocks();
 
     // Mock Keypair return value
@@ -117,7 +119,9 @@ describe('EventHandlers', () => {
 
     // Setup common mock behaviors
     mockShardingService.getDeviceId.mockReturnValue(testDeviceId);
-    mockSolanaService.getKeypair.mockReturnValue(mockKeypairObj as unknown as Keypair);
+    mockSolanaService.getKeypair.mockReturnValue(
+      Promise.resolve(mockKeypairObj as unknown as Keypair)
+    );
     mockAttestationService.validateAttestationDocument.mockResolvedValue({
       validated: true,
       publicKey: 'mock-attestation-public-key',
@@ -260,13 +264,13 @@ describe('EventHandlers', () => {
 
   describe('GetPublicKeyEventHandler', () => {
     it('should have correct event names', () => {
-      const handler = new GetPublicKeyEventHandler(mockShardingService, mockSolanaService);
+      const handler = new GetPublicKeyEventHandler(mockShardingService, mockEd25519Service);
       expect(handler.event).toBe('request:get-public-key');
       expect(handler.responseEvent).toBe('response:get-public-key');
     });
 
     it('should retrieve and reconstruct the key', async () => {
-      const handler = new GetPublicKeyEventHandler(mockShardingService, mockSolanaService);
+      const handler = new GetPublicKeyEventHandler(mockShardingService, mockEd25519Service);
       const testInput: SignerInputEvent<'get-public-key'> = {
         authData: testAuthData,
         data: {
@@ -276,13 +280,17 @@ describe('EventHandlers', () => {
 
       const masterSecret = new Uint8Array(32).fill(1);
       mockShardingService.getMasterSecret.mockResolvedValue(masterSecret);
+      const secretKey = new Uint8Array(64).fill(1);
+      mockEd25519Service.secretKeyFromSeed.mockResolvedValue(secretKey);
+      mockEd25519Service.getPublicKey.mockResolvedValue(bs58.encode(secretKey.slice(32)));
 
       const result = await handler.handler(testInput);
 
       expect(mockShardingService.getMasterSecret).toHaveBeenCalledWith(testAuthData);
-      expect(mockSolanaService.getKeypair).toHaveBeenCalledWith(masterSecret);
+      expect(mockEd25519Service.secretKeyFromSeed).toHaveBeenCalledWith(masterSecret);
+      expect(mockEd25519Service.getPublicKey).toHaveBeenCalledWith(secretKey);
 
-      expect(result).toEqual({ publicKey: testPublicKey });
+      expect(result).toEqual({ publicKey: bs58.encode(secretKey.slice(32)) });
 
       expect(mockAttestationService.validateAttestationDocument).not.toHaveBeenCalled();
     });
@@ -290,13 +298,13 @@ describe('EventHandlers', () => {
 
   describe('SignMessageEventHandler', () => {
     it('should have correct event names', () => {
-      const handler = new SignMessageEventHandler(mockShardingService, mockSolanaService);
+      const handler = new SignMessageEventHandler(mockShardingService, mockEd25519Service);
       expect(handler.event).toBe('request:sign-message');
       expect(handler.responseEvent).toBe('response:sign-message');
     });
 
     it('should sign a message for supported chain layers', async () => {
-      const handler = new SignMessageEventHandler(mockShardingService, mockSolanaService);
+      const handler = new SignMessageEventHandler(mockShardingService, mockEd25519Service);
       const testInput: SignerInputEvent<'sign-message'> = {
         authData: testAuthData,
         data: {
@@ -308,27 +316,33 @@ describe('EventHandlers', () => {
 
       const masterSecret = new Uint8Array(32).fill(1);
       mockShardingService.getMasterSecret.mockResolvedValue(masterSecret);
-      mockSolanaService.signMessage.mockResolvedValue('test-signature');
+      const mockDerivedSecretKey = new Uint8Array(64).fill(2);
+      mockEd25519Service.secretKeyFromSeed.mockResolvedValue(mockDerivedSecretKey);
+      const mockSignature = new Uint8Array(32).fill(3);
+      mockEd25519Service.sign.mockResolvedValue(mockSignature);
+      mockEd25519Service.getPublicKey.mockResolvedValue(
+        bs58.encode(mockDerivedSecretKey.slice(32))
+      );
 
       const result = await handler.handler(testInput);
 
       expect(mockShardingService.getMasterSecret).toHaveBeenCalledWith(testAuthData);
-      expect(mockSolanaService.getKeypair).toHaveBeenCalledWith(masterSecret);
-      expect(mockSolanaService.signMessage).toHaveBeenCalledWith(
+      expect(mockEd25519Service.secretKeyFromSeed).toHaveBeenCalledWith(masterSecret);
+      expect(mockEd25519Service.sign).toHaveBeenCalledWith(
         'test-message-base58',
-        expect.any(Object)
+        mockDerivedSecretKey
       );
 
       expect(result).toEqual({
-        signature: 'test-signature',
-        publicKey: testPublicKey,
+        signature: bs58.encode(mockSignature),
+        publicKey: bs58.encode(mockDerivedSecretKey.slice(32)),
       });
 
       expect(mockAttestationService.validateAttestationDocument).not.toHaveBeenCalled();
     });
 
     it('should throw "Not implemented" error for unsupported chain layers', async () => {
-      const handler = new SignMessageEventHandler(mockShardingService, mockSolanaService);
+      const handler = new SignMessageEventHandler(mockShardingService, mockEd25519Service);
       const testInput: SignerInputEvent<'sign-message'> = {
         authData: testAuthData,
         data: {
