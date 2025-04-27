@@ -11,6 +11,7 @@ import type {
   ValidateAttestationDocumentResult,
   EncryptionData,
 } from './attestation';
+import type { Ed25519Service } from './ed25519';
 const DEFAULT_TIMEOUT_MS = 10_000;
 
 const measureFunctionTime = async <T>(fnName: string, fn: () => Promise<T>): Promise<T> => {
@@ -226,3 +227,26 @@ export class SignTransactionEventHandler extends BaseEventHandler<'sign-transact
     };
   };
 }
+
+// export class SignEventHandler extends BaseEventHandler<'sign'> {
+//   constructor(
+//     private readonly shardingService: ShardingService,
+//     private readonly edd25519Service: Ed25519Service
+//   ) {
+//     super();
+//   }
+//   event = 'request:sign' as const;
+//   responseEvent = 'response:sign' as const;
+//   handler = async (payload: SignerInputEvent<'sign'>) => {
+//     const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
+//     const { algorithm, message } = payload.data;
+//     switch (algorithm) {
+//       case 'ed25519': {
+//         const secretKey = await this.edd25519Service.secretKeyFromSeed(masterSecret);
+//         return this.edd25519Service.sign(message, secretKey);
+//       }
+//       default:
+//         throw new Error(`Algorithm not implemented: ${algorithm}`);
+//     }
+//   };
+// }
