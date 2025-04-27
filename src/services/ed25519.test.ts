@@ -1,19 +1,18 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Ed25519Service } from './ed25519';
 import { Keypair } from '@solana/web3.js';
-import { Base58Utils } from './utils';
+import bs58 from 'bs58';
 import nacl from 'tweetnacl';
 
 describe('Ed25519Service', () => {
-  const base58Utils = new Base58Utils();
   const solanaKeypair = Keypair.generate();
   const PRIVATE_KEY_BYTES = solanaKeypair.secretKey;
-  const PRIVATE_KEY_BASE58 = base58Utils.base58Encode(PRIVATE_KEY_BYTES);
+  const PRIVATE_KEY_BASE58 = bs58.encode(PRIVATE_KEY_BYTES);
   const PUBLIC_KEY_BYTES = new Uint8Array(solanaKeypair.publicKey.toBytes());
-  const PUBLIC_KEY_BASE58 = base58Utils.base58Encode(PUBLIC_KEY_BYTES);
+  const PUBLIC_KEY_BASE58 = bs58.encode(PUBLIC_KEY_BYTES);
 
   const SHORT_PRIVATE_KEY_BYTES = PRIVATE_KEY_BYTES.slice(0, 32);
-  const SHORT_PRIVATE_KEY_BASE58 = base58Utils.base58Encode(SHORT_PRIVATE_KEY_BYTES);
+  const SHORT_PRIVATE_KEY_BASE58 = bs58.encode(SHORT_PRIVATE_KEY_BYTES);
 
   const MESSAGE = 'Hello, world!';
   const MESSAGE_BYTES = new TextEncoder().encode(MESSAGE);
@@ -21,14 +20,14 @@ describe('Ed25519Service', () => {
   let ed25519Service: Ed25519Service;
 
   beforeEach(() => {
-    ed25519Service = new Ed25519Service(base58Utils);
+    ed25519Service = new Ed25519Service();
     vi.clearAllMocks();
   });
 
   describe('getPublicKey', () => {
     it('should derive a public key from a 64-byte Solana private key', async () => {
       const result = await ed25519Service.getPublicKey(PRIVATE_KEY_BASE58);
-      const resultBytes = base58Utils.base58Decode(result);
+      const resultBytes = bs58.decode(result);
 
       const expectedPublicKey = PRIVATE_KEY_BYTES.slice(32, 64);
 
@@ -37,14 +36,14 @@ describe('Ed25519Service', () => {
 
     it('should derive a public key from a 32-byte private key', async () => {
       const result = await ed25519Service.getPublicKey(SHORT_PRIVATE_KEY_BASE58);
-      const resultBytes = base58Utils.base58Decode(result);
+      const resultBytes = bs58.decode(result);
 
       expect(resultBytes.length).toBe(32);
     });
 
     it('should throw an error for invalid key length', async () => {
       const invalidKey = new Uint8Array(20);
-      const invalidKeyBase58 = base58Utils.base58Encode(invalidKey);
+      const invalidKeyBase58 = bs58.encode(invalidKey);
 
       await expect(ed25519Service.getPublicKey(invalidKeyBase58)).rejects.toThrow(
         'Invalid key length: 20. Expected 32 or 64 bytes.'
@@ -100,7 +99,7 @@ describe('Ed25519Service', () => {
 
     it('should throw an error for invalid private key length', async () => {
       const invalidKey = new Uint8Array(40);
-      const invalidKeyBase58 = base58Utils.base58Encode(invalidKey);
+      const invalidKeyBase58 = bs58.encode(invalidKey);
 
       await expect(ed25519Service.sign(MESSAGE, invalidKeyBase58)).rejects.toThrow(
         'Invalid private key length'
@@ -146,9 +145,7 @@ describe('Ed25519Service', () => {
 
     it('should return false for an invalid signature', async () => {
       const differentKeypair = Keypair.generate();
-      const differentPublicKey = base58Utils.base58Encode(
-        new Uint8Array(differentKeypair.publicKey.toBytes())
-      );
+      const differentPublicKey = bs58.encode(new Uint8Array(differentKeypair.publicKey.toBytes()));
 
       const signature = await ed25519Service.sign(MESSAGE, PRIVATE_KEY_BASE58);
 
@@ -158,7 +155,7 @@ describe('Ed25519Service', () => {
     });
 
     it('should return false for a fabricated signature', async () => {
-      const fakeSignature = base58Utils.base58Encode(new Uint8Array(64).fill(0));
+      const fakeSignature = bs58.encode(new Uint8Array(64).fill(0));
 
       const result = await ed25519Service.verifySignature(
         MESSAGE,
@@ -173,7 +170,7 @@ describe('Ed25519Service', () => {
       const signature = await ed25519Service.sign(MESSAGE, PRIVATE_KEY_BASE58);
 
       const invalidPublicKey = new Uint8Array(20);
-      const invalidPublicKeyBase58 = base58Utils.base58Encode(invalidPublicKey);
+      const invalidPublicKeyBase58 = bs58.encode(invalidPublicKey);
 
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -206,17 +203,24 @@ describe('Ed25519Service', () => {
       consoleSpy.mockRestore();
     });
 
-    it(' it should match the tweetnacl implementation', async () => {
-      const keypair = Keypair.generate();
-      const signature = await ed25519Service.sign(MESSAGE, keypair.secretKey);
-      const signature2 = await nacl.sign.detached(MESSAGE_BYTES, keypair.secretKey);
-      const result = await ed25519Service.verifySignature(
-        MESSAGE,
+    it('should match the tweetnacl implementation', async () => {
+      const secretKey = await ed25519Service.secretKeyFromSeed(PRIVATE_KEY_BYTES);
+      const signature = await ed25519Service.sign(MESSAGE_BYTES, secretKey);
+      const naclSignature = nacl.sign.detached(MESSAGE_BYTES, secretKey);
+      expect(signature).toEqual(naclSignature);
+      expect(nacl.sign.detached.verify(MESSAGE_BYTES, signature, secretKey.slice(32))).toBe(true);
+    });
+  });
+
+  describe('signMessage', () => {
+    it('should sign a message with a private key (string input)', async () => {
+      const signature = await ed25519Service.signMessage(MESSAGE, PRIVATE_KEY_BASE58);
+      const isValid = await ed25519Service.verifySignature(
+        new TextEncoder().encode(MESSAGE),
         signature,
-        keypair.publicKey.toBase58()
+        PUBLIC_KEY_BASE58
       );
-      expect(result).toBe(true);
-      expect(base58Utils.base58Decode(signature)).toEqual(signature2);
+      expect(isValid).toBe(true);
     });
   });
 

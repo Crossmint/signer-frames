@@ -5,7 +5,7 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['**/*.test.ts'],
-    silent: true,
+    // silent: true,
     coverage: {
       exclude: [
         '**/node_modules/**',

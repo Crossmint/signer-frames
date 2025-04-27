@@ -24,13 +24,6 @@ declare module './sharding-service' {
   }
 }
 
-// Mock dependencies first, before any variable references
-vi.mock('../utils', () => ({
-  base64Decode: vi.fn().mockImplementation(() => new Uint8Array([1, 2, 3, 4])),
-  base58Encode: vi.fn().mockReturnValue('encoded-transaction'),
-  base58Decode: vi.fn().mockReturnValue(new Uint8Array([1, 2, 3, 4])),
-}));
-
 // Mock @solana/web3.js without using any variables defined in this file
 vi.mock('@solana/web3.js', async () => {
   const mockPublicKey = {
