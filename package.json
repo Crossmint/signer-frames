@@ -58,10 +58,11 @@
   "dependencies": {
     "@crossmint/client-sdk-window": "1.0.0",
     "@crossmint/client-sdk-rn-window": "0.2.0",
-    "@solana/web3.js": "^1.98.0",
     "@crossmint/client-signers": "0.0.6",
+    "@hpke/core": "^1.7.2",
     "@noble/ed25519": "^1.7.2",
     "@noble/hashes": "^1.7.2",
+    "@solana/web3.js": "^1.98.0",
     "shamir-secret-sharing": "^0.0.4"
   }
 }

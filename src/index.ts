@@ -12,6 +12,8 @@ import {
   SignTransactionEventHandler,
 } from './services/handlers';
 import { SolanaService } from './services/SolanaService';
+import { EncryptionService } from './services/encryption';
+import { AttestationService } from './services/attestation';
 
 // Define window augmentation
 declare global {
@@ -29,6 +31,8 @@ class XMIF {
     private readonly crossmintApiService = new CrossmintApiService(),
     readonly shardingService = new ShardingService(),
     readonly solanaService = new SolanaService(),
+    private readonly encryptionService = new EncryptionService(),
+    private readonly attestationService = new AttestationService(),
     private readonly handlers = [
       new CreateSignerEventHandler(crossmintApiService, shardingService, solanaService),
       new SendOtpEventHandler(crossmintApiService, shardingService, solanaService),
@@ -48,6 +52,14 @@ class XMIF {
     console.log('-- Initializing Crossmint API...');
     await this.crossmintApiService.init();
     console.log('-- Crossmint API initialized!');
+
+    console.log('-- Initializing Attestation Service...');
+    await this.attestationService.init();
+    console.log('-- Attestation Service initialized!');
+
+    console.log('-- Initializing Encryption Service...');
+    await this.encryptionService.init();
+    console.log('-- Encryption Service initialized!');
 
     console.log('-- Initializing events handlers...');
     await this.eventsService.initMessenger();
