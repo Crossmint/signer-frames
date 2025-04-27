@@ -1,13 +1,10 @@
 import {
-	ChildWindow,
-	type HandshakeChild,
-	type HandshakeOptions,
-} from "@crossmint/client-sdk-window";
-import { RNWebViewChild } from "@crossmint/client-sdk-rn-window";
-import {
-	signerInboundEvents,
-	signerOutboundEvents,
-} from "@crossmint/client-signers";
+  ChildWindow,
+  type HandshakeChild,
+  type HandshakeOptions,
+} from '@crossmint/client-sdk-window';
+import { RNWebViewChild } from '@crossmint/client-sdk-rn-window';
+import { signerInboundEvents, signerOutboundEvents } from '@crossmint/client-signers';
 
 export class EventsService {
   private static messenger: HandshakeChild<
