@@ -62,7 +62,7 @@
     "@hpke/core": "^1.7.2",
     "@noble/ed25519": "^1.7.5",
     "@noble/hashes": "^1.7.2",
-    "@solana/web3.js": "^1.98.0",
+    "@solana/web3.js": "^1.98.0", // TODO: delete
     "shamir-secret-sharing": "^0.0.4",
     "bs58": "^6.0.0"
   }
