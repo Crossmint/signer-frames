@@ -154,7 +154,7 @@ describe('EventHandlers', () => {
       const handler = new SendOtpEventHandler(
         mockCrossmintApiService,
         mockShardingService,
-        mockSolanaService,
+        mockEd25519Service,
         mockAttestationService
       );
       const testInput: SignerInputEvent<'send-otp'> = {
@@ -211,7 +211,7 @@ describe('EventHandlers', () => {
       const handler = new SendOtpEventHandler(
         mockCrossmintApiService,
         mockShardingService,
-        mockSolanaService,
+        mockEd25519Service,
         mockAttestationService
       );
       expect(handler.event).toBe('request:send-otp');
@@ -222,7 +222,7 @@ describe('EventHandlers', () => {
       const handler = new SendOtpEventHandler(
         mockCrossmintApiService,
         mockShardingService,
-        mockSolanaService,
+        mockEd25519Service,
         mockAttestationService
       );
       const testInput: SignerInputEvent<'send-otp'> = {
@@ -243,6 +243,9 @@ describe('EventHandlers', () => {
       mockCrossmintApiService.sendOtp.mockResolvedValue(mockedResponse);
       const masterSecret = new Uint8Array(32).fill(1);
       mockShardingService.getMasterSecret.mockResolvedValue(masterSecret);
+      const secretKey = new Uint8Array(64).fill(1);
+      mockEd25519Service.secretKeyFromSeed.mockResolvedValue(secretKey);
+      mockEd25519Service.getPublicKey.mockResolvedValue(bs58.encode(secretKey.slice(32)));
 
       const result = await handler.handler(testInput);
 
@@ -255,9 +258,8 @@ describe('EventHandlers', () => {
       expect(mockShardingService.cacheAuthShare).toHaveBeenCalledWith('auth-share-base64');
 
       expect(mockShardingService.getMasterSecret).toHaveBeenCalledWith(testAuthData);
-      expect(mockSolanaService.getKeypair).toHaveBeenCalledWith(masterSecret);
 
-      expect(result).toEqual({ address: testPublicKey });
+      expect(result).toEqual({ address: bs58.encode(secretKey.slice(32)) });
       expect(mockAttestationService.validateAttestationDocument).not.toHaveBeenCalled();
     });
   });

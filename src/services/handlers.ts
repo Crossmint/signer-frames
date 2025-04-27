@@ -138,7 +138,7 @@ export class SendOtpEventHandler extends AttestedEventHandler<'send-otp'> {
   constructor(
     private readonly api: CrossmintApiService,
     private readonly shardingService: ShardingService,
-    private readonly solanaService: SolanaService,
+    private readonly ed25519Service: Ed25519Service,
     attestationService: AttestationService
   ) {
     super(attestationService);
@@ -155,9 +155,10 @@ export class SendOtpEventHandler extends AttestedEventHandler<'send-otp'> {
     this.shardingService.cacheAuthShare(response.shares.auth);
 
     const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
-    const keypair = await this.solanaService.getKeypair(masterSecret);
+    const secretKey = await this.ed25519Service.secretKeyFromSeed(masterSecret);
+    const publicKey = await this.ed25519Service.getPublicKey(secretKey);
     return {
-      address: keypair.publicKey.toBase58(),
+      address: publicKey,
     };
   };
 }

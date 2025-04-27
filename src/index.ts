@@ -40,7 +40,7 @@ class XMIF {
       new SendOtpEventHandler(
         crossmintApiService,
         shardingService,
-        solanaService,
+        ed25519Service,
         attestationService
       ),
       new GetPublicKeyEventHandler(shardingService, ed25519Service),
