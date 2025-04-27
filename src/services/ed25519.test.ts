@@ -224,18 +224,6 @@ describe('Ed25519Service', () => {
     });
   });
 
-  describe('signMessage', () => {
-    it('should sign a message with a private key (string input)', async () => {
-      const signature = await ed25519Service.signMessage(MESSAGE, PRIVATE_KEY_BASE58);
-      const isValid = await ed25519Service.verifySignature(
-        MESSAGE_BYTES,
-        signature,
-        PUBLIC_KEY_BASE58
-      );
-      expect(isValid).toBe(true);
-    });
-  });
-
   describe('getSecretKey', () => {
     it('should return a secret key from a secret key and public key', () => {
       const kp = Keypair.generate();

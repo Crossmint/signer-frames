@@ -1,21 +1,6 @@
 import * as ed from '@noble/ed25519';
 import bs58 from 'bs58';
 
-// Helper function to concatenate Uint8Arrays
-const concatBytes = (...arrays: Uint8Array[]): Uint8Array => {
-  let totalLength = 0;
-  for (const arr of arrays) {
-    totalLength += arr.length;
-  }
-  const result = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const arr of arrays) {
-    result.set(arr, offset);
-    offset += arr.length;
-  }
-  return result;
-};
-
 export class Ed25519Service {
   /**
    * Derive a Solana public key from a private key
@@ -48,30 +33,32 @@ export class Ed25519Service {
     }
   }
 
-  getSecretKey(
-    privateKeyBase58orArray: string | Uint8Array,
-    publicKeyBase58orArray: string | Uint8Array
-  ): Uint8Array {
-    const privateKeyBytes =
-      typeof privateKeyBase58orArray === 'string'
-        ? bs58.decode(privateKeyBase58orArray)
-        : privateKeyBase58orArray;
+  /**
+   * Get a secret key from a private key and public key
+   * @param {string|Uint8Array} privateKey - Base58-encoded private key (64 bytes Solana format)
+   * @param {string|Uint8Array} publicKey - Base58-encoded public key
+   * @returns {Uint8Array} Secret key
+   */
+  getSecretKey(privateKey: string | Uint8Array, publicKey: string | Uint8Array): Uint8Array {
+    const privateKeyBytes = typeof privateKey === 'string' ? bs58.decode(privateKey) : privateKey;
 
-    const publicKeyBytes =
-      typeof publicKeyBase58orArray === 'string'
-        ? bs58.decode(publicKeyBase58orArray)
-        : publicKeyBase58orArray;
+    const publicKeyBytes = typeof publicKey === 'string' ? bs58.decode(publicKey) : publicKey;
 
-    return concatBytes(privateKeyBytes.slice(0, 32), publicKeyBytes);
+    return this.concatBytes(privateKeyBytes.slice(0, 32), publicKeyBytes);
   }
 
+  /**
+   * Get a secret key from a seed
+   * @param {Uint8Array} seed - Seed
+   * @returns {Uint8Array} Secret key
+   */
   async secretKeyFromSeed(seed: Uint8Array): Promise<Uint8Array> {
     if (seed.length < 32) {
       throw new Error(`Invalid seed length: ${seed.length}. Expected at least 32 bytes.`);
     }
     const trimmedSeed = seed.slice(0, 32);
     const publicKey = await ed.getPublicKey(trimmedSeed);
-    return concatBytes(trimmedSeed, publicKey);
+    return this.concatBytes(trimmedSeed, publicKey);
   }
 
   /**
@@ -105,22 +92,6 @@ export class Ed25519Service {
   }
 
   /**
-   * Sign a message with a private key using ed25519
-   * @param {Uint8Array|string} message - Message to sign (Uint8Array or utf-8 string)
-   * @param {Uint8Array|string} privateKey - Private key
-   * @returns {Promise<Uint8Array>} Signature
-   */
-  async signMessage(
-    message: Uint8Array | string,
-    privateKey: Uint8Array | string
-  ): Promise<Uint8Array> {
-    const messageBytes = typeof message === 'string' ? new TextEncoder().encode(message) : message;
-
-    const signature = await this.sign(messageBytes, privateKey);
-    return signature;
-  }
-
-  /**
    * Verify a signature with a public key
    * @param {Uint8Array|string} message - Message that was signed (Uint8Array or utf-8 string)
    * @param {Uint8Array|string} signature - Signature
@@ -150,5 +121,19 @@ export class Ed25519Service {
       console.error('Error verifying signature:', error);
       return false;
     }
+  }
+
+  private concatBytes(...arrays: Uint8Array[]): Uint8Array {
+    let totalLength = 0;
+    for (const arr of arrays) {
+      totalLength += arr.length;
+    }
+    const result = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const arr of arrays) {
+      result.set(arr, offset);
+      offset += arr.length;
+    }
+    return result;
   }
 }
