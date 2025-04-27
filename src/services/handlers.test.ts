@@ -12,6 +12,7 @@ import type { ShardingService } from './sharding-service';
 import type { SignerInputEvent } from '@crossmint/client-signers';
 import type { SolanaService } from './SolanaService';
 import type { Keypair } from '@solana/web3.js';
+import type { AttestationService } from './attestation';
 
 // Add missing type for getLocalKeyInstance
 declare module './sharding-service' {
@@ -95,12 +96,14 @@ describe('EventHandlers', () => {
   const mockCrossmintApiService = mockDeep<CrossmintApiService>();
   const mockShardingService = mockDeep<ShardingService>();
   const mockSolanaService = mockDeep<SolanaService>();
+  const mockAttestationService = mockDeep<AttestationService>();
 
   // Reset mocks before each test
   beforeEach(() => {
     mockReset(mockCrossmintApiService);
     mockReset(mockShardingService);
     mockReset(mockSolanaService);
+    mockReset(mockAttestationService);
     vi.clearAllMocks();
 
     // Mock Keypair return value
@@ -122,6 +125,10 @@ describe('EventHandlers', () => {
     // Setup common mock behaviors
     mockShardingService.getDeviceId.mockReturnValue(testDeviceId);
     mockSolanaService.getKeypair.mockReturnValue(mockKeypairObj as unknown as Keypair);
+    mockAttestationService.validateAttestationDocument.mockResolvedValue({
+      validated: true,
+      publicKey: 'mock-attestation-public-key',
+    });
   });
 
   describe('BaseEventHandler', () => {
@@ -141,7 +148,26 @@ describe('EventHandlers', () => {
 
       await handler.callback(testInput);
 
-      expect(spy).toHaveBeenCalledWith(testInput);
+      expect(spy).toHaveBeenCalledWith(testInput, undefined);
+    });
+  });
+
+  describe('AttestedEventHandler', () => {
+    it('should validate attestation document before calling handler', async () => {
+      const handler = new SendOtpEventHandler(
+        mockCrossmintApiService,
+        mockShardingService,
+        mockSolanaService,
+        mockAttestationService
+      );
+      const testInput: SignerInputEvent<'send-otp'> = {
+        authData: testAuthData,
+        data: { encryptedOtp: '123456', chainLayer: 'solana' },
+      };
+
+      await handler.callback(testInput);
+
+      expect(mockAttestationService.validateAttestationDocument).toHaveBeenCalled();
     });
   });
 
@@ -178,6 +204,7 @@ describe('EventHandlers', () => {
         testInput.authData,
         { authId: 'test-auth-id', chainLayer: 'solana' }
       );
+      expect(mockAttestationService.validateAttestationDocument).not.toHaveBeenCalled();
       expect(result).toEqual({});
     });
   });
@@ -187,7 +214,8 @@ describe('EventHandlers', () => {
       const handler = new SendOtpEventHandler(
         mockCrossmintApiService,
         mockShardingService,
-        mockSolanaService
+        mockSolanaService,
+        mockAttestationService
       );
       expect(handler.event).toBe('request:send-otp');
       expect(handler.responseEvent).toBe('response:send-otp');
@@ -197,7 +225,8 @@ describe('EventHandlers', () => {
       const handler = new SendOtpEventHandler(
         mockCrossmintApiService,
         mockShardingService,
-        mockSolanaService
+        mockSolanaService,
+        mockAttestationService
       );
       const testInput: SignerInputEvent<'send-otp'> = {
         authData: testAuthData,
@@ -232,6 +261,7 @@ describe('EventHandlers', () => {
       expect(mockSolanaService.getKeypair).toHaveBeenCalledWith(masterSecret);
 
       expect(result).toEqual({ address: testPublicKey });
+      expect(mockAttestationService.validateAttestationDocument).not.toHaveBeenCalled();
     });
   });
 
@@ -260,6 +290,8 @@ describe('EventHandlers', () => {
       expect(mockSolanaService.getKeypair).toHaveBeenCalledWith(masterSecret);
 
       expect(result).toEqual({ publicKey: testPublicKey });
+
+      expect(mockAttestationService.validateAttestationDocument).not.toHaveBeenCalled();
     });
   });
 
@@ -298,6 +330,8 @@ describe('EventHandlers', () => {
         signature: 'test-signature',
         publicKey: testPublicKey,
       });
+
+      expect(mockAttestationService.validateAttestationDocument).not.toHaveBeenCalled();
     });
 
     it('should throw "Not implemented" error for unsupported chain layers', async () => {

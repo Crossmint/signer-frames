@@ -12,10 +12,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       <CrossmintAuthProvider loginMethods={['email']}>
         <CrossmintSignerProvider
           iframeUrl={
-            new URL(
-              process.env.NEXT_PUBLIC_CROSSMINT_SIGNER_URL ??
-                'https://crossmint-signer-frames.onrender.com/'
-            )
+            new URL(process.env.NEXT_PUBLIC_CROSSMINT_SIGNER_URL ?? 'http://localhost:54825')
           }
         >
           {children}

@@ -35,7 +35,12 @@ class XMIF {
     private readonly attestationService = new AttestationService(),
     private readonly handlers = [
       new CreateSignerEventHandler(crossmintApiService, shardingService, solanaService),
-      new SendOtpEventHandler(crossmintApiService, shardingService, solanaService),
+      new SendOtpEventHandler(
+        crossmintApiService,
+        shardingService,
+        solanaService,
+        attestationService
+      ),
       new GetPublicKeyEventHandler(shardingService, solanaService),
       new SignMessageEventHandler(shardingService, solanaService),
       new SignTransactionEventHandler(shardingService, solanaService),

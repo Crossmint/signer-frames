@@ -6,6 +6,11 @@ import type {
 import type { CrossmintApiService } from './api';
 import type { ShardingService } from './sharding-service';
 import type { SolanaService } from './SolanaService';
+import type {
+  AttestationService,
+  ValidateAttestationDocumentResult,
+  EncryptionData,
+} from './attestation';
 const DEFAULT_TIMEOUT_MS = 10_000;
 
 const measureFunctionTime = async <T>(fnName: string, fn: () => Promise<T>): Promise<T> => {
@@ -22,21 +27,29 @@ export interface EventHandler {
   callback: (
     payload: SignerInputEvent<SignerIFrameEventName>
   ) => Promise<SignerOutputEvent<SignerIFrameEventName>>;
+
   options: {
     timeoutMs?: number;
   };
+
+  requiresAttestationValidation: boolean;
+  validateAttestationDocument: () => Promise<ValidateAttestationDocumentResult>;
 }
 
 abstract class BaseEventHandler<EventName extends SignerIFrameEventName> {
   abstract event: `request:${EventName}`;
   abstract responseEvent: `response:${EventName}`;
   abstract handler(
-    payload: SignerInputEvent<EventName>
+    payload: SignerInputEvent<EventName>,
+    encryptionData?: EncryptionData
   ): Promise<Omit<SignerOutputEvent<EventName>, 'status'>>;
-  async callback(payload: SignerInputEvent<EventName>): Promise<SignerOutputEvent<EventName>> {
+  async callback(
+    payload: SignerInputEvent<EventName>,
+    encryptionData?: EncryptionData
+  ): Promise<SignerOutputEvent<EventName>> {
     try {
       const result = await measureFunctionTime(`[${this.event} handler]`, async () =>
-        this.handler(payload)
+        this.handler(payload, encryptionData)
       );
       return {
         status: 'success',
@@ -53,6 +66,40 @@ abstract class BaseEventHandler<EventName extends SignerIFrameEventName> {
   options = {
     timeoutMs: DEFAULT_TIMEOUT_MS,
   };
+}
+
+// This class will validate the attestation document before calling the handler
+abstract class AttestedEventHandler<
+  EventName extends SignerIFrameEventName,
+> extends BaseEventHandler<EventName> {
+  constructor(private readonly attestationService: AttestationService) {
+    super();
+  }
+  async validateAttestationDocument() {
+    return this.attestationService.validateAttestationDocument();
+  }
+
+  async callback(payload: SignerInputEvent<EventName>): Promise<SignerOutputEvent<EventName>> {
+    let encryptionData: EncryptionData | undefined;
+    try {
+      const result = await measureFunctionTime(
+        `[${this.event} handler] Validating attestation document`,
+        async () => {
+          return this.validateAttestationDocument();
+        }
+      );
+      if (!result.validated) {
+        throw new Error(`Error validating attestation document: ${result.error}`);
+      }
+      encryptionData = {
+        publicKey: result.publicKey,
+      };
+    } catch (error: unknown) {
+      console.error(`[${this.event} handler] Error validating attestation document: ${error}`);
+      throw error;
+    }
+    return super.callback(payload, encryptionData);
+  }
 }
 
 export class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> {
@@ -85,13 +132,14 @@ export class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> 
   }
 }
 
-export class SendOtpEventHandler extends BaseEventHandler<'send-otp'> {
+export class SendOtpEventHandler extends AttestedEventHandler<'send-otp'> {
   constructor(
     private readonly api: CrossmintApiService,
     private readonly shardingService: ShardingService,
-    private readonly solanaService: SolanaService
+    private readonly solanaService: SolanaService,
+    attestationService: AttestationService
   ) {
-    super();
+    super(attestationService);
   }
   event = 'request:send-otp' as const;
   responseEvent = 'response:send-otp' as const;
@@ -158,6 +206,7 @@ export class SignTransactionEventHandler extends BaseEventHandler<'sign-transact
   }
   event = 'request:sign-transaction' as const;
   responseEvent = 'response:sign-transaction' as const;
+  requiresAttestationValidation = false;
   handler = async (payload: SignerInputEvent<'sign-transaction'>) => {
     if (payload.data.chainLayer !== 'solana') {
       throw new Error('Chain layer not implemented');
