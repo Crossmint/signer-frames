@@ -1,6 +1,8 @@
 import { expect, describe, it, beforeEach, vi, afterEach } from 'vitest';
 import * as apiModule from './api';
 import { CrossmintApiService } from './api';
+import type { EncryptionService } from './encryption';
+import { mock } from 'vitest-mock-extended';
 
 // Mock the CrossmintRequest class
 const mockExecute = vi.fn().mockResolvedValue({ success: true });
@@ -21,7 +23,8 @@ describe('CrossmintApiService', () => {
   const parseApiKeySpy = vi.spyOn(apiModule, 'parseApiKey');
 
   beforeEach(() => {
-    apiService = new CrossmintApiService();
+    const mockEncryptionService = mock<EncryptionService>();
+    apiService = new CrossmintApiService(mockEncryptionService);
     mockExecute.mockClear();
     parseApiKeySpy.mockClear();
   });
