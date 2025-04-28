@@ -9,6 +9,36 @@ import { z } from 'zod';
 import type { EncryptionService } from './encryption';
 import { CrossmintRequest } from './request';
 
+// Export parseApiKey function to make it accessible for tests
+export function parseApiKey(apiKey: string): {
+  origin: 'server' | 'client';
+  environment: 'development' | 'staging' | 'production';
+} {
+  let origin: 'server' | 'client';
+  switch (apiKey.slice(0, 2)) {
+    case 'sk':
+      origin = 'server';
+      break;
+    case 'ck':
+      origin = 'client';
+      break;
+    default:
+      throw new Error('Invalid API key. Invalid origin');
+  }
+
+  const apiKeyWithoutOrigin = apiKey.slice(3);
+  const envs = ['development', 'staging', 'production'] as const;
+  const environment = envs.find(env => apiKeyWithoutOrigin.startsWith(env));
+  if (!environment) {
+    throw new Error('Invalid API key. Invalid environment');
+  }
+
+  return {
+    origin,
+    environment,
+  };
+}
+
 export class CrossmintApiService implements XMIFService {
   name = 'Crossmint API Service';
   private retryConfig: RetryConfig;
@@ -146,11 +176,16 @@ export class CrossmintApiService implements XMIFService {
       'x-api-key': apiKey,
     };
   }
+
+  // Make the getBaseUrl method public for testing
+  getBaseUrl(apiKey: string) {
+    return this.apiKeyService.getBaseUrl(apiKey);
+  }
 }
 
 class ApiKeyService {
   getBaseUrl(apiKey: string) {
-    const { environment } = this.parseApiKey(apiKey);
+    const { environment } = parseApiKey(apiKey);
     const basePath = 'api/unstable/wallets/ncs';
     let baseUrl: string;
     switch (environment) {
@@ -167,34 +202,5 @@ class ApiKeyService {
         throw new Error('Invalid environment');
     }
     return `${baseUrl}/${basePath}`;
-  }
-
-  private parseApiKey(apiKey: string): {
-    origin: 'server' | 'client';
-    environment: 'development' | 'staging' | 'production';
-  } {
-    let origin: 'server' | 'client';
-    switch (apiKey.slice(0, 2)) {
-      case 'sk':
-        origin = 'server';
-        break;
-      case 'ck':
-        origin = 'client';
-        break;
-      default:
-        throw new Error('Invalid API key. Invalid origin');
-    }
-
-    const apiKeyWithoutOrigin = apiKey.slice(3);
-    const envs = ['development', 'staging', 'production'] as const;
-    const environment = envs.find(env => apiKeyWithoutOrigin.startsWith(env));
-    if (!environment) {
-      throw new Error('Invalid API key. Invalid environment');
-    }
-
-    return {
-      origin,
-      environment,
-    };
   }
 }

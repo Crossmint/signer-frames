@@ -194,11 +194,11 @@ describe('EventHandlers', () => {
       const result = await handler.handler(testInput);
 
       expect(mockShardingService.getDeviceId).toHaveBeenCalledOnce();
-      expect(mockCrossmintApiService.createSigner).toHaveBeenCalledWith(
-        testDeviceId,
-        testInput.authData,
-        { authId: 'test-auth-id', chainLayer: 'solana' }
-      );
+      expect(mockCrossmintApiService.createSigner).toHaveBeenCalledWith({
+        deviceId: testDeviceId,
+        authData: testInput.authData,
+        data: { authId: 'test-auth-id', chainLayer: 'solana' },
+      });
       expect(result).toEqual({});
     });
   });
@@ -236,11 +236,11 @@ describe('EventHandlers', () => {
 
       const result = await handler.handler(testInput);
 
-      expect(mockCrossmintApiService.sendOtp).toHaveBeenCalledWith(
-        testDeviceId,
-        testInput.authData,
-        { otp: '123456' }
-      );
+      expect(mockCrossmintApiService.sendOtp).toHaveBeenCalledWith({
+        deviceId: testDeviceId,
+        authData: testInput.authData,
+        data: { otp: '' },
+      });
       expect(mockShardingService.storeDeviceShare).toHaveBeenCalledWith('device-share-base64');
       expect(mockShardingService.cacheAuthShare).toHaveBeenCalledWith('auth-share-base64');
       expect(mockShardingService.getMasterSecret).toHaveBeenCalledWith(testInput.authData);

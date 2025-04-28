@@ -1,24 +1,16 @@
 import { combine } from 'shamir-secret-sharing';
-<<<<<<< HEAD
-import { CrossmintApiService } from './api';
 import type { XMIFService } from './service';
-=======
 import type { CrossmintApiService } from './api';
->>>>>>> d059060 (Good progress on encryption)
 
 const AUTH_SHARE_KEY = 'auth-share';
 const DEVICE_SHARE_KEY = 'device-share';
 const LOG_PREFIX = '[ShardingService]';
 
 // Chain agnostic secret sharding service
-<<<<<<< HEAD
 export class ShardingService implements XMIFService {
   name = 'Sharding Service';
-  constructor(private readonly api: CrossmintApiService = new CrossmintApiService()) {
-=======
-export class ShardingService {
+
   constructor(private readonly api: CrossmintApiService) {
->>>>>>> d059060 (Good progress on encryption)
     console.log(`${LOG_PREFIX} Initializing ShardingService`);
   }
 

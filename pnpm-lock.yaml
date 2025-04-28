@@ -36,8 +36,8 @@ importers:
         specifier: ^0.0.4
         version: 0.0.4
       zod:
-        specifier: ^3.24.3
-        version: 3.24.3
+        specifier: 3.22.4
+        version: 3.22.4
     devDependencies:
       '@testing-library/jest-dom':
         specifier: ^6.6.3
@@ -66,12 +66,6 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^3.1.1
         version: 3.1.1(@vitest/browser@3.1.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@6.3.2(@types/node@20.17.30)(terser@5.39.0))(vitest@3.1.1))(vitest@3.1.1(@types/node@20.17.30)(@vitest/browser@3.1.1)(happy-dom@17.4.4)(jsdom@26.1.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))(terser@5.39.0))
-<<<<<<< HEAD
-=======
-      bs58:
-        specifier: ^6.0.0
-        version: 6.0.0
->>>>>>> d059060 (Good progress on encryption)
       concurrently:
         specifier: ^8.2.2
         version: 8.2.2
@@ -3541,9 +3535,6 @@ packages:
 
   zod@3.22.4:
     resolution: {integrity: sha512-iC+8Io04lddc+mVqQ9AZ7OQ2MrUKGN+oIQyq1vemgt46jwCwLfhq7/pwnBnNXXXZb8VTVLKwp9EDkx+ryxIWmg==}
-
-  zod@3.24.3:
-    resolution: {integrity: sha512-HhY1oqzWCQWuUqvBFnsyrtZRhyPeR7SUGv+C4+MsisMuVfSPx8HpwWqH8tRahSlt6M3PiFAcoeFhZAqIXTxoSg==}
 
 snapshots:
 
@@ -7311,5 +7302,3 @@ snapshots:
   yocto-queue@0.1.0: {}
 
   zod@3.22.4: {}
-
-  zod@3.24.3: {}
