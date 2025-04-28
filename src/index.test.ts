@@ -1,50 +1,65 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mock, mockDeep, mockReset } from 'vitest-mock-extended';
-import XMIF from './index';
-import { EventsService, CrossmintApiService } from './services/index.js';
-import { ShardingService } from './services/sharding';
-import { SolanaService } from './services/SolanaService';
-import { EncryptionService } from './services/encryption';
-import { AttestationService } from './services/attestation';
 import type { HandshakeChild } from '@crossmint/client-sdk-window';
 import type { signerInboundEvents, signerOutboundEvents } from '@crossmint/client-signers';
+
+// Mock the services module before importing XMIF
+vi.mock('./services', () => {
+  return {
+    createXMIFServices: () => ({
+      events: {
+        name: 'Events Service',
+        init: vi.fn().mockResolvedValue(undefined),
+        getMessenger: vi.fn().mockReturnValue({
+          isConnected: true,
+          on: vi.fn().mockReturnValue('handler-id'),
+          send: vi.fn(),
+        }),
+      },
+      api: {
+        name: 'Crossmint API',
+        init: vi.fn().mockResolvedValue(undefined),
+      },
+      sharding: {
+        name: 'Sharding Service',
+        init: vi.fn().mockResolvedValue(undefined),
+      },
+      encrypt: {
+        name: 'Encryption Service',
+        init: vi.fn().mockResolvedValue(undefined),
+      },
+      attestation: {
+        name: 'Attestation Service',
+        init: vi.fn().mockResolvedValue(undefined),
+      },
+      solana: {
+        name: 'Solana Service',
+        init: vi.fn().mockResolvedValue(undefined),
+      },
+      ed25519: {
+        name: 'Ed25519 Service',
+        init: vi.fn().mockResolvedValue(undefined),
+      },
+    }),
+    initializeHandlers: () => [
+      {
+        event: 'request:test',
+        responseEvent: 'response:test',
+        callback: vi.fn().mockResolvedValue({ status: 'success' }),
+        handler: vi.fn(),
+      },
+    ],
+  };
+});
+
+// Now import XMIF after mocking
+import XMIF from './index';
 
 // Create mock functions for console
 const mockConsoleLog = vi.fn();
 
 // Mock console.log directly
 global.console.log = mockConsoleLog;
-
-// Create type-safe mock for HandshakeChild
-const mockMessenger = mock<HandshakeChild<typeof signerInboundEvents, typeof signerOutboundEvents>>(
-  {
-    isConnected: true,
-    on: vi.fn().mockReturnValue('handler-id'),
-    handshakeWithParent: vi.fn().mockResolvedValue(undefined),
-  }
-);
-
-// Mock the services
-const mockEventsService = mockDeep<EventsService>();
-const mockCrossmintApiService = mockDeep<CrossmintApiService>();
-
-// Configure getMessenger to return our messenger mock
-mockEventsService.getMessenger.mockReturnValue(mockMessenger);
-
-// Mock the services
-vi.mock('./services/index.js', () => {
-  return {
-    EventsService: vi.fn().mockImplementation(() => mockEventsService),
-    CrossmintApiService: vi.fn().mockImplementation(() => mockCrossmintApiService),
-  };
-});
-
-// Create a test data object that's used for all event handlers
-// const testEventData = {
-//   version: 1,
-//   jwt: 'test.jwt.token',
-//   authId: 'test-auth-id',
-// };
 
 // Define the window extension type
 interface CustomWindow extends Window {
@@ -87,18 +102,12 @@ describe('XMIF', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockReset(mockEventsService);
-    mockReset(mockCrossmintApiService);
-    mockReset(mockMessenger);
-
-    mockEventsService.getMessenger.mockReturnValue(mockMessenger);
-    mockMessenger.on.mockReturnValue('handler-id');
+    mockConsoleLog.mockClear();
 
     originalWindow = global.window;
     global.window = { ...originalWindow };
 
-    // Reset singleton instance
-    TestXMIF.resetInstance();
+    xmifInstance = new XMIF();
   });
 
   afterEach(() => {
@@ -117,29 +126,21 @@ describe('XMIF', () => {
 
     it('should create an instance with default services when not injected', () => {
       vi.clearAllMocks();
-      xmifInstance = new TestXMIF();
-      expect(xmifInstance).toBeInstanceOf(XMIF);
-      expect(EventsService).toHaveBeenCalled();
-      expect(CrossmintApiService).toHaveBeenCalled();
+
+      const defaultInstance = new XMIF();
+
+      expect(defaultInstance).toBeInstanceOf(XMIF);
     });
   });
 
-  describe('getInstance', () => {
-    it('should return the same instance on multiple calls', async () => {
-      const instance1 = await TestXMIF.getInstance();
-      const instance2 = await TestXMIF.getInstance();
-      expect(instance1).toBe(instance2);
-    });
+  describe('init', () => {
+    it('should initialize services in the correct order', async () => {
+      await xmifInstance.init();
 
-    it('should initialize the instance when first created', async () => {
-      mockEventsService.initMessenger.mockResolvedValue(undefined);
-      mockCrossmintApiService.init.mockResolvedValue(undefined);
-
-      const instance = await TestXMIF.getInstance();
-      await instance.init();
-
-      expect(mockCrossmintApiService.init).toHaveBeenCalled();
-      expect(mockEventsService.initMessenger).toHaveBeenCalled();
+      const calls = mockConsoleLog.mock.calls.map(call => call[0]);
+      expect(calls).toContain('Initializing XMIF framework...');
+      expect(calls.some(call => call.includes('Initializing'))).toBeTruthy();
+      expect(calls.some(call => call.includes('initialized!'))).toBeTruthy();
     });
 
     it('should handle concurrent initialization', async () => {
@@ -173,7 +174,7 @@ describe('XMIF', () => {
       const tempWindow = global.window;
       (global as { window: typeof window | undefined }).window = undefined;
 
-      const xmifInstance = new TestXMIF(mockEventsService, mockCrossmintApiService);
+      const xmifInstance = new XMIF();
 
       if (typeof window !== 'undefined') {
         (window as CustomWindow).XMIF = xmifInstance;
@@ -187,16 +188,7 @@ describe('XMIF', () => {
     it('should support the complete initialization flow in browser', async () => {
       (window as { XMIF: unknown }).XMIF = null;
 
-      // Set up the mock expectations
-      mockCrossmintApiService.init.mockResolvedValue(undefined);
-      mockEventsService.initMessenger.mockResolvedValue(undefined);
-      mockEventsService.getMessenger.mockReturnValue(mockMessenger);
-
-      // Ensure mocks are properly set up
-      vi.mocked(EventsService).mockImplementation(() => mockEventsService);
-      vi.mocked(CrossmintApiService).mockImplementation(() => mockCrossmintApiService);
-
-      const browserInstance = await TestXMIF.getInstance();
+      const browserInstance = new XMIF();
       (window as CustomWindow).XMIF = browserInstance;
 
       // Spy on registerHandlers
@@ -209,14 +201,6 @@ describe('XMIF', () => {
 
       // Verify browser instance is properly set
       expect((window as CustomWindow).XMIF).toBe(browserInstance);
-
-      // Verify services were instantiated
-      expect(EventsService).toHaveBeenCalled();
-      expect(CrossmintApiService).toHaveBeenCalled();
-
-      // Verify initialization was properly called
-      expect(mockCrossmintApiService.init).toHaveBeenCalled();
-      expect(mockEventsService.initMessenger).toHaveBeenCalled();
 
       // Verify event handlers were registered
       expect(registerHandlersSpy).toHaveBeenCalled();

@@ -50,7 +50,7 @@ abstract class BaseEventHandler<EventName extends SignerIFrameEventName = Signer
   };
 }
 
-class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> {
+export class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> {
   constructor(
     services: XMIFServices,
     private readonly api = services.api,
@@ -85,7 +85,7 @@ class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> {
   }
 }
 
-class SendOtpEventHandler extends BaseEventHandler<'send-otp'> {
+export class SendOtpEventHandler extends BaseEventHandler<'send-otp'> {
   constructor(
     services: XMIFServices,
     private readonly api = services.api,
@@ -119,7 +119,7 @@ class SendOtpEventHandler extends BaseEventHandler<'send-otp'> {
   };
 }
 
-class GetPublicKeyEventHandler extends BaseEventHandler<'get-public-key'> {
+export class GetPublicKeyEventHandler extends BaseEventHandler<'get-public-key'> {
   constructor(
     services: XMIFServices,
     private readonly shardingService = services.sharding,
@@ -139,7 +139,7 @@ class GetPublicKeyEventHandler extends BaseEventHandler<'get-public-key'> {
   };
 }
 
-class SignMessageEventHandler extends BaseEventHandler<'sign-message'> {
+export class SignMessageEventHandler extends BaseEventHandler<'sign-message'> {
   constructor(
     services: XMIFServices,
     private readonly shardingService = services.sharding,
@@ -165,7 +165,7 @@ class SignMessageEventHandler extends BaseEventHandler<'sign-message'> {
   }
 }
 
-class SignTransactionEventHandler extends BaseEventHandler<'sign-transaction'> {
+export class SignTransactionEventHandler extends BaseEventHandler<'sign-transaction'> {
   constructor(
     services: XMIFServices,
     private readonly shardingService = services.sharding,
