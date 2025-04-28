@@ -55,8 +55,7 @@ class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> {
     services: XMIFServices,
     private readonly api = services.api,
     private readonly shardingService = services.sharding,
-    private readonly solanaService = services.solana,
-    private readonly encryptionService = services.encrypt
+    private readonly solanaService = services.solana
   ) {
     super();
   }
@@ -77,8 +76,11 @@ class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> {
 
     console.log('Signer not yet initialized, creating a new one...');
     const deviceId = this.shardingService.getDeviceId();
-    const encryptionData = await this.encryptionService.getEncryptionData();
-    await this.api.createSigner(deviceId, payload.authData, payload.data, encryptionData);
+    await this.api.createSigner({
+      deviceId,
+      authData: payload.authData,
+      data: payload.data,
+    });
     return {};
   }
 }
@@ -88,8 +90,7 @@ class SendOtpEventHandler extends BaseEventHandler<'send-otp'> {
     services: XMIFServices,
     private readonly api = services.api,
     private readonly shardingService = services.sharding,
-    private readonly ed25519Service = services.ed25519,
-    private readonly encryptionService = services.encrypt
+    private readonly ed25519Service = services.ed25519
   ) {
     super();
   }
@@ -97,9 +98,13 @@ class SendOtpEventHandler extends BaseEventHandler<'send-otp'> {
   responseEvent = 'response:send-otp' as const;
   handler = async (payload: SignerInputEvent<'send-otp'>) => {
     const deviceId = this.shardingService.getDeviceId();
-    const decryptedOtp = this.encryptionService.decryptBase64(payload.data.encryptedOtp, '');
-    const response = await this.api.sendOtp(deviceId, payload.authData, {
-      otp: payload.data.encryptedOtp,
+    const decryptedOtp = '';
+    const response = await this.api.sendOtp({
+      deviceId,
+      authData: payload.authData,
+      data: {
+        otp: decryptedOtp,
+      },
     });
 
     this.shardingService.storeDeviceShare(response.shares.device);

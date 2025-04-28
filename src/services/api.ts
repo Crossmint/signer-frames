@@ -2,38 +2,25 @@
  * CrossmintApiService - Handles interaction with Crossmint API
  */
 
-import { calculateBackoff, defaultRetryConfig, shouldRetry, type RetryConfig } from './backoff';
+import { calculateBackoff, defaultRetryConfig, shouldRetry } from './backoff';
 import type { XMIFService } from './service';
+import type { RetryConfig } from './backoff';
+import { z } from 'zod';
+import type { EncryptionService } from './encryption';
+import { CrossmintRequest } from './request';
 
 export class CrossmintApiService implements XMIFService {
   name = 'Crossmint API Service';
   private retryConfig: RetryConfig;
 
-  constructor(retryConfig: Partial<RetryConfig> = {}) {
-    this.retryConfig = { ...defaultRetryConfig, ...retryConfig };
+  constructor(
+    private readonly encryptionService: EncryptionService,
+    private readonly apiKeyService = new ApiKeyService()
+  ) {
+    this.retryConfig = defaultRetryConfig;
   }
 
   async init() {}
-
-  public getBaseUrl(apiKey: string) {
-    const { environment } = parseApiKey(apiKey);
-    const basePath = 'api/unstable/wallets/ncs';
-    let baseUrl: string;
-    switch (environment) {
-      case 'development':
-        baseUrl = 'http://localhost:3000';
-        break;
-      case 'staging':
-        baseUrl = 'https://staging.crossmint.com';
-        break;
-      case 'production':
-        baseUrl = 'https://crossmint.com';
-        break;
-      default:
-        throw new Error('Invalid environment');
-    }
-    return `${baseUrl}/${basePath}`;
-  }
 
   private getHeaders({ jwt, apiKey }: { jwt: string; apiKey: string }) {
     return {
@@ -43,9 +30,84 @@ export class CrossmintApiService implements XMIFService {
     };
   }
 
-  /**
-   * Makes a fetch request with retry capability
-   */
+  // Zod schemas
+  static createSignerInputSchema = z.object({
+    deviceId: z.string(),
+    authData: z.object({ jwt: z.string(), apiKey: z.string() }),
+    data: z.object({ authId: z.string() }),
+  });
+  static createSignerOutputSchema = z.any(); // You may want to specify a stricter schema if you know the response shape
+
+  static sendOtpInputSchema = z.object({
+    deviceId: z.string(),
+    authData: z.object({ jwt: z.string(), apiKey: z.string() }),
+    data: z.object({ otp: z.string() }),
+  });
+  static sendOtpOutputSchema = z.object({
+    shares: z.object({
+      device: z.string(),
+      auth: z.string(),
+    }),
+  });
+
+  static getAuthShardInputSchema = z.object({
+    deviceId: z.string(),
+    authData: z.object({ jwt: z.string(), apiKey: z.string() }),
+  });
+  static getAuthShardOutputSchema = z.object({
+    deviceId: z.string(),
+    keyShare: z.string(),
+  });
+
+  async createSigner(input: z.infer<typeof CrossmintApiService.createSignerInputSchema>) {
+    const { deviceId, authData } = CrossmintApiService.createSignerInputSchema.parse(input);
+    const request = new CrossmintRequest({
+      inputSchema: CrossmintApiService.createSignerInputSchema,
+      outputSchema: CrossmintApiService.createSignerOutputSchema,
+      endpoint: (_input, authData) =>
+        `${this.apiKeyService.getBaseUrl(authData.apiKey)}/${deviceId}`,
+      method: 'POST',
+      encrypted: true,
+      encryptionService: this.encryptionService,
+      getHeaders: this.getHeaders.bind(this),
+    });
+    return request.execute(input, authData);
+  }
+
+  async sendOtp(
+    input: z.infer<typeof CrossmintApiService.sendOtpInputSchema>
+  ): Promise<z.infer<typeof CrossmintApiService.sendOtpOutputSchema>> {
+    const { deviceId, authData } = CrossmintApiService.sendOtpInputSchema.parse(input);
+    const request = new CrossmintRequest({
+      inputSchema: CrossmintApiService.sendOtpInputSchema,
+      outputSchema: CrossmintApiService.sendOtpOutputSchema,
+      endpoint: (_input, authData) =>
+        `${this.apiKeyService.getBaseUrl(authData.apiKey)}/${deviceId}/auth`,
+      method: 'POST',
+      encrypted: true,
+      encryptionService: this.encryptionService,
+      getHeaders: this.getHeaders.bind(this),
+    });
+    return request.execute(input, authData);
+  }
+
+  async getAuthShard(
+    input: z.infer<typeof CrossmintApiService.getAuthShardInputSchema>
+  ): Promise<z.infer<typeof CrossmintApiService.getAuthShardOutputSchema>> {
+    const { deviceId, authData } = CrossmintApiService.getAuthShardInputSchema.parse(input);
+    const request = new CrossmintRequest({
+      inputSchema: CrossmintApiService.getAuthShardInputSchema,
+      outputSchema: CrossmintApiService.getAuthShardOutputSchema,
+      endpoint: (_input, authData) =>
+        `${this.apiKeyService.getBaseUrl(authData.apiKey)}/${deviceId}/key-shares`,
+      method: 'GET',
+      encrypted: true,
+      encryptionService: this.encryptionService,
+      getHeaders: this.getHeaders.bind(this),
+    });
+    return request.execute(input, authData);
+  }
+
   protected async fetchWithRetry(
     url: string,
     options: RequestInit,
@@ -84,90 +146,55 @@ export class CrossmintApiService implements XMIFService {
       throw error;
     }
   }
-
-  async createSigner(
-    deviceId: string,
-    authData: { jwt: string; apiKey: string },
-    data: {
-      authId: string;
-    }
-  ) {
-    const response = await this.fetchWithRetry(`${this.getBaseUrl(authData.apiKey)}/${deviceId}`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-      headers: this.getHeaders(authData),
-    });
-
-    return response;
-  }
-
-  async sendOtp(
-    deviceId: string,
-    authData: { jwt: string; apiKey: string },
-    data: {
-      otp: string;
-    }
-  ): Promise<{
-    shares: {
-      device: string;
-      auth: string;
-    };
-  }> {
-    const response = await this.fetchWithRetry(
-      `${this.getBaseUrl(authData.apiKey)}/${deviceId}/auth`,
-      {
-        method: 'POST',
-        body: JSON.stringify(data),
-        headers: this.getHeaders(authData),
-      }
-    );
-
-    return response.json();
-  }
-
-  async getAuthShard(
-    deviceId: string,
-    authData: { jwt: string; apiKey: string }
-  ): Promise<{
-    deviceId: string;
-    keyShare: string;
-  }> {
-    const response = await this.fetchWithRetry(
-      `${this.getBaseUrl(authData.apiKey)}/${deviceId}/key-shares`,
-      {
-        headers: this.getHeaders(authData),
-      }
-    );
-
-    return response.json();
-  }
 }
 
-export function parseApiKey(apiKey: string): {
-  origin: 'server' | 'client';
-  environment: 'development' | 'staging' | 'production';
-} {
-  let origin: 'server' | 'client';
-  switch (apiKey.slice(0, 2)) {
-    case 'sk':
-      origin = 'server';
-      break;
-    case 'ck':
-      origin = 'client';
-      break;
-    default:
-      throw new Error('Invalid API key. Invalid origin');
+class ApiKeyService {
+  getBaseUrl(apiKey: string) {
+    const { environment } = this.parseApiKey(apiKey);
+    const basePath = 'api/unstable/wallets/ncs';
+    let baseUrl: string;
+    switch (environment) {
+      case 'development':
+        baseUrl = 'http://localhost:3000';
+        break;
+      case 'staging':
+        baseUrl = 'https://staging.crossmint.com';
+        break;
+      case 'production':
+        baseUrl = 'https://crossmint.com';
+        break;
+      default:
+        throw new Error('Invalid environment');
+    }
+    return `${baseUrl}/${basePath}`;
   }
 
-  const apiKeyWithoutOrigin = apiKey.slice(3);
-  const envs = ['development', 'staging', 'production'] as const;
-  const environment = envs.find(env => apiKeyWithoutOrigin.startsWith(env));
-  if (!environment) {
-    throw new Error('Invalid API key. Invalid environment');
-  }
+  private parseApiKey(apiKey: string): {
+    origin: 'server' | 'client';
+    environment: 'development' | 'staging' | 'production';
+  } {
+    let origin: 'server' | 'client';
+    switch (apiKey.slice(0, 2)) {
+      case 'sk':
+        origin = 'server';
+        break;
+      case 'ck':
+        origin = 'client';
+        break;
+      default:
+        throw new Error('Invalid API key. Invalid origin');
+    }
 
-  return {
-    origin,
-    environment,
-  };
+    const apiKeyWithoutOrigin = apiKey.slice(3);
+    const envs = ['development', 'staging', 'production'] as const;
+    const environment = envs.find(env => apiKeyWithoutOrigin.startsWith(env));
+    if (!environment) {
+      throw new Error('Invalid API key. Invalid environment');
+    }
+
+    return {
+      origin,
+      environment,
+    };
+  }
 }

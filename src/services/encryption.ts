@@ -7,6 +7,7 @@ import {
   type SenderContext,
 } from '@hpke/core';
 
+import type { AttestationService } from './attestation';
 const LOG_PREFIX = '[EncryptionService]';
 const ENCRYPTION_PRIVATE_KEY_STORAGE_KEY = 'encryption-private-key';
 const ENCRYPTION_PUBLIC_KEY_STORAGE_KEY = 'encryption-public-key';
@@ -19,6 +20,7 @@ export type EncryptionData = {
 export class EncryptionService implements XMIFService {
   name = 'Encryption service';
   constructor(
+    private readonly attestationService: AttestationService,
     private readonly suite = new CipherSuite({
       kem: new DhkemP384HkdfSha384(),
       kdf: new HkdfSha384(),
@@ -33,12 +35,8 @@ export class EncryptionService implements XMIFService {
     this.ephemeralKeyPair = existingKeyPair ?? (await this.suite.kem.generateKeyPair());
     await this.saveKeyPairToLocalStorage();
     this.senderContext = await this.suite.createSenderContext({
-      recipientPublicKey: await this.getRecipientPubKey(),
+      recipientPublicKey: await this.attestationService.getPublicKeyFromAttestation(),
     });
-  }
-
-  async getRecipientPubKey(): Promise<CryptoKey> {
-    return (await this.suite.kem.generateKeyPair()).publicKey;
   }
 
   async initFromLocalStorage() {
@@ -97,11 +95,30 @@ export class EncryptionService implements XMIFService {
     data: T
   ): Promise<{ ciphertext: ArrayBuffer; encapsulatedKey: ArrayBuffer; publicKey: ArrayBuffer }> {
     const { ephemeralKeyPair, senderContext } = this.assertInitialized();
-    const ciphertext = await senderContext.seal(this.serialize(data));
+    const serializedPublicKey = await this.suite.kem.serializePublicKey(ephemeralKeyPair.publicKey);
+    const ciphertext = await senderContext.seal(
+      this.serialize({
+        data,
+        encryptionContext: {
+          senderPublicKey: this.arrayBufferToBase64(serializedPublicKey),
+        },
+      })
+    );
     return {
       ciphertext,
       publicKey: await this.suite.kem.serializePublicKey(ephemeralKeyPair.publicKey),
       encapsulatedKey: senderContext.enc,
+    };
+  }
+
+  async encryptBase64<T extends Record<string, unknown>>(
+    data: T
+  ): Promise<{ ciphertext: string; encapsulatedKey: string; publicKey: string }> {
+    const { ciphertext, encapsulatedKey, publicKey } = await this.encrypt(data);
+    return {
+      ciphertext: this.arrayBufferToBase64(ciphertext),
+      encapsulatedKey: this.arrayBufferToBase64(encapsulatedKey),
+      publicKey: this.arrayBufferToBase64(publicKey),
     };
   }
 
