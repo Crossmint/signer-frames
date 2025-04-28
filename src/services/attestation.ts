@@ -1,3 +1,5 @@
+import type { XMIFService } from './service';
+
 type SuccessfullyValidatedAttestationDocument = {
   validated: true;
   publicKey: string;
@@ -12,7 +14,8 @@ export type ValidateAttestationDocumentResult =
   | SuccessfullyValidatedAttestationDocument;
 
 export type EncryptionData = Pick<SuccessfullyValidatedAttestationDocument, 'publicKey'>;
-export class AttestationService {
+export class AttestationService implements XMIFService {
+  name = 'Attestation Service';
   async init() {}
 
   async validateAttestationDocument(): Promise<ValidateAttestationDocumentResult> {

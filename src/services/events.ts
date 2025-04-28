@@ -5,8 +5,10 @@ import {
 } from '@crossmint/client-sdk-window';
 import { RNWebViewChild } from '@crossmint/client-sdk-rn-window';
 import { signerInboundEvents, signerOutboundEvents } from '@crossmint/client-signers';
+import type { XMIFService } from './service';
 
-export class EventsService {
+export class EventsService implements XMIFService {
+  name = 'Events Service';
   private static messenger: HandshakeChild<
     typeof signerInboundEvents,
     typeof signerOutboundEvents
@@ -16,7 +18,7 @@ export class EventsService {
    * Initialize the messenger and register event handlers
    * The messenger is shared across all instances
    */
-  async initMessenger(options?: {
+  async init(options?: {
     handshakeOptions?: HandshakeOptions;
     targetOrigin?: string;
   }): Promise<void> {

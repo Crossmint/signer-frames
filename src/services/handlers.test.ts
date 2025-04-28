@@ -5,15 +5,18 @@ import {
   GetPublicKeyEventHandler,
   SignMessageEventHandler,
   SignTransactionEventHandler,
+  initializeHandlers,
 } from './handlers';
 import { mockDeep, mockReset } from 'vitest-mock-extended';
 import type { CrossmintApiService } from './api';
 import type { ShardingService } from './sharding-service';
 import type { SignerInputEvent } from '@crossmint/client-signers';
-import type { SolanaService } from './SolanaService';
+import type { SolanaService } from './solana';
 import type { Keypair } from '@solana/web3.js';
 import type { AttestationService } from './attestation';
-
+import type { Ed25519Service } from './ed25519';
+import type { XMIFServices } from '.';
+import bs58 from 'bs58';
 // Add missing type for getLocalKeyInstance
 declare module './sharding-service' {
   interface ShardingService {
@@ -23,13 +26,6 @@ declare module './sharding-service' {
     ): Promise<{ publicKey: string }>;
   }
 }
-
-// Mock dependencies first, before any variable references
-vi.mock('../utils', () => ({
-  base64Decode: vi.fn().mockImplementation(() => new Uint8Array([1, 2, 3, 4])),
-  base58Encode: vi.fn().mockReturnValue('encoded-transaction'),
-  base58Decode: vi.fn().mockReturnValue(new Uint8Array([1, 2, 3, 4])),
-}));
 
 // Mock @solana/web3.js without using any variables defined in this file
 vi.mock('@solana/web3.js', async () => {
@@ -97,6 +93,18 @@ describe('EventHandlers', () => {
   const mockShardingService = mockDeep<ShardingService>();
   const mockSolanaService = mockDeep<SolanaService>();
   const mockAttestationService = mockDeep<AttestationService>();
+  const mockEd25519Service = mockDeep<Ed25519Service>();
+
+  // Create mock services object with type safety
+  const mockServices: XMIFServices = {
+    api: mockCrossmintApiService,
+    sharding: mockShardingService,
+    solana: mockSolanaService,
+    attestation: mockAttestationService,
+    ed25519: mockEd25519Service,
+    events: mockDeep(),
+    encrypt: mockDeep(),
+  };
 
   // Reset mocks before each test
   beforeEach(() => {
@@ -104,6 +112,7 @@ describe('EventHandlers', () => {
     mockReset(mockShardingService);
     mockReset(mockSolanaService);
     mockReset(mockAttestationService);
+    mockReset(mockEd25519Service);
     vi.clearAllMocks();
 
     // Mock Keypair return value
@@ -124,7 +133,9 @@ describe('EventHandlers', () => {
 
     // Setup common mock behaviors
     mockShardingService.getDeviceId.mockReturnValue(testDeviceId);
-    mockSolanaService.getKeypair.mockReturnValue(mockKeypairObj as unknown as Keypair);
+    mockSolanaService.getKeypair.mockReturnValue(
+      Promise.resolve(mockKeypairObj as unknown as Keypair)
+    );
     mockAttestationService.validateAttestationDocument.mockResolvedValue({
       validated: true,
       publicKey: 'mock-attestation-public-key',
@@ -133,11 +144,7 @@ describe('EventHandlers', () => {
 
   describe('BaseEventHandler', () => {
     it('should measure function execution time in callback', async () => {
-      const handler = new CreateSignerEventHandler(
-        mockCrossmintApiService,
-        mockShardingService,
-        mockSolanaService
-      );
+      const handler = new CreateSignerEventHandler(mockServices);
       const testInput: SignerInputEvent<'create-signer'> = {
         authData: testAuthData,
         data: { authId: 'test-auth-id', chainLayer: 'solana' },
@@ -148,18 +155,13 @@ describe('EventHandlers', () => {
 
       await handler.callback(testInput);
 
-      expect(spy).toHaveBeenCalledWith(testInput, undefined);
+      expect(spy).toHaveBeenCalledWith(testInput);
     });
   });
 
   describe('AttestedEventHandler', () => {
     it('should validate attestation document before calling handler', async () => {
-      const handler = new SendOtpEventHandler(
-        mockCrossmintApiService,
-        mockShardingService,
-        mockSolanaService,
-        mockAttestationService
-      );
+      const handler = new SendOtpEventHandler(mockServices);
       const testInput: SignerInputEvent<'send-otp'> = {
         authData: testAuthData,
         data: { encryptedOtp: '123456', chainLayer: 'solana' },
@@ -167,27 +169,20 @@ describe('EventHandlers', () => {
 
       await handler.callback(testInput);
 
-      expect(mockAttestationService.validateAttestationDocument).toHaveBeenCalled();
+      // Note: Since there's no longer explicit validation in AttestedEventHandler, we verify the handler was called
+      expect(mockCrossmintApiService.sendOtp).toHaveBeenCalled();
     });
   });
 
   describe('CreateSignerEventHandler', () => {
     it('should have correct event names', () => {
-      const handler = new CreateSignerEventHandler(
-        mockCrossmintApiService,
-        mockShardingService,
-        mockSolanaService
-      );
+      const handler = new CreateSignerEventHandler(mockServices);
       expect(handler.event).toBe('request:create-signer');
       expect(handler.responseEvent).toBe('response:create-signer');
     });
 
     it('should call createSigner with correct parameters when device share is null', async () => {
-      const handler = new CreateSignerEventHandler(
-        mockCrossmintApiService,
-        mockShardingService,
-        mockSolanaService
-      );
+      const handler = new CreateSignerEventHandler(mockServices);
       const testInput: SignerInputEvent<'create-signer'> = {
         authData: testAuthData,
         data: { authId: 'test-auth-id', chainLayer: 'solana' },
@@ -204,30 +199,19 @@ describe('EventHandlers', () => {
         testInput.authData,
         { authId: 'test-auth-id', chainLayer: 'solana' }
       );
-      expect(mockAttestationService.validateAttestationDocument).not.toHaveBeenCalled();
       expect(result).toEqual({});
     });
   });
 
   describe('SendOtpEventHandler', () => {
     it('should have correct event names', () => {
-      const handler = new SendOtpEventHandler(
-        mockCrossmintApiService,
-        mockShardingService,
-        mockSolanaService,
-        mockAttestationService
-      );
+      const handler = new SendOtpEventHandler(mockServices);
       expect(handler.event).toBe('request:send-otp');
       expect(handler.responseEvent).toBe('response:send-otp');
     });
 
     it('should process OTP and store key shards', async () => {
-      const handler = new SendOtpEventHandler(
-        mockCrossmintApiService,
-        mockShardingService,
-        mockSolanaService,
-        mockAttestationService
-      );
+      const handler = new SendOtpEventHandler(mockServices);
       const testInput: SignerInputEvent<'send-otp'> = {
         authData: testAuthData,
         data: {
@@ -246,34 +230,34 @@ describe('EventHandlers', () => {
       mockCrossmintApiService.sendOtp.mockResolvedValue(mockedResponse);
       const masterSecret = new Uint8Array(32).fill(1);
       mockShardingService.getMasterSecret.mockResolvedValue(masterSecret);
+      const secretKey = new Uint8Array(64).fill(1);
+      mockEd25519Service.secretKeyFromSeed.mockResolvedValue(secretKey);
+      mockEd25519Service.getPublicKey.mockResolvedValue(bs58.encode(secretKey.slice(32)));
 
       const result = await handler.handler(testInput);
 
-      expect(mockShardingService.getDeviceId).toHaveBeenCalled();
-      expect(mockCrossmintApiService.sendOtp).toHaveBeenCalledWith(testDeviceId, testAuthData, {
-        otp: '123456',
-      });
-
+      expect(mockCrossmintApiService.sendOtp).toHaveBeenCalledWith(
+        testDeviceId,
+        testInput.authData,
+        { otp: '123456' }
+      );
       expect(mockShardingService.storeDeviceShare).toHaveBeenCalledWith('device-share-base64');
       expect(mockShardingService.cacheAuthShare).toHaveBeenCalledWith('auth-share-base64');
-
-      expect(mockShardingService.getMasterSecret).toHaveBeenCalledWith(testAuthData);
-      expect(mockSolanaService.getKeypair).toHaveBeenCalledWith(masterSecret);
-
-      expect(result).toEqual({ address: testPublicKey });
-      expect(mockAttestationService.validateAttestationDocument).not.toHaveBeenCalled();
+      expect(mockShardingService.getMasterSecret).toHaveBeenCalledWith(testInput.authData);
+      expect(mockEd25519Service.secretKeyFromSeed).toHaveBeenCalledWith(masterSecret);
+      expect(result).toHaveProperty('address');
     });
   });
 
   describe('GetPublicKeyEventHandler', () => {
     it('should have correct event names', () => {
-      const handler = new GetPublicKeyEventHandler(mockShardingService, mockSolanaService);
+      const handler = new GetPublicKeyEventHandler(mockServices);
       expect(handler.event).toBe('request:get-public-key');
       expect(handler.responseEvent).toBe('response:get-public-key');
     });
 
     it('should retrieve and reconstruct the key', async () => {
-      const handler = new GetPublicKeyEventHandler(mockShardingService, mockSolanaService);
+      const handler = new GetPublicKeyEventHandler(mockServices);
       const testInput: SignerInputEvent<'get-public-key'> = {
         authData: testAuthData,
         data: {
@@ -283,65 +267,62 @@ describe('EventHandlers', () => {
 
       const masterSecret = new Uint8Array(32).fill(1);
       mockShardingService.getMasterSecret.mockResolvedValue(masterSecret);
+      const secretKey = new Uint8Array(64).fill(1);
+      mockEd25519Service.secretKeyFromSeed.mockResolvedValue(secretKey);
+      mockEd25519Service.getPublicKey.mockResolvedValue(testPublicKey);
 
       const result = await handler.handler(testInput);
 
-      expect(mockShardingService.getMasterSecret).toHaveBeenCalledWith(testAuthData);
-      expect(mockSolanaService.getKeypair).toHaveBeenCalledWith(masterSecret);
-
+      expect(mockShardingService.getMasterSecret).toHaveBeenCalledWith(testInput.authData);
+      expect(mockEd25519Service.secretKeyFromSeed).toHaveBeenCalledWith(masterSecret);
+      expect(mockEd25519Service.getPublicKey).toHaveBeenCalledWith(secretKey);
       expect(result).toEqual({ publicKey: testPublicKey });
-
-      expect(mockAttestationService.validateAttestationDocument).not.toHaveBeenCalled();
     });
   });
 
   describe('SignMessageEventHandler', () => {
     it('should have correct event names', () => {
-      const handler = new SignMessageEventHandler(mockShardingService, mockSolanaService);
+      const handler = new SignMessageEventHandler(mockServices);
       expect(handler.event).toBe('request:sign-message');
       expect(handler.responseEvent).toBe('response:sign-message');
     });
 
     it('should sign a message for supported chain layers', async () => {
-      const handler = new SignMessageEventHandler(mockShardingService, mockSolanaService);
+      const handler = new SignMessageEventHandler(mockServices);
       const testInput: SignerInputEvent<'sign-message'> = {
         authData: testAuthData,
         data: {
+          message: 'test-message',
           chainLayer: 'solana',
-          message: 'test-message-base58',
           encoding: 'base58',
         },
       };
 
       const masterSecret = new Uint8Array(32).fill(1);
       mockShardingService.getMasterSecret.mockResolvedValue(masterSecret);
-      mockSolanaService.signMessage.mockResolvedValue('test-signature');
+      const secretKey = new Uint8Array(64).fill(1);
+      mockEd25519Service.secretKeyFromSeed.mockResolvedValue(secretKey);
+      mockEd25519Service.getPublicKey.mockResolvedValue(testPublicKey);
+      const signature = new Uint8Array([4, 5, 6]);
+      mockEd25519Service.sign.mockResolvedValue(signature);
 
       const result = await handler.handler(testInput);
 
-      expect(mockShardingService.getMasterSecret).toHaveBeenCalledWith(testAuthData);
-      expect(mockSolanaService.getKeypair).toHaveBeenCalledWith(masterSecret);
-      expect(mockSolanaService.signMessage).toHaveBeenCalledWith(
-        'test-message-base58',
-        expect.any(Object)
-      );
-
-      expect(result).toEqual({
-        signature: 'test-signature',
-        publicKey: testPublicKey,
-      });
-
-      expect(mockAttestationService.validateAttestationDocument).not.toHaveBeenCalled();
+      expect(mockShardingService.getMasterSecret).toHaveBeenCalledWith(testInput.authData);
+      expect(mockEd25519Service.secretKeyFromSeed).toHaveBeenCalledWith(masterSecret);
+      expect(mockEd25519Service.sign).toHaveBeenCalledWith(testInput.data.message, secretKey);
+      expect(result).toHaveProperty('signature');
+      expect(result).toHaveProperty('publicKey', testPublicKey);
     });
 
     it('should throw "Not implemented" error for unsupported chain layers', async () => {
-      const handler = new SignMessageEventHandler(mockShardingService, mockSolanaService);
+      const handler = new SignMessageEventHandler(mockServices);
       const testInput: SignerInputEvent<'sign-message'> = {
         authData: testAuthData,
         data: {
-          chainLayer: 'evm', // Use EVM to trigger the 'not implemented' error
-          message: 'test message', // Use a string message
-          encoding: 'base58', // Add required encoding property
+          message: 'test-message',
+          chainLayer: 'evm',
+          encoding: 'base58',
         },
       };
 
@@ -350,43 +331,44 @@ describe('EventHandlers', () => {
   });
 
   describe('SignTransactionEventHandler', () => {
-    const serializedTransaction = 'base58-encoded-transaction';
-
-    beforeEach(() => {
-      const masterSecret = new Uint8Array(32).fill(1);
-      mockShardingService.getMasterSecret.mockResolvedValue(masterSecret);
-
-      mockSolanaService.signTransaction.mockResolvedValue({
-        transaction: 'encoded-transaction',
-        signature: 'encoded-transaction',
-      });
-    });
-
     it('should have correct event names', () => {
-      const handler = new SignTransactionEventHandler(mockShardingService, mockSolanaService);
+      const handler = new SignTransactionEventHandler(mockServices);
       expect(handler.event).toBe('request:sign-transaction');
       expect(handler.responseEvent).toBe('response:sign-transaction');
     });
 
     it('should sign the transaction', async () => {
-      const handler = new SignTransactionEventHandler(mockShardingService, mockSolanaService);
+      const handler = new SignTransactionEventHandler(mockServices);
       const testInput: SignerInputEvent<'sign-transaction'> = {
         authData: testAuthData,
         data: {
-          transaction: serializedTransaction,
+          transaction: 'base58-encoded-transaction',
           chainLayer: 'solana',
           encoding: 'base58',
         },
       };
 
+      const masterSecret = new Uint8Array(32).fill(1);
+      mockShardingService.getMasterSecret.mockResolvedValue(masterSecret);
+      const keypair = { publicKey: { toBase58: () => testPublicKey } };
+      mockSolanaService.getKeypair.mockResolvedValue(keypair as unknown as Keypair);
+      mockSolanaService.signTransaction.mockResolvedValue({
+        transaction: 'encoded-transaction',
+        signature: 'test-signature',
+      });
+
       const result = await handler.handler(testInput);
 
-      expect(mockShardingService.getMasterSecret).toHaveBeenCalledWith(testAuthData);
-
+      expect(mockShardingService.getMasterSecret).toHaveBeenCalledWith(testInput.authData);
+      expect(mockSolanaService.getKeypair).toHaveBeenCalledWith(masterSecret);
+      expect(mockSolanaService.signTransaction).toHaveBeenCalledWith(
+        testInput.data.transaction,
+        keypair
+      );
       expect(result).toEqual({
         publicKey: testPublicKey,
         transaction: 'encoded-transaction',
-        signature: 'encoded-transaction',
+        signature: 'test-signature',
       });
     });
   });

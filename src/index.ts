@@ -2,18 +2,8 @@
  * XMIF - Main Framework Entry Point
  */
 
-import { EventsService, CrossmintApiService } from './services';
-import { ShardingService } from './services/sharding-service';
-import {
-  CreateSignerEventHandler,
-  GetPublicKeyEventHandler,
-  SendOtpEventHandler,
-  SignMessageEventHandler,
-  SignTransactionEventHandler,
-} from './services/handlers';
-import { SolanaService } from './services/SolanaService';
-import { EncryptionService } from './services/encryption';
-import { AttestationService } from './services/attestation';
+import { initializeHandlers, createXMIFServices } from './services';
+import type { EventHandler } from './services/handlers';
 
 // Define window augmentation
 declare global {
@@ -27,24 +17,8 @@ declare global {
  */
 class XMIF {
   constructor(
-    private readonly eventsService = new EventsService(),
-    private readonly crossmintApiService = new CrossmintApiService(),
-    readonly shardingService = new ShardingService(),
-    readonly solanaService = new SolanaService(),
-    private readonly encryptionService = new EncryptionService(),
-    private readonly attestationService = new AttestationService(),
-    private readonly handlers = [
-      new CreateSignerEventHandler(crossmintApiService, shardingService, solanaService),
-      new SendOtpEventHandler(
-        crossmintApiService,
-        shardingService,
-        solanaService,
-        attestationService
-      ),
-      new GetPublicKeyEventHandler(shardingService, solanaService),
-      new SignMessageEventHandler(shardingService, solanaService),
-      new SignTransactionEventHandler(shardingService, solanaService),
-    ]
+    private readonly services = createXMIFServices(),
+    private readonly handlers = initializeHandlers(services) as EventHandler[]
   ) {}
 
   /**
@@ -54,33 +28,27 @@ class XMIF {
   async init(): Promise<void> {
     console.log('Initializing XMIF framework...');
 
-    console.log('-- Initializing Crossmint API...');
-    await this.crossmintApiService.init();
-    console.log('-- Crossmint API initialized!');
+    for (const service of Object.values(this.services)) {
+      const serviceName = service.name;
+      console.log(`-- Initializing ${serviceName}`);
+      await service.init();
+      console.log(`-- ${serviceName} initialized!`);
+    }
 
-    console.log('-- Initializing Attestation Service...');
-    await this.attestationService.init();
-    console.log('-- Attestation Service initialized!');
-
-    console.log('-- Initializing Encryption Service...');
-    await this.encryptionService.init();
-    console.log('-- Encryption Service initialized!');
-
-    console.log('-- Initializing events handlers...');
-    await this.eventsService.initMessenger();
+    console.log('-- Registering event handlers');
     this.registerHandlers();
-    console.log('-- Events handlers initialized!');
+    console.log('-- Event handlers properly registered');
   }
 
   private registerHandlers() {
-    const messenger = this.eventsService.getMessenger();
+    const messenger = this.services.events.getMessenger();
     for (const handler of this.handlers) {
+      console.log(`   -- Registering handler for event ${handler.event}`);
       messenger.on(handler.event, async payload => {
-        // @ts-expect-error The payload types from different handlers are incompatible
-        // but at runtime each handler only receives payloads it can handle
         const response = await handler.callback(payload);
         messenger.send(handler.responseEvent, response);
       });
+      console.log(`  -- Handler for event ${handler.event} successfully registered`);
     }
   }
 }
