@@ -25,20 +25,20 @@ export type XMIFServices = {
 
 export const createXMIFServices = () => {
   const eventsService = new EventsService();
-  const crossmintApiService = new CrossmintApiService();
-  const ed25519Service = new Ed25519Service();
-  const shardingService = new ShardingService();
-  const solanaService = new SolanaService(ed25519Service);
-  const encryptionService = new EncryptionService();
   const attestationService = new AttestationService();
+  const ed25519Service = new Ed25519Service();
+  const solanaService = new SolanaService(ed25519Service);
+  const shardingService = new ShardingService();
+  const encryptionService = new EncryptionService(attestationService);
+  const crossmintApiService = new CrossmintApiService(encryptionService);
   const services = {
     events: eventsService,
-    api: crossmintApiService,
-    ed25519: ed25519Service,
-    sharding: shardingService,
-    solana: solanaService,
-    encrypt: encryptionService,
     attestation: attestationService,
+    ed25519: ed25519Service,
+    solana: solanaService,
+    sharding: shardingService,
+    encrypt: encryptionService,
+    api: crossmintApiService,
   } satisfies Record<string, XMIFService>;
   return services;
 };
