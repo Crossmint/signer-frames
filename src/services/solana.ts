@@ -1,14 +1,18 @@
 import bs58 from 'bs58';
 import { Keypair, VersionedTransaction } from '@solana/web3.js';
 import type { Ed25519Service } from './ed25519';
+import type { XMIFService } from './service';
 
 // TODO: delete this file
-export class SolanaService {
+export class SolanaService implements XMIFService {
+  name = 'Solana Service';
   private readonly ed25519Service: Ed25519Service;
 
   constructor(ed25519Service: Ed25519Service) {
     this.ed25519Service = ed25519Service;
   }
+
+  async init() {}
 
   public async getKeypair(masterSecret: Uint8Array): Promise<Keypair> {
     return Keypair.fromSecretKey(await this.ed25519Service.secretKeyFromSeed(masterSecret));

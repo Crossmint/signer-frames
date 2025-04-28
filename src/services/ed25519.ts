@@ -1,7 +1,10 @@
 import * as ed from '@noble/ed25519';
 import bs58 from 'bs58';
+import type { XMIFService } from './service';
 
-export class Ed25519Service {
+export class Ed25519Service implements XMIFService {
+  name = 'Ed25519 Service';
+  async init() {}
   /**
    * Derive a Solana public key from a private key
    * @param {string} privateKeyBase58 - Base58-encoded private key (64 bytes Solana format)

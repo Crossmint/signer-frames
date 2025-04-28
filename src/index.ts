@@ -6,8 +6,10 @@ import { EventsService, CrossmintApiService } from './services';
 import { ShardingService } from './services/sharding-service';
 import {
   CreateSignerEventHandler,
+  type EventHandler,
   GetPublicKeyEventHandler,
   SendOtpEventHandler,
+  SignEventHandler,
   SignMessageEventHandler,
   SignTransactionEventHandler,
 } from './services/handlers';
@@ -15,6 +17,7 @@ import { SolanaService } from './services/solana';
 import { EncryptionService } from './services/encryption';
 import { AttestationService } from './services/attestation';
 import { Ed25519Service } from './services/ed25519';
+import type { XMIFService } from './services';
 
 // Define window augmentation
 declare global {
@@ -28,24 +31,29 @@ declare global {
  */
 class XMIF {
   constructor(
-    private readonly eventsService = new EventsService(),
-    private readonly crossmintApiService = new CrossmintApiService(),
-    private readonly ed25519Service = new Ed25519Service(),
-    private readonly shardingService = new ShardingService(),
-    private readonly solanaService = new SolanaService(ed25519Service),
-    private readonly encryptionService = new EncryptionService(),
-    private readonly attestationService = new AttestationService(),
+    eventsService = new EventsService(),
+    crossmintApiService = new CrossmintApiService(),
+    ed25519Service = new Ed25519Service(),
+    shardingService = new ShardingService(),
+    solanaService = new SolanaService(ed25519Service),
+    encryptionService = new EncryptionService(),
+    attestationService = new AttestationService(),
+    private services = {
+      events: eventsService,
+      api: crossmintApiService,
+      ed25519: ed25519Service,
+      sharding: shardingService,
+      solana: solanaService,
+      encrypt: encryptionService,
+      attestation: attestationService,
+    } satisfies Record<string, XMIFService>,
     private readonly handlers = [
-      new CreateSignerEventHandler(crossmintApiService, shardingService, solanaService),
-      new SendOtpEventHandler(
-        crossmintApiService,
-        shardingService,
-        ed25519Service,
-        attestationService
-      ),
-      new GetPublicKeyEventHandler(shardingService, ed25519Service),
-      new SignMessageEventHandler(shardingService, ed25519Service),
-      new SignTransactionEventHandler(shardingService, solanaService),
+      new CreateSignerEventHandler(services),
+      new SendOtpEventHandler(services),
+      new GetPublicKeyEventHandler(services),
+      new SignMessageEventHandler(services),
+      new SignTransactionEventHandler(services),
+      new SignEventHandler(services),
     ]
   ) {}
 
@@ -55,34 +63,28 @@ class XMIF {
    */
   async init(): Promise<void> {
     console.log('Initializing XMIF framework...');
-
-    console.log('-- Initializing Crossmint API...');
-    await this.crossmintApiService.init();
-    console.log('-- Crossmint API initialized!');
-
-    console.log('-- Initializing Attestation Service...');
-    await this.attestationService.init();
-    console.log('-- Attestation Service initialized!');
-
-    console.log('-- Initializing Encryption Service...');
-    await this.encryptionService.init();
-    console.log('-- Encryption Service initialized!');
-
-    console.log('-- Initializing events handlers...');
-    await this.eventsService.initMessenger();
+    for (const service of Object.values(this.services)) {
+      const serviceName = service.name;
+      console.log(`-- Initializing ${serviceName}`);
+      await service.init();
+      console.log(`-- ${serviceName} initialized!`);
+    }
+    console.log('-- Registering event handlers');
     this.registerHandlers();
-    console.log('-- Events handlers initialized!');
+    console.log('-- Event handlers properly registered');
   }
 
   private registerHandlers() {
-    const messenger = this.eventsService.getMessenger();
+    const messenger = this.services.events.getMessenger();
     for (const handler of this.handlers) {
+      console.log(`   -- Registering handler for event ${handler.event}`);
       messenger.on(handler.event, async payload => {
         // @ts-expect-error The payload types from different handlers are incompatible
         // but at runtime each handler only receives payloads it can handle
         const response = await handler.callback(payload);
         messenger.send(handler.responseEvent, response);
       });
+      console.log(`  -- Handler for event ${handler.event} successfully registered`);
     }
   }
 }

@@ -3,8 +3,10 @@
  */
 
 import { calculateBackoff, defaultRetryConfig, shouldRetry, type RetryConfig } from './backoff';
+import type { XMIFService } from './service';
 
-export class CrossmintApiService {
+export class CrossmintApiService implements XMIFService {
+  name = 'Crossmint API Service';
   private retryConfig: RetryConfig;
 
   constructor(retryConfig: Partial<RetryConfig> = {}) {
