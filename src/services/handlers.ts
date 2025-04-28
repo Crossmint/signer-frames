@@ -51,7 +51,7 @@ abstract class BaseEventHandler<EventName extends SignerIFrameEventName = Signer
   };
 }
 
-export class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> {
+class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> {
   constructor(
     services: XMIFServices,
     private readonly api = services.api,
@@ -82,7 +82,7 @@ export class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> 
   }
 }
 
-export class SendOtpEventHandler extends BaseEventHandler<'send-otp'> {
+class SendOtpEventHandler extends BaseEventHandler<'send-otp'> {
   constructor(
     services: XMIFServices,
     private readonly api = services.api,
@@ -111,7 +111,7 @@ export class SendOtpEventHandler extends BaseEventHandler<'send-otp'> {
   };
 }
 
-export class GetPublicKeyEventHandler extends BaseEventHandler<'get-public-key'> {
+class GetPublicKeyEventHandler extends BaseEventHandler<'get-public-key'> {
   constructor(
     services: XMIFServices,
     private readonly shardingService = services.sharding,
@@ -131,7 +131,7 @@ export class GetPublicKeyEventHandler extends BaseEventHandler<'get-public-key'>
   };
 }
 
-export class SignMessageEventHandler extends BaseEventHandler<'sign-message'> {
+class SignMessageEventHandler extends BaseEventHandler<'sign-message'> {
   constructor(
     services: XMIFServices,
     private readonly shardingService = services.sharding,
@@ -157,7 +157,7 @@ export class SignMessageEventHandler extends BaseEventHandler<'sign-message'> {
   }
 }
 
-export class SignTransactionEventHandler extends BaseEventHandler<'sign-transaction'> {
+class SignTransactionEventHandler extends BaseEventHandler<'sign-transaction'> {
   constructor(
     services: XMIFServices,
     private readonly shardingService = services.sharding,
@@ -188,26 +188,35 @@ export class SignTransactionEventHandler extends BaseEventHandler<'sign-transact
   };
 }
 
-export class SignEventHandler extends BaseEventHandler<'sign'> {
-  constructor(
-    services: XMIFServices,
-    private readonly shardingService = services.sharding,
-    private readonly edd25519Service = services.ed25519
-  ) {
-    super();
-  }
-  event = 'request:sign' as const;
-  responseEvent = 'response:sign' as const;
-  handler = async (payload: SignerInputEvent<'sign'>) => {
-    const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
-    const { algorithm, message } = payload.data;
-    switch (algorithm) {
-      case 'ed25519': {
-        const secretKey = await this.edd25519Service.secretKeyFromSeed(masterSecret);
-        return this.edd25519Service.sign(message, secretKey);
-      }
-      default:
-        throw new Error(`Algorithm not implemented: ${algorithm}`);
-    }
-  };
-}
+// class SignEventHandler extends BaseEventHandler<'sign'> {
+//   constructor(
+//     services: XMIFServices,
+//     private readonly shardingService = services.sharding,
+//     private readonly edd25519Service = services.ed25519
+//   ) {
+//     super();
+//   }
+//   event = 'request:sign' as const;
+//   responseEvent = 'response:sign' as const;
+//   handler = async (payload: SignerInputEvent<'sign'>) => {
+//     const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
+//     const { algorithm, message } = payload.data;
+//     switch (algorithm) {
+//       case 'ed25519': {
+//         const secretKey = await this.edd25519Service.secretKeyFromSeed(masterSecret);
+//         return this.edd25519Service.sign(message, secretKey);
+//       }
+//       default:
+//         throw new Error(`Algorithm not implemented: ${algorithm}`);
+//     }
+//   };
+// }
+
+export const initializeHandlers = (services: XMIFServices) => [
+  new SendOtpEventHandler(services),
+  new SignMessageEventHandler(services),
+  new SignTransactionEventHandler(services),
+  new CreateSignerEventHandler(services),
+  new GetPublicKeyEventHandler(services),
+  // new SignEventHandler(services),
+];
