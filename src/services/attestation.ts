@@ -1,6 +1,6 @@
-import { XMIFService } from './service';
+import type { XMIFService } from './service';
 
-type AttestationDocument = Record<string, unknown>; // TODO: Improve types
+type AttestationDocument = { publicKey: string } & Record<string, unknown>; // TODO: Improve types
 type SuccessfullyValidatedAttestationDocument = {
   validated: true;
 } & AttestationDocument;
@@ -21,7 +21,7 @@ export class AttestationService implements XMIFService {
   async init() {
     try {
       const attestationDoc = await this.fetchAttestationDoc();
-      const validationResult = await this.validateAttestationDoc();
+      const validationResult = await this.validateAttestationDoc(attestationDoc);
       if (!validationResult.validated) {
         throw new Error(`Error validating TEE Attestation: ${validationResult.error}`);
       }
@@ -33,19 +33,22 @@ export class AttestationService implements XMIFService {
     }
   }
 
-  async getPublicKeyFromAttestation(): Promise<CryptoKey> {
+  async getPublicKeyFromAttestation(): Promise<string> {
     const doc = this.assertInitialized();
-    return {} as CryptoKey;
+    return doc.publicKey;
   }
 
-  private async validateAttestationDoc(): Promise<ValidateAttestationDocumentResult> {
+  private async validateAttestationDoc(
+    attestationDoc: AttestationDocument
+  ): Promise<ValidateAttestationDocumentResult> {
     return {
       validated: true,
+      publicKey: attestationDoc.publicKey,
     };
   }
 
   private async fetchAttestationDoc(): Promise<AttestationDocument> {
-    return {};
+    return fetch('https://tee-ts.onrender.com/attestation').then(res => res.json()); // TODO: Shouldn't be hardcoded
   }
 
   private assertInitialized(): NonNullable<typeof this.attestationDoc> {

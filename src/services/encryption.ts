@@ -34,8 +34,12 @@ export class EncryptionService implements XMIFService {
     const existingKeyPair = await this.initFromLocalStorage();
     this.ephemeralKeyPair = existingKeyPair ?? (await this.suite.kem.generateKeyPair());
     await this.saveKeyPairToLocalStorage();
+    const recipientPublicKeyString = await this.attestationService.getPublicKeyFromAttestation();
+    const recipientPublicKey = await this.suite.kem.deserializePublicKey(
+      this.base64ToArrayBuffer(recipientPublicKeyString)
+    );
     this.senderContext = await this.suite.createSenderContext({
-      recipientPublicKey: await this.attestationService.getPublicKeyFromAttestation(),
+      recipientPublicKey: recipientPublicKey,
     });
   }
 
@@ -106,7 +110,7 @@ export class EncryptionService implements XMIFService {
     );
     return {
       ciphertext,
-      publicKey: await this.suite.kem.serializePublicKey(ephemeralKeyPair.publicKey),
+      publicKey: serializedPublicKey,
       encapsulatedKey: senderContext.enc,
     };
   }
@@ -167,7 +171,7 @@ export class EncryptionService implements XMIFService {
     return JSON.parse(new TextDecoder().decode(data)) as T;
   }
 
-  getPublicKey() {
+  async getPublicKey() {
     this.assertInitialized();
     // biome-ignore lint/style/noNonNullAssertion: asserted before
     return this.suite.kem.serializePublicKey(this.ephemeralKeyPair!.publicKey);
