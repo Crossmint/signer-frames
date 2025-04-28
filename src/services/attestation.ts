@@ -1,9 +1,9 @@
 import type { XMIFService } from './service';
+import type { EncryptionData } from './encryption';
 
 type SuccessfullyValidatedAttestationDocument = {
   validated: true;
-  publicKey: string;
-};
+} & EncryptionData;
 type FailedToValidateAttestationDocument = {
   validated: false;
   error: string;
@@ -13,7 +13,6 @@ export type ValidateAttestationDocumentResult =
   | FailedToValidateAttestationDocument
   | SuccessfullyValidatedAttestationDocument;
 
-export type EncryptionData = Pick<SuccessfullyValidatedAttestationDocument, 'publicKey'>;
 export class AttestationService implements XMIFService {
   name = 'Attestation Service';
   async init() {}
@@ -22,6 +21,8 @@ export class AttestationService implements XMIFService {
     return {
       validated: true,
       publicKey: 'mock-public-key', // TODO: implement
+      type: 'P384',
+      encoding: 'base64',
     };
   }
 }

@@ -1,6 +1,6 @@
 import { expect, describe, it, beforeEach, vi } from 'vitest';
 import { EncryptionService } from './encryption';
-import { CipherSuite, HkdfSha384, Aes256Gcm, DhkemP384HkdfSha384 } from '@hpke/core';
+import { DhkemP384HkdfSha384 } from '@hpke/core';
 
 describe('EncryptionService', () => {
   let senderEncryptionService: EncryptionService;
@@ -37,7 +37,7 @@ describe('EncryptionService', () => {
       ciphertext,
       encapsulatedKey,
       publicKey: senderPublicKey,
-    } = await senderEncryptionService.encrypt(testData, receiverPublicKey);
+    } = await senderEncryptionService.encrypt(testData);
     expect(ciphertext).toBeDefined();
     expect(encapsulatedKey).toBeDefined();
     expect(senderPublicKey).toBeDefined();
