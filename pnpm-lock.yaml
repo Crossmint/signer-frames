@@ -15,8 +15,8 @@ importers:
         specifier: 1.0.0
         version: 1.0.0
       '@crossmint/client-signers':
-        specifier: 0.0.6
-        version: 0.0.6
+        specifier: 0.0.7
+        version: 0.0.7
       '@hpke/core':
         specifier: ^1.7.2
         version: 1.7.2
@@ -302,8 +302,8 @@ packages:
   '@crossmint/client-sdk-window@1.0.0':
     resolution: {integrity: sha512-plzEzSYsJtQUpfyAVElWcUncp74/p1HI8aujH5f2FFdSbc85e3Q17TnQWRn9Gtj9KNpCuIsh36HCTMv8x5504g==}
 
-  '@crossmint/client-signers@0.0.6':
-    resolution: {integrity: sha512-fhzR40ZpgyPuep6JHoPJnGDMUYBHufhTabE99KseKFGACp10zTA4IRSSBRYlQ0YrdUo9U0gCS6yC8yUZnYN1jg==}
+  '@crossmint/client-signers@0.0.7':
+    resolution: {integrity: sha512-Yzct0C9FKlpWE81XkJlUOQJsOQc8WBOrXbgwTkRgsxaQf7gCoBpMFr0L3BOQ2nDk5CMDH9ufLj98RwmB0/hzzg==}
 
   '@csstools/color-helpers@5.0.2':
     resolution: {integrity: sha512-JqWH1vsgdGcw2RR6VliXXdA0/59LttzlU8UlRT/iUUsEeWfYq8I+K0yhihEUTTHLRm1EXvpsCx3083EU15ecsA==}
@@ -3754,7 +3754,7 @@ snapshots:
     dependencies:
       zod: 3.22.4
 
-  '@crossmint/client-signers@0.0.6':
+  '@crossmint/client-signers@0.0.7':
     dependencies:
       zod: 3.22.4
 

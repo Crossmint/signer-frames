@@ -53,7 +53,7 @@ vi.spyOn(console, 'log').mockImplementation(() => {});
 
 describe('EventsService', () => {
   let eventsService: EventsService;
-  let originalInitMessenger: typeof EventsService.prototype.initMessenger;
+  let originalInit: typeof EventsService.prototype.init;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -71,10 +71,10 @@ describe('EventsService', () => {
     eventsService = new EventsService();
 
     // Save original implementation for one test
-    originalInitMessenger = eventsService.initMessenger;
+    originalInit = eventsService.init;
 
-    // Mock the initMessenger method to avoid actual execution and browser context issues
-    vi.spyOn(eventsService, 'initMessenger').mockImplementation(async (_options?) => {
+    // Mock the init method to avoid actual execution and browser context issues
+    vi.spyOn(eventsService, 'init').mockImplementation(async (_options?) => {
       // @ts-expect-error - Accessing private static property
       if (EventsService.messenger) {
         console.log('Messenger already initialized');
@@ -90,11 +90,11 @@ describe('EventsService', () => {
     vi.restoreAllMocks();
   });
 
-  describe('initMessenger', () => {
+  describe('init', () => {
     it('should initialize the messenger using options', async () => {
-      await eventsService.initMessenger();
+      await eventsService.init();
 
-      expect(eventsService.initMessenger).toHaveBeenCalled();
+      expect(eventsService.init).toHaveBeenCalled();
 
       // @ts-expect-error - Accessing private static property
       expect(EventsService.messenger).toBe(mockHandshakeChild);
@@ -105,9 +105,9 @@ describe('EventsService', () => {
         targetOrigin: 'https://example.com',
       };
 
-      await eventsService.initMessenger(customOptions);
+      await eventsService.init(customOptions);
 
-      expect(eventsService.initMessenger).toHaveBeenCalledWith(customOptions);
+      expect(eventsService.init).toHaveBeenCalledWith(customOptions);
     });
 
     it('should not reinitialize messenger if already initialized', async () => {
@@ -116,7 +116,7 @@ describe('EventsService', () => {
 
       const consoleSpy = vi.spyOn(console, 'log');
 
-      await eventsService.initMessenger();
+      await eventsService.init();
 
       expect(consoleSpy).toHaveBeenCalledWith('Messenger already initialized');
     });
@@ -133,7 +133,7 @@ describe('EventsService', () => {
 
       try {
         // Run real implementation
-        await originalInitMessenger.call(eventsService);
+        await originalInit.call(eventsService);
 
         // Verify the constructor was called
         expect(handshakeConstructorSpy).toHaveBeenCalled();
@@ -145,7 +145,7 @@ describe('EventsService', () => {
 
   describe('getMessenger', () => {
     it('should return the messenger if initialized', async () => {
-      await eventsService.initMessenger();
+      await eventsService.init();
 
       const messenger = eventsService.getMessenger();
       expect(messenger).toBe(mockHandshakeChild);
@@ -163,7 +163,7 @@ describe('EventsService', () => {
 
   describe('assertMessengerInitialized', () => {
     it('should not throw if messenger is initialized', async () => {
-      await eventsService.initMessenger();
+      await eventsService.init();
 
       expect(() => {
         // @ts-expect-error - Testing private method
