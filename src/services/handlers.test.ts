@@ -8,7 +8,7 @@ import {
 } from './handlers';
 import { mockDeep, mockReset } from 'vitest-mock-extended';
 import type { CrossmintApiService } from './api';
-import type { ShardingService } from './sharding-service';
+import type { ShardingService } from './sharding';
 import type { SignerInputEvent } from '@crossmint/client-signers';
 import type { SolanaService } from './solana';
 import type { Keypair } from '@solana/web3.js';

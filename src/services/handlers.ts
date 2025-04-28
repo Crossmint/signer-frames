@@ -5,7 +5,6 @@ import type {
 } from '@crossmint/client-signers';
 import bs58 from 'bs58';
 import type { XMIFServices } from '.';
-
 const DEFAULT_TIMEOUT_MS = 10_000;
 
 const measureFunctionTime = async <T>(fnName: string, fn: () => Promise<T>): Promise<T> => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ShardingService } from './sharding-service';
+import { ShardingService } from './sharding';
 import type { CrossmintApiService } from './api';
 import { mockDeep, mockReset } from 'vitest-mock-extended';
 import { combine } from 'shamir-secret-sharing';

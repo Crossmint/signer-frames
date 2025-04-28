@@ -1,5 +1,8 @@
 import { CipherSuite, HkdfSha384, Aes256Gcm, DhkemP384HkdfSha384 } from '@hpke/core';
 import type { XMIFService } from './service';
+const LOG_PREFIX = '[EncryptionService]';
+const ENCRYPTION_PRIVATE_KEY_STORAGE_KEY = 'encryption-private-key';
+const ENCRYPTION_PUBLIC_KEY_STORAGE_KEY = 'encryption-public-key';
 
 export class EncryptionService implements XMIFService {
   name = 'Encryption service';
@@ -13,7 +16,51 @@ export class EncryptionService implements XMIFService {
   ) {}
 
   async init() {
-    this.ephemeralKeyPair = await this.suite.kem.generateKeyPair();
+    const existingKeyPair = await this.initFromLocalStorage();
+    this.ephemeralKeyPair = existingKeyPair ?? (await this.suite.kem.generateKeyPair());
+    await this.saveKeyPairToLocalStorage();
+  }
+
+  async initFromLocalStorage() {
+    try {
+      const existingPrivateKey = localStorage.getItem(ENCRYPTION_PRIVATE_KEY_STORAGE_KEY);
+      const existingPublicKey = localStorage.getItem(ENCRYPTION_PUBLIC_KEY_STORAGE_KEY);
+      if (!existingPrivateKey || !existingPublicKey) {
+        return null;
+      }
+      return {
+        privateKey: await this.suite.kem.deserializePrivateKey(
+          this.base64ToArrayBuffer(existingPrivateKey)
+        ),
+        publicKey: await this.suite.kem.deserializePublicKey(
+          this.base64ToArrayBuffer(existingPublicKey)
+        ),
+      };
+    } catch (error: unknown) {
+      console.error(`${LOG_PREFIX} Error initializing from localStorage: ${error}`);
+      return null;
+    }
+  }
+
+  private async saveKeyPairToLocalStorage() {
+    if (!this.ephemeralKeyPair) {
+      throw new Error('Encryption key pair not initialized');
+    }
+
+    const privateKeyBuffer = await this.suite.kem.serializePrivateKey(
+      this.ephemeralKeyPair.privateKey
+    );
+    const publicKeyBuffer = await this.suite.kem.serializePublicKey(
+      this.ephemeralKeyPair.publicKey
+    );
+    localStorage.setItem(
+      ENCRYPTION_PRIVATE_KEY_STORAGE_KEY,
+      this.arrayBufferToBase64(privateKeyBuffer)
+    );
+    localStorage.setItem(
+      ENCRYPTION_PUBLIC_KEY_STORAGE_KEY,
+      this.arrayBufferToBase64(publicKeyBuffer)
+    );
   }
 
   private assertInitialized() {
@@ -68,5 +115,18 @@ export class EncryptionService implements XMIFService {
     this.assertInitialized();
     // biome-ignore lint/style/noNonNullAssertion: asserted before
     return this.suite.kem.serializePublicKey(this.ephemeralKeyPair!.publicKey);
+  }
+
+  private arrayBufferToBase64(buffer: ArrayBuffer): string {
+    return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+  }
+
+  private base64ToArrayBuffer(base64: string): ArrayBuffer {
+    const binaryString = atob(base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes.buffer;
   }
 }

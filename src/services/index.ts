@@ -1,10 +1,10 @@
 import { CrossmintApiService } from './api';
 import { EventsService } from './events';
-import { ShardingService } from './sharding-service';
 import { AttestationService } from './attestation';
 import { EncryptionService } from './encryption';
 import { SolanaService } from './solana';
 import { Ed25519Service } from './ed25519';
+import { ShardingService } from './sharding';
 import type { XMIFService } from './service';
 
 /**
