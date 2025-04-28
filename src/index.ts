@@ -27,12 +27,14 @@ class XMIF {
    */
   async init(): Promise<void> {
     console.log('Initializing XMIF framework...');
+
     for (const service of Object.values(this.services)) {
       const serviceName = service.name;
       console.log(`-- Initializing ${serviceName}`);
       await service.init();
       console.log(`-- ${serviceName} initialized!`);
     }
+
     console.log('-- Registering event handlers');
     this.registerHandlers();
     console.log('-- Event handlers properly registered');
