@@ -22,21 +22,13 @@ export class CrossmintApiService implements XMIFService {
 
   async init() {}
 
-  private getHeaders({ jwt, apiKey }: { jwt: string; apiKey: string }) {
-    return {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${jwt}`,
-      'x-api-key': apiKey,
-    };
-  }
-
   // Zod schemas
   static createSignerInputSchema = z.object({
     deviceId: z.string(),
     authData: z.object({ jwt: z.string(), apiKey: z.string() }),
     data: z.object({ authId: z.string() }),
   });
-  static createSignerOutputSchema = z.any(); // You may want to specify a stricter schema if you know the response shape
+  static createSignerOutputSchema = z.object({});
 
   static sendOtpInputSchema = z.object({
     deviceId: z.string(),
@@ -145,6 +137,14 @@ export class CrossmintApiService implements XMIFService {
       // If max retries reached, throw the error
       throw error;
     }
+  }
+
+  private getHeaders({ jwt, apiKey }: { jwt: string; apiKey: string }) {
+    return {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${jwt}`,
+      'x-api-key': apiKey,
+    };
   }
 }
 
