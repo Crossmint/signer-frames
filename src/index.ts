@@ -34,7 +34,9 @@ function parseEnvironment(environment: string): Environment {
  */
 class XMIF {
   constructor(
-    environment: 'production' | 'staging' | 'development' = parseEnvironment(window.ENVIRONMENT),
+    environment: 'production' | 'staging' | 'development' = parseEnvironment(
+      window?.ENVIRONMENT ?? 'staging'
+    ),
     private readonly services = createXMIFServices({
       environment,
     }),

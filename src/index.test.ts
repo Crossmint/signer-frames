@@ -64,6 +64,7 @@ global.console.log = mockConsoleLog;
 // Define the window extension type
 interface CustomWindow extends Window {
   XMIF: XMIF;
+  ENVIRONMENT: string;
 }
 
 describe('XMIF', () => {
@@ -75,7 +76,7 @@ describe('XMIF', () => {
     mockConsoleLog.mockClear();
 
     originalWindow = global.window;
-    global.window = { ...originalWindow };
+    global.window = { ...originalWindow, ENVIRONMENT: 'staging' };
 
     xmifInstance = new XMIF();
   });
