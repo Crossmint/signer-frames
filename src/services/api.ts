@@ -40,6 +40,8 @@ export class CrossmintApiService implements XMIFService {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${jwt}`,
       'x-api-key': apiKey,
+			// When in a webview, we inject the crossmintAppId into the window object
+			"x-app-identifier": (window as any).crossmintAppId,
     };
   }
 
