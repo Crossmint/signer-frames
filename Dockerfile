@@ -1,4 +1,5 @@
 FROM node:20 AS builder
+ENV XM_ENVIRONMENT=staging
 
 WORKDIR /app
 
@@ -12,6 +13,9 @@ RUN mkdir -p dist
 
 # Build using pnpm build script
 RUN pnpm build:prod
+RUN [ -n "$XM_ENVIRONMENT" ] && \
+    sed -i "s/{{ENVIRONMENT}}/${XM_ENVIRONMENT}/g" index.html || \
+    { echo "XM_ENVIRONMENT is not set"; exit 1; }
 # RUN pnpm generate-sri
 
 FROM nginx:alpine

@@ -4,12 +4,16 @@
 
 import { calculateBackoff, defaultRetryConfig, shouldRetry, type RetryConfig } from './backoff';
 import type { XMIFService } from './service';
+export type Environment = 'production' | 'staging' | 'development';
 
 export class CrossmintApiService implements XMIFService {
   name = 'Crossmint API Service';
   private retryConfig: RetryConfig;
 
-  constructor(retryConfig: Partial<RetryConfig> = {}) {
+  constructor(
+    private readonly environment: Environment,
+    retryConfig: Partial<RetryConfig> = {}
+  ) {
     this.retryConfig = { ...defaultRetryConfig, ...retryConfig };
   }
 
@@ -18,21 +22,12 @@ export class CrossmintApiService implements XMIFService {
   public getBaseUrl(apiKey: string) {
     const { environment } = parseApiKey(apiKey);
     const basePath = 'api/unstable/wallets/ncs';
-    let baseUrl: string;
-    switch (environment) {
-      case 'development':
-        baseUrl = 'http://localhost:3000';
-        break;
-      case 'staging':
-        baseUrl = 'https://staging.crossmint.com';
-        break;
-      case 'production':
-        baseUrl = 'https://crossmint.com';
-        break;
-      default:
-        throw new Error('Invalid environment');
-    }
-    return `${baseUrl}/${basePath}`;
+    const envs: Record<Environment, string> = {
+      development: 'http://localhost:3000',
+      staging: 'https://staging.crossmint.com',
+      production: 'https://crossmint.com',
+    };
+    return `${envs[environment]}/${basePath}`;
   }
 
   private getHeaders({ jwt, apiKey }: { jwt: string; apiKey: string }) {
@@ -145,7 +140,7 @@ export class CrossmintApiService implements XMIFService {
 
 export function parseApiKey(apiKey: string): {
   origin: 'server' | 'client';
-  environment: 'development' | 'staging' | 'production';
+  environment: Environment;
 } {
   let origin: 'server' | 'client';
   switch (apiKey.slice(0, 2)) {

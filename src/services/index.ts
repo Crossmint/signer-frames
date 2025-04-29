@@ -23,9 +23,13 @@ export type XMIFServices = {
   ed25519: Ed25519Service;
 };
 
-export const createXMIFServices = () => {
+export const createXMIFServices = ({
+  environment,
+}: {
+  environment: 'production' | 'staging' | 'development';
+}) => {
   const eventsService = new EventsService();
-  const crossmintApiService = new CrossmintApiService();
+  const crossmintApiService = new CrossmintApiService(environment);
   const ed25519Service = new Ed25519Service();
   const shardingService = new ShardingService();
   const solanaService = new SolanaService(ed25519Service);

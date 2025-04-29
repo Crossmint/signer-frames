@@ -4,11 +4,28 @@
 
 import { initializeHandlers, createXMIFServices } from './services';
 import type { EventHandler } from './services/handlers';
+import type { Environment } from './services/api';
 
 // Define window augmentation
 declare global {
   interface Window {
     XMIF: XMIF;
+    ENVIRONMENT: string;
+  }
+}
+
+function parseEnvironment(environment: string): Environment {
+  switch (environment.toLocaleLowerCase()) {
+    case 'production':
+      return 'production';
+    case 'staging':
+    case '{{XM_ENVIRONMENT}}': // Default to staging if not set
+      return 'staging';
+    case 'development':
+    case 'dev':
+      return 'development';
+    default:
+      throw new Error(`Invalid environment: ${environment}`);
   }
 }
 
@@ -17,7 +34,10 @@ declare global {
  */
 class XMIF {
   constructor(
-    private readonly services = createXMIFServices(),
+    environment: 'production' | 'staging' | 'development' = parseEnvironment(window.ENVIRONMENT),
+    private readonly services = createXMIFServices({
+      environment,
+    }),
     private readonly handlers = initializeHandlers(services) as EventHandler[]
   ) {}
 
