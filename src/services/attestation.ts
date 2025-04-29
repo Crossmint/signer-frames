@@ -54,7 +54,8 @@ export class AttestationService extends XMIFService {
   }
 
   private async fetchAttestationDoc(): Promise<AttestationDocument> {
-    return fetch('https://signers.crossmint.com/attestation').then(res => res.json()); // TODO: Shouldn't be hardcoded
+    const response = await fetch('http://localhost:3001/attestation', {});
+    return await response.json();
   }
 
   private assertInitialized(): NonNullable<typeof this.attestationDoc> {

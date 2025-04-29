@@ -147,10 +147,10 @@ export class EncryptionService extends XMIFService {
     ciphertext: string,
     encapsulatedKey: string
   ) {
-    return this.decrypt<T>(
+    return this.decrypt<{ data: T }>(
       this.base64ToArrayBuffer(ciphertext),
       this.base64ToArrayBuffer(encapsulatedKey)
-    );
+    ).then(response => response.data);
   }
 
   async getEncryptionData(): Promise<EncryptionData> {

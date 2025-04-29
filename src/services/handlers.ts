@@ -5,7 +5,7 @@ import type {
 } from '@crossmint/client-signers';
 import bs58 from 'bs58';
 import type { XMIFServices } from '.';
-const DEFAULT_TIMEOUT_MS = 10_000;
+const DEFAULT_TIMEOUT_MS = 30_000;
 
 const measureFunctionTime = async <T>(fnName: string, fn: () => Promise<T>): Promise<T> => {
   const start = performance.now();
@@ -76,11 +76,7 @@ export class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> 
 
     console.log('Signer not yet initialized, creating a new one...');
     const deviceId = this.shardingService.getDeviceId();
-    await this.api.createSigner({
-      deviceId,
-      authData: payload.authData,
-      data: payload.data,
-    });
+    await this.api.createSigner(deviceId, payload.data, payload.authData);
     return {};
   }
 }
@@ -98,14 +94,14 @@ export class SendOtpEventHandler extends BaseEventHandler<'send-otp'> {
   responseEvent = 'response:send-otp' as const;
   handler = async (payload: SignerInputEvent<'send-otp'>) => {
     const deviceId = this.shardingService.getDeviceId();
-    const decryptedOtp = '';
-    const response = await this.api.sendOtp({
+    const decryptedOtp = payload.data.encryptedOtp;
+    const response = await this.api.sendOtp(
       deviceId,
-      authData: payload.authData,
-      data: {
+      {
         otp: decryptedOtp,
       },
-    });
+      payload.authData
+    );
 
     this.shardingService.storeDeviceShare(response.shares.device);
     this.shardingService.cacheAuthShare(response.shares.auth);

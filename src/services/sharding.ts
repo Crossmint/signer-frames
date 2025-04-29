@@ -42,10 +42,7 @@ export class ShardingService extends XMIFService {
     if (!authShare) {
       this.log('Auth share not found in cache, fetching from API');
       const deviceId = this.getDeviceId();
-      const { keyShare } = await this.api.getAuthShard({
-        deviceId,
-        authData,
-      });
+      const { keyShare } = await this.api.getAuthShard(deviceId, undefined, authData);
       this.cacheAuthShare(keyShare);
       authShare = keyShare;
     }
