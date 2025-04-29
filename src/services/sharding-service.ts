@@ -1,15 +1,19 @@
 import { combine } from 'shamir-secret-sharing';
 import { CrossmintApiService } from './api';
+import type { XMIFService } from './service';
 
 const AUTH_SHARE_KEY = 'auth-share';
 const DEVICE_SHARE_KEY = 'device-share';
 const LOG_PREFIX = '[ShardingService]';
 
 // Chain agnostic secret sharding service
-export class ShardingService {
+export class ShardingService implements XMIFService {
+  name = 'Sharding Service';
   constructor(private readonly api: CrossmintApiService = new CrossmintApiService()) {
     console.log(`${LOG_PREFIX} Initializing ShardingService`);
   }
+
+  async init() {}
 
   public getDeviceId(): string {
     console.log(`${LOG_PREFIX} Attempting to get device ID from storage`);

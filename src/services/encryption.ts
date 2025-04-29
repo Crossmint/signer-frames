@@ -1,6 +1,8 @@
 import { CipherSuite, HkdfSha384, Aes256Gcm, DhkemP384HkdfSha384 } from '@hpke/core';
+import type { XMIFService } from './service';
 
-export class EncryptionService {
+export class EncryptionService implements XMIFService {
+  name = 'Encryption service';
   constructor(
     private readonly suite = new CipherSuite({
       kem: new DhkemP384HkdfSha384(),

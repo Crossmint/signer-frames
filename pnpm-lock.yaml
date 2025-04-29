@@ -15,13 +15,13 @@ importers:
         specifier: 1.0.0
         version: 1.0.0
       '@crossmint/client-signers':
-        specifier: 0.0.6
-        version: 0.0.6
+        specifier: 0.0.7
+        version: 0.0.7
       '@hpke/core':
         specifier: ^1.7.2
         version: 1.7.2
       '@noble/ed25519':
-        specifier: ^1.7.2
+        specifier: ^1.7.5
         version: 1.7.5
       '@noble/hashes':
         specifier: ^1.7.2
@@ -29,6 +29,9 @@ importers:
       '@solana/web3.js':
         specifier: ^1.98.0
         version: 1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
+      bs58:
+        specifier: ^6.0.0
+        version: 6.0.0
       shamir-secret-sharing:
         specifier: ^0.0.4
         version: 0.0.4
@@ -59,10 +62,7 @@ importers:
         version: 3.1.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@6.3.2(@types/node@20.17.30)(terser@5.39.0))(vitest@3.1.1)
       '@vitest/coverage-v8':
         specifier: ^3.1.1
-        version: 3.1.1(@vitest/browser@3.1.1)(vitest@3.1.1)
-      bs58:
-        specifier: ^6.0.0
-        version: 6.0.0
+        version: 3.1.1(@vitest/browser@3.1.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@6.3.2(@types/node@20.17.30)(terser@5.39.0))(vitest@3.1.1))(vitest@3.1.1(@types/node@20.17.30)(@vitest/browser@3.1.1)(happy-dom@17.4.4)(jsdom@26.1.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))(terser@5.39.0))
       concurrently:
         specifier: ^8.2.2
         version: 8.2.2
@@ -110,7 +110,7 @@ importers:
         version: 3.1.1(@types/node@20.17.30)(@vitest/browser@3.1.1)(happy-dom@17.4.4)(jsdom@26.1.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))(terser@5.39.0)
       vitest-mock-extended:
         specifier: ^3.1.0
-        version: 3.1.0(typescript@5.8.3)(vitest@3.1.1)
+        version: 3.1.0(typescript@5.8.3)(vitest@3.1.1(@types/node@20.17.30)(@vitest/browser@3.1.1)(happy-dom@17.4.4)(jsdom@26.1.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))(terser@5.39.0))
 
 packages:
 
@@ -302,8 +302,8 @@ packages:
   '@crossmint/client-sdk-window@1.0.0':
     resolution: {integrity: sha512-plzEzSYsJtQUpfyAVElWcUncp74/p1HI8aujH5f2FFdSbc85e3Q17TnQWRn9Gtj9KNpCuIsh36HCTMv8x5504g==}
 
-  '@crossmint/client-signers@0.0.6':
-    resolution: {integrity: sha512-fhzR40ZpgyPuep6JHoPJnGDMUYBHufhTabE99KseKFGACp10zTA4IRSSBRYlQ0YrdUo9U0gCS6yC8yUZnYN1jg==}
+  '@crossmint/client-signers@0.0.7':
+    resolution: {integrity: sha512-Yzct0C9FKlpWE81XkJlUOQJsOQc8WBOrXbgwTkRgsxaQf7gCoBpMFr0L3BOQ2nDk5CMDH9ufLj98RwmB0/hzzg==}
 
   '@csstools/color-helpers@5.0.2':
     resolution: {integrity: sha512-JqWH1vsgdGcw2RR6VliXXdA0/59LttzlU8UlRT/iUUsEeWfYq8I+K0yhihEUTTHLRm1EXvpsCx3083EU15ecsA==}
@@ -3754,7 +3754,7 @@ snapshots:
     dependencies:
       zod: 3.22.4
 
-  '@crossmint/client-signers@0.0.6':
+  '@crossmint/client-signers@0.0.7':
     dependencies:
       zod: 3.22.4
 
@@ -4590,7 +4590,7 @@ snapshots:
       - utf-8-validate
       - vite
 
-  '@vitest/coverage-v8@3.1.1(@vitest/browser@3.1.1)(vitest@3.1.1)':
+  '@vitest/coverage-v8@3.1.1(@vitest/browser@3.1.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)(vite@6.3.2(@types/node@20.17.30)(terser@5.39.0))(vitest@3.1.1))(vitest@3.1.1(@types/node@20.17.30)(@vitest/browser@3.1.1)(happy-dom@17.4.4)(jsdom@26.1.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))(terser@5.39.0))':
     dependencies:
       '@ampproject/remapping': 2.3.0
       '@bcoe/v8-coverage': 1.0.2
@@ -7144,7 +7144,7 @@ snapshots:
       fsevents: 2.3.3
       terser: 5.39.0
 
-  vitest-mock-extended@3.1.0(typescript@5.8.3)(vitest@3.1.1):
+  vitest-mock-extended@3.1.0(typescript@5.8.3)(vitest@3.1.1(@types/node@20.17.30)(@vitest/browser@3.1.1)(happy-dom@17.4.4)(jsdom@26.1.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))(terser@5.39.0)):
     dependencies:
       ts-essentials: 10.0.4(typescript@5.8.3)
       typescript: 5.8.3
