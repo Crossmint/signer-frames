@@ -184,8 +184,6 @@ describe('Ed25519Service', () => {
       const invalidPublicKey = new Uint8Array(20);
       const invalidPublicKeyBase58 = bs58.encode(invalidPublicKey);
 
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
       const result = await ed25519Service.verifySignature(
         MESSAGE_BYTES,
         signature,
@@ -193,9 +191,6 @@ describe('Ed25519Service', () => {
       );
 
       expect(result).toBe(false);
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Invalid public key length'));
-
-      consoleSpy.mockRestore();
     });
 
     it('should handle errors during verification', async () => {

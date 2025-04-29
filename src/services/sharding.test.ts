@@ -200,10 +200,11 @@ describe('ShardingService', () => {
       const result = await service.getMasterSecret(testAuthData);
 
       expect(mockSessionStorage.getItem).toHaveBeenCalledWith('auth-share');
-      expect(mockApiService.getAuthShard).toHaveBeenCalledWith({
-        deviceId: testDeviceId,
-        authData: testAuthData,
-      });
+      expect(mockApiService.getAuthShard).toHaveBeenCalledWith(
+        testDeviceId,
+        undefined,
+        testAuthData
+      );
       expect(mockSessionStorage.setItem).toHaveBeenCalledWith('auth-share', testAuthShare);
       expect(mockCombine).toHaveBeenCalled();
       expect(result).toEqual(MOCK_MASTER_SECRET);
