@@ -5,10 +5,11 @@ import {
 } from '@crossmint/client-sdk-window';
 import { RNWebViewChild } from '@crossmint/client-sdk-rn-window';
 import { signerInboundEvents, signerOutboundEvents } from '@crossmint/client-signers';
-import type { XMIFService } from './service';
+import { XMIFService } from './service';
 
-export class EventsService implements XMIFService {
+export class EventsService extends XMIFService {
   name = 'Events Service';
+  log_prefix = '[EventsService]';
   private static messenger: HandshakeChild<
     typeof signerInboundEvents,
     typeof signerOutboundEvents
@@ -23,7 +24,7 @@ export class EventsService implements XMIFService {
     targetOrigin?: string;
   }): Promise<void> {
     if (EventsService.messenger) {
-      console.log('Messenger already initialized');
+      this.log('Messenger already initialized');
       return;
     }
 

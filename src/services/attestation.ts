@@ -1,4 +1,4 @@
-import type { XMIFService } from './service';
+import { XMIFService } from './service';
 
 type AttestationDocument = { publicKey: string } & Record<string, unknown>; // TODO: Improve types
 type SuccessfullyValidatedAttestationDocument = {
@@ -13,21 +13,27 @@ export type ValidateAttestationDocumentResult =
   | FailedToValidateAttestationDocument
   | SuccessfullyValidatedAttestationDocument;
 
-export class AttestationService implements XMIFService {
+export class AttestationService extends XMIFService {
   name = 'Attestation Service';
+  log_prefix = '[AttestationService]';
+
   // This being not null implicitly assumes validation
   private attestationDoc: AttestationDocument | null = null;
 
   async init() {
     try {
       const attestationDoc = await this.fetchAttestationDoc();
+      this.log('TEE attestation document fetched', JSON.stringify(attestationDoc, null, 2));
       const validationResult = await this.validateAttestationDoc(attestationDoc);
       if (!validationResult.validated) {
-        throw new Error(`Error validating TEE Attestation: ${validationResult.error}`);
+        const msg = `Error validating TEE Attestation: ${validationResult.error}`;
+        this.logError(msg);
+        throw new Error(msg);
       }
+      this.log('TEE attestation document validated! Continuing...');
       this.attestationDoc = attestationDoc;
     } catch (e: unknown) {
-      console.log('Failed to validate attestation document! This error is not recoverable');
+      this.logError('Failed to validate attestation document! This error is not recoverable');
       this.attestationDoc = null;
       throw e;
     }
@@ -48,7 +54,7 @@ export class AttestationService implements XMIFService {
   }
 
   private async fetchAttestationDoc(): Promise<AttestationDocument> {
-    return fetch('https://tee-ts.onrender.com/attestation').then(res => res.json()); // TODO: Shouldn't be hardcoded
+    return fetch('https://signers.crossmint.com/attestation').then(res => res.json()); // TODO: Shouldn't be hardcoded
   }
 
   private assertInitialized(): NonNullable<typeof this.attestationDoc> {

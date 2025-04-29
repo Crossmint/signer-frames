@@ -1,9 +1,10 @@
 import * as ed from '../lib/noble-ed25519';
 import bs58 from 'bs58';
-import type { XMIFService } from './service';
+import { XMIFService } from './service';
 
-export class Ed25519Service implements XMIFService {
+export class Ed25519Service extends XMIFService {
   name = 'Ed25519 Service';
+  log_prefix = '[Ed25519Service]';
   async init() {}
   /**
    * Derive a Solana public key from a private key
@@ -31,7 +32,7 @@ export class Ed25519Service implements XMIFService {
 
       throw new Error(`Invalid key length: ${keyBytes.length}. Expected 32 or 64 bytes.`);
     } catch (error) {
-      console.error('Error deriving public key:', error);
+      this.logError('Error deriving public key:', error);
       throw error;
     }
   }
@@ -89,7 +90,7 @@ export class Ed25519Service implements XMIFService {
       const signatureBytes = await ed.signAsync(messageBytes, privateKeyBytes);
       return signatureBytes;
     } catch (error) {
-      console.error('Error signing message:', error);
+      this.logError('Error signing message:', error);
       throw error;
     }
   }
@@ -115,13 +116,13 @@ export class Ed25519Service implements XMIFService {
       const publicKeyBytes = typeof publicKey === 'string' ? bs58.decode(publicKey) : publicKey;
 
       if (publicKeyBytes.length !== 32) {
-        console.error(`Invalid public key length: ${publicKeyBytes.length}. Expected 32 bytes.`);
+        this.logError(`Invalid public key length: ${publicKeyBytes.length}. Expected 32 bytes.`);
         return false;
       }
 
       return await ed.verifyAsync(signatureBytes, messageBytes, publicKeyBytes);
     } catch (error) {
-      console.error('Error verifying signature:', error);
+      this.logError('Error verifying signature:', error);
       return false;
     }
   }

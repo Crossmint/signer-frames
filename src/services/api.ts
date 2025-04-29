@@ -3,7 +3,7 @@
  */
 
 import { calculateBackoff, defaultRetryConfig, shouldRetry } from './backoff';
-import type { XMIFService } from './service';
+import { XMIFService } from './service';
 import type { RetryConfig } from './backoff';
 import { z } from 'zod';
 import type { EncryptionService } from './encryption';
@@ -39,14 +39,16 @@ export function parseApiKey(apiKey: string): {
   };
 }
 
-export class CrossmintApiService implements XMIFService {
+export class CrossmintApiService extends XMIFService {
   name = 'Crossmint API Service';
+  log_prefix = '[CrossmintApiService]';
   private retryConfig: RetryConfig;
 
   constructor(
     private readonly encryptionService: EncryptionService,
     private readonly apiKeyService = new ApiKeyService()
   ) {
+    super();
     this.retryConfig = defaultRetryConfig;
   }
 

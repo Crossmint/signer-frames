@@ -1,34 +1,34 @@
 import { combine } from 'shamir-secret-sharing';
-import type { XMIFService } from './service';
+import { XMIFService } from './service';
 import type { CrossmintApiService } from './api';
 
 const AUTH_SHARE_KEY = 'auth-share';
 const DEVICE_SHARE_KEY = 'device-share';
-const LOG_PREFIX = '[ShardingService]';
 
 // Chain agnostic secret sharding service
-export class ShardingService implements XMIFService {
+export class ShardingService extends XMIFService {
   name = 'Sharding Service';
+  log_prefix = '[ShardingService]';
 
   constructor(private readonly api: CrossmintApiService) {
-    console.log(`${LOG_PREFIX} Initializing ShardingService`);
+    super();
   }
 
   async init() {}
 
   public getDeviceId(): string {
-    console.log(`${LOG_PREFIX} Attempting to get device ID from storage`);
+    this.log('Attempting to get device ID from storage');
 
     const existing = localStorage.getItem('deviceId');
     if (existing != null) {
-      console.log(`${LOG_PREFIX} Found existing device ID: ${existing.substring(0, 8)}...`);
+      this.log(`Found existing device ID: ${existing.substring(0, 8)}...`);
       return existing;
     }
 
-    console.log(`${LOG_PREFIX} No existing device ID found, generating new one`);
+    this.log('No existing device ID found, generating new one');
     const deviceId = crypto.randomUUID();
     localStorage.setItem('deviceId', deviceId);
-    console.log(`${LOG_PREFIX} Successfully stored new device ID: ${deviceId.substring(0, 8)}...`);
+    this.log(`Successfully stored new device ID: ${deviceId.substring(0, 8)}...`);
     return deviceId;
   }
 
@@ -40,7 +40,7 @@ export class ShardingService implements XMIFService {
 
     let authShare = this.getCachedAuthShare();
     if (!authShare) {
-      console.log(`${LOG_PREFIX} Auth share not found in cache, fetching from API`);
+      this.log('Auth share not found in cache, fetching from API');
       const deviceId = this.getDeviceId();
       const { keyShare } = await this.api.getAuthShard({
         deviceId,

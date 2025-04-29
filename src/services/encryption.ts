@@ -1,4 +1,4 @@
-import type { XMIFService } from './service';
+import { XMIFService } from './service';
 import {
   CipherSuite,
   HkdfSha384,
@@ -8,7 +8,6 @@ import {
 } from '@hpke/core';
 
 import type { AttestationService } from './attestation';
-const LOG_PREFIX = '[EncryptionService]';
 const ENCRYPTION_PRIVATE_KEY_STORAGE_KEY = 'encryption-private-key';
 const ENCRYPTION_PUBLIC_KEY_STORAGE_KEY = 'encryption-public-key';
 export type EncryptionData = {
@@ -17,8 +16,9 @@ export type EncryptionData = {
   encoding: 'base64';
 };
 
-export class EncryptionService implements XMIFService {
+export class EncryptionService extends XMIFService {
   name = 'Encryption service';
+  log_prefix = '[EncryptionService]';
   constructor(
     private readonly attestationService: AttestationService,
     private readonly suite = new CipherSuite({
@@ -28,7 +28,9 @@ export class EncryptionService implements XMIFService {
     }),
     private ephemeralKeyPair: CryptoKeyPair | null = null,
     private senderContext: SenderContext | null = null
-  ) {}
+  ) {
+    super();
+  }
 
   async init() {
     const existingKeyPair = await this.initFromLocalStorage();
@@ -59,7 +61,7 @@ export class EncryptionService implements XMIFService {
         ),
       };
     } catch (error: unknown) {
-      console.error(`${LOG_PREFIX} Error initializing from localStorage: ${error}`);
+      this.logError(`Error initializing from localStorage: ${error}`);
       return null;
     }
   }
