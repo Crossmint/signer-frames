@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@crossmint/client-sdk-rn-window':
-        specifier: 0.2.0
-        version: 0.2.0(react-native-webview@13.13.5(react-native@0.79.1(@babel/core@7.26.10)(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0))(react@19.1.0)
+        specifier: 0.2.1
+        version: 0.2.1(react-native-webview@13.13.5(react-native@0.79.1(@babel/core@7.26.10)(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0))(react@19.1.0)
       '@crossmint/client-sdk-window':
         specifier: 1.0.0
         version: 1.0.0
@@ -293,8 +293,8 @@ packages:
     resolution: {integrity: sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA==}
     engines: {node: '>=18'}
 
-  '@crossmint/client-sdk-rn-window@0.2.0':
-    resolution: {integrity: sha512-AtaXKoJVlk7cnVu71b0z18N+tPsvbggMwgDbUGV3tUnINzzgRBEsdfRa3EccsfKc6MbcuMLvWCRlxOdPnCHIjw==}
+  '@crossmint/client-sdk-rn-window@0.2.1':
+    resolution: {integrity: sha512-+D/nTYxOa0b+/GPxdCdkKfAHhnJL115OwgaM11uD37QxbCWyl91FUOmjloBLkFg9YgNaXLDUQz5GorxroMuqqw==}
     peerDependencies:
       react: '>=18.0.0'
       react-native-webview: '>=13.0.0'
@@ -3743,7 +3743,7 @@ snapshots:
 
   '@bcoe/v8-coverage@1.0.2': {}
 
-  '@crossmint/client-sdk-rn-window@0.2.0(react-native-webview@13.13.5(react-native@0.79.1(@babel/core@7.26.10)(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0))(react@19.1.0)':
+  '@crossmint/client-sdk-rn-window@0.2.1(react-native-webview@13.13.5(react-native@0.79.1(@babel/core@7.26.10)(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0))(react@19.1.0)':
     dependencies:
       '@crossmint/client-sdk-window': 1.0.0
       react: 19.1.0
