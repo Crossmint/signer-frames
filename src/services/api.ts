@@ -35,12 +35,23 @@ export class CrossmintApiService implements XMIFService {
     return `${baseUrl}/${basePath}`;
   }
 
-  private getHeaders({ jwt, apiKey }: { jwt: string; apiKey: string }) {
-    return {
+  private getHeaders({ jwt, apiKey }: { jwt: string; apiKey: string }): Record<string, string> {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${jwt}`,
       'x-api-key': apiKey,
     };
+
+    // Add x-app-identifier only if running in a browser-like environment
+    // and the crossmintAppId is available on the window object.
+    if (typeof window !== 'undefined') {
+      const crossmintId = (window as WindowWithCrossmintAppId).crossmintAppId;
+      if (crossmintId != null) {
+        headers['x-app-identifier'] = crossmintId;
+      }
+    }
+
+    return headers;
   }
 
   /**
@@ -170,4 +181,8 @@ export function parseApiKey(apiKey: string): {
     origin,
     environment,
   };
+}
+
+interface WindowWithCrossmintAppId extends Window {
+  crossmintAppId?: string;
 }
