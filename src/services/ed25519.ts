@@ -1,4 +1,4 @@
-import * as ed from '@noble/ed25519';
+import * as ed from '../lib/noble-ed25519';
 import bs58 from 'bs58';
 import type { XMIFService } from './service';
 
@@ -25,7 +25,7 @@ export class Ed25519Service implements XMIFService {
 
       if (keyBytes.length === 32) {
         // If it's already a 32-byte private key, derive the public key
-        const publicKeyBytes = await ed.getPublicKey(keyBytes);
+        const publicKeyBytes = await ed.getPublicKeyAsync(keyBytes);
         return bs58.encode(publicKeyBytes);
       }
 
@@ -60,7 +60,7 @@ export class Ed25519Service implements XMIFService {
       throw new Error(`Invalid seed length: ${seed.length}. Expected at least 32 bytes.`);
     }
     const trimmedSeed = seed.slice(0, 32);
-    const publicKey = await ed.getPublicKey(trimmedSeed);
+    const publicKey = await ed.getPublicKeyAsync(trimmedSeed);
     return this.concatBytes(trimmedSeed, publicKey);
   }
 
@@ -86,7 +86,7 @@ export class Ed25519Service implements XMIFService {
         throw new Error(`Invalid private key length: ${keyBytes.length}. Expected 32 bytes.`);
       }
 
-      const signatureBytes = await ed.sign(messageBytes, privateKeyBytes);
+      const signatureBytes = await ed.signAsync(messageBytes, privateKeyBytes);
       return signatureBytes;
     } catch (error) {
       console.error('Error signing message:', error);
@@ -119,7 +119,7 @@ export class Ed25519Service implements XMIFService {
         return false;
       }
 
-      return await ed.verify(signatureBytes, messageBytes, publicKeyBytes);
+      return await ed.verifyAsync(signatureBytes, messageBytes, publicKeyBytes);
     } catch (error) {
       console.error('Error verifying signature:', error);
       return false;
