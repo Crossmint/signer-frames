@@ -26,8 +26,8 @@ describe('CrossmintApiService', () => {
   const parseApiKeySpy = vi.spyOn(apiModule, 'parseApiKey');
 
   beforeEach(() => {
-    apiService = new CrossmintApiService();
-    testApiService = new TestCrossmintApiService();
+    apiService = new CrossmintApiService('staging');
+    testApiService = new TestCrossmintApiService('staging');
     mockFetch.mockClear();
     parseApiKeySpy.mockClear();
   });
@@ -319,7 +319,7 @@ describe('CrossmintApiService', () => {
       global.fetch = fetchMock;
 
       // Create service with custom retry config (2 max retries)
-      testApiService = new TestCrossmintApiService({ maxRetries: 2 });
+      testApiService = new TestCrossmintApiService('staging', { maxRetries: 2 });
       const promise = testApiService.testFetchWithRetry('https://test.com', { method: 'GET' });
 
       // Fast-forward past all retry delays
@@ -390,7 +390,9 @@ describe('CrossmintApiService', () => {
       global.fetch = fetchMock;
 
       // Create service with custom retry config including 404
-      testApiService = new TestCrossmintApiService({ retryStatusCodes: [404, 429, 500] });
+      testApiService = new TestCrossmintApiService('staging', {
+        retryStatusCodes: [404, 429, 500],
+      });
       const promise = testApiService.testFetchWithRetry('https://test.com', { method: 'GET' });
 
       // Fast-forward past the retry delay
