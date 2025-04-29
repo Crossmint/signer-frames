@@ -46,14 +46,10 @@ export class CrossmintApiService implements XMIFService {
     // and the crossmintAppId is available on the window object.
     if (typeof window !== 'undefined') {
       const crossmintId = (window as WindowWithCrossmintAppId).crossmintAppId;
-      console.log('[CrossmintApiService] Checking crossmintAppId:', crossmintId, 'Type:', typeof crossmintId);
       if (crossmintId != null) {
         headers['x-app-identifier'] = crossmintId;
       }
     }
-
-    console.log('[CrossmintApiService] appid header', headers['x-app-identifier']);
-    console.log('[CrossmintApiService] getHeaders', JSON.stringify(headers));
 
     return headers;
   }
@@ -112,11 +108,6 @@ export class CrossmintApiService implements XMIFService {
       body: JSON.stringify(data),
       headers: this.getHeaders(authData),
     });
-
-    console.log('[CrossmintApiService] createSigner response', response.status);
-    console.log('[CrossmintApiService] createSigner response', response.statusText);
-    console.log('[CrossmintApiService] createSigner response body (text)', await response.clone().text());
-    console.log('[CrossmintApiService] createSigner response body (json)', JSON.stringify(await response.clone().json()));
 
     return response;
   }
