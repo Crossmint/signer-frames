@@ -28,17 +28,22 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             if (window.XMIF) {
-                window.XMIF.init()
-                .then(() => {
-                    console.log('XMIF framework initialized');
-                    document.getElementById('status').textContent = 'Ready';
-                })
-                .catch(err => {
-                    console.error('Failed to initialize XMIF:', err);
-                    document.getElementById('status').textContent = `Error: ${typeof err === 'string' ? err : err.message}`;
-                });
+                if (window.self === window.top) {
+                    console.log('Crossmint Service loaded');
+                    document.getElementById('status').textContent = 'Not inside an iframe. Skipping initialization';
+                } else {
+                    window.XMIF.init()
+                    .then(() => {
+                        console.log('Crossmint Service initialized');
+                        document.getElementById('status').textContent = 'Ready';
+                    })
+                    .catch(err => {
+                        console.error('Failed to initialize Crossmint Service:', err);
+                        document.getElementById('status').textContent = `Error: ${typeof err === 'string' ? err : err.message}`;
+                    })
+                }
             } else {
-                document.getElementById('status').textContent = 'Error: XMIF not loaded';
+                document.getElementById('status').textContent = 'Error: Crossmint Service not loaded';
             }
         });
     </script>

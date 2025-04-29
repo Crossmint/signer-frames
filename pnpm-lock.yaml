@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@crossmint/client-sdk-rn-window':
-        specifier: 0.2.0
-        version: 0.2.0(react-native-webview@13.13.5(react-native@0.79.1(@babel/core@7.26.10)(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0))(react@19.1.0)
+        specifier: 0.2.1
+        version: 0.2.1(react-native-webview@13.13.5(react-native@0.79.1(@babel/core@7.26.10)(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0))(react@19.1.0)
       '@crossmint/client-sdk-window':
         specifier: 1.0.0
         version: 1.0.0
@@ -18,12 +18,6 @@ importers:
         specifier: 0.0.7
         version: 0.0.7
       '@hpke/core':
-        specifier: ^1.7.2
-        version: 1.7.2
-      '@noble/ed25519':
-        specifier: ^1.7.5
-        version: 1.7.5
-      '@noble/hashes':
         specifier: ^1.7.2
         version: 1.7.2
       '@solana/web3.js':
@@ -296,8 +290,8 @@ packages:
     resolution: {integrity: sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA==}
     engines: {node: '>=18'}
 
-  '@crossmint/client-sdk-rn-window@0.2.0':
-    resolution: {integrity: sha512-AtaXKoJVlk7cnVu71b0z18N+tPsvbggMwgDbUGV3tUnINzzgRBEsdfRa3EccsfKc6MbcuMLvWCRlxOdPnCHIjw==}
+  '@crossmint/client-sdk-rn-window@0.2.1':
+    resolution: {integrity: sha512-+D/nTYxOa0b+/GPxdCdkKfAHhnJL115OwgaM11uD37QxbCWyl91FUOmjloBLkFg9YgNaXLDUQz5GorxroMuqqw==}
     peerDependencies:
       react: '>=18.0.0'
       react-native-webview: '>=13.0.0'
@@ -800,9 +794,6 @@ packages:
   '@noble/curves@1.8.2':
     resolution: {integrity: sha512-vnI7V6lFNe0tLAuJMu+2sX+FcL14TaCWy1qiczg1VwRmPrpQCdq5ESXQMqUc2tluRNf6irBXrWbl1mGN8uaU/g==}
     engines: {node: ^14.21.3 || >=16}
-
-  '@noble/ed25519@1.7.5':
-    resolution: {integrity: sha512-xuS0nwRMQBvSxDa7UxMb61xTiH3MxTgUfhyPUALVIe0FlOAz4sjELwyDRyUvqeEYfRSG9qNjFIycqLZppg4RSA==}
 
   '@noble/hashes@1.7.2':
     resolution: {integrity: sha512-biZ0NUSxyjLLqo6KxEJ1b+C2NAx0wtDoFvCaXHGgUkeHzf3Xc1xKumFKREuT7f7DARNZ/slvYUwFG6B0f2b6hQ==}
@@ -3746,7 +3737,7 @@ snapshots:
 
   '@bcoe/v8-coverage@1.0.2': {}
 
-  '@crossmint/client-sdk-rn-window@0.2.0(react-native-webview@13.13.5(react-native@0.79.1(@babel/core@7.26.10)(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0))(react@19.1.0)':
+  '@crossmint/client-sdk-rn-window@0.2.1(react-native-webview@13.13.5(react-native@0.79.1(@babel/core@7.26.10)(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0))(react@19.1.0)':
     dependencies:
       '@crossmint/client-sdk-window': 1.0.0
       react: 19.1.0
@@ -4200,8 +4191,6 @@ snapshots:
   '@noble/curves@1.8.2':
     dependencies:
       '@noble/hashes': 1.7.2
-
-  '@noble/ed25519@1.7.5': {}
 
   '@noble/hashes@1.7.2': {}
 
