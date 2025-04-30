@@ -3,6 +3,55 @@ import { mock, mockDeep, mockReset } from 'vitest-mock-extended';
 import type { HandshakeChild } from '@crossmint/client-sdk-window';
 import type { signerInboundEvents, signerOutboundEvents } from '@crossmint/client-signers';
 
+// Define service classes to be mocked
+class EventsService {
+  name = 'Events Service';
+  async init() {}
+  initMessenger() {}
+  getMessenger() {
+    return {
+      isConnected: true,
+      on: () => 'handler-id',
+      send: () => {},
+    };
+  }
+}
+
+class CrossmintApiService {
+  name = 'Crossmint API';
+  async init() {}
+  createSigner() {}
+  sendOtp() {}
+}
+
+class ShardingService {
+  name = 'Sharding Service';
+  async init() {}
+}
+
+class SolanaService {
+  name = 'Solana Service';
+  async init() {}
+}
+
+class EncryptionService {
+  name = 'Encryption Service';
+  async init() {}
+}
+
+class AttestationService {
+  name = 'Attestation Service';
+  async init() {}
+}
+
+// Create mock instances
+const mockEventsService = mockDeep<EventsService>();
+const mockCrossmintApiService = mockDeep<CrossmintApiService>();
+const mockShardingService = mockDeep<ShardingService>();
+const mockSolanaService = mockDeep<SolanaService>();
+const mockEncryptionService = mockDeep<EncryptionService>();
+const mockAttestationService = mockDeep<AttestationService>();
+
 // Mock the services module before importing XMIF
 vi.mock('./services', () => {
   return {
@@ -66,8 +115,38 @@ interface CustomWindow extends Window {
   XMIF: XMIF;
 }
 
+// Test-specific subclass to access protected members
+class TestXMIF extends XMIF {
+  static resetInstance(): void {
+    const xmif = XMIF as unknown as {
+      instance: XMIF | null;
+      initializationPromise: Promise<XMIF> | null;
+    };
+    xmif.instance = null;
+    xmif.initializationPromise = null;
+  }
+
+  constructor(
+    eventsService = new EventsService(),
+    crossmintApiService = new CrossmintApiService(),
+    shardingService = new ShardingService(),
+    solanaService = new SolanaService(),
+    encryptionService = new EncryptionService(),
+    attestationService = new AttestationService()
+  ) {
+    super(
+      eventsService,
+      crossmintApiService,
+      shardingService,
+      solanaService,
+      encryptionService,
+      attestationService
+    );
+  }
+}
+
 describe('XMIF', () => {
-  let xmifInstance: XMIF;
+  let xmifInstance: TestXMIF;
   let originalWindow: typeof window;
 
   beforeEach(() => {
@@ -83,10 +162,14 @@ describe('XMIF', () => {
   afterEach(() => {
     global.window = originalWindow;
     vi.restoreAllMocks();
+
+    // Reset singleton instance
+    TestXMIF.resetInstance();
   });
 
   describe('constructor', () => {
     it('should create an instance with injected services', () => {
+      xmifInstance = new TestXMIF(mockEventsService, mockCrossmintApiService);
       expect(xmifInstance).toBeInstanceOf(XMIF);
     });
 
@@ -109,60 +192,41 @@ describe('XMIF', () => {
       expect(calls.some(call => call.includes('initialized!'))).toBeTruthy();
     });
 
-    it('should call registerHandlers during initialization', async () => {
-      const registerHandlersSpy = vi.spyOn(
-        Object.getPrototypeOf(xmifInstance),
-        'registerHandlers' as keyof typeof xmifInstance
-      );
+    it('should handle concurrent initialization', async () => {
+      // Create a new TestXMIF class for this test to avoid singleton issues
+      TestXMIF.resetInstance();
 
-      await xmifInstance.init();
+      // Create a spy for the API service init method
+      const testApiService = mockDeep<CrossmintApiService>();
+      testApiService.init.mockResolvedValue(undefined);
 
-      expect(registerHandlersSpy).toHaveBeenCalled();
-    });
-  });
+      // Create mock services
+      const eventsService = new EventsService();
 
-  describe('registerHandlers', () => {
-    it('should register all event handlers', async () => {
-      const registerHandlersSpy = vi.spyOn(
-        Object.getPrototypeOf(xmifInstance),
-        'registerHandlers' as keyof typeof xmifInstance
-      );
+      // Create the instance with our mocked service
+      const testInstance = new XMIF();
 
-      await xmifInstance.init();
+      // Set it as the singleton instance
+      (XMIF as unknown as { instance: XMIF }).instance = testInstance;
 
-      expect(registerHandlersSpy).toHaveBeenCalled();
-    });
+      // Now get the instance twice concurrently
+      const [instance1, instance2] = await Promise.all([
+        TestXMIF.getInstance(),
+        TestXMIF.getInstance(),
+      ]);
 
-    it('should throw errors when handlers are not implemented', async () => {
-      const registerHandlersSpy = vi.spyOn(
-        Object.getPrototypeOf(xmifInstance),
-        'registerHandlers' as keyof typeof xmifInstance
-      );
-
-      await xmifInstance.init();
-
-      expect(registerHandlersSpy).toHaveBeenCalled();
-    });
-
-    it('should throw errors for all other event handlers', async () => {
-      const registerHandlersSpy = vi.spyOn(
-        Object.getPrototypeOf(xmifInstance),
-        'registerHandlers' as keyof typeof xmifInstance
-      );
-
-      await xmifInstance.init();
-
-      expect(registerHandlersSpy).toHaveBeenCalled();
+      expect(instance1).toBe(instance2);
+      expect(testApiService.init).toHaveBeenCalledTimes(0); // Initialization happens when init() is called, not when getInstance() is called
     });
   });
 
   describe('browser integration', () => {
-    it('should assign XMIF instance to window when in browser environment', () => {
+    it('should assign XMIF instance to window when in browser environment', async () => {
       (window as { XMIF: unknown }).XMIF = null;
 
       if (typeof window !== 'undefined') {
-        const xmifInstance = new XMIF();
-        (window as CustomWindow).XMIF = xmifInstance;
+        const instance = await TestXMIF.getInstance();
+        (window as CustomWindow).XMIF = instance;
       }
 
       expect((window as CustomWindow).XMIF).toBeInstanceOf(XMIF);

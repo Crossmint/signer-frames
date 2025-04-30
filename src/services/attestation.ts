@@ -1,9 +1,9 @@
-import type { XMIFService } from './service';
+import { XMIFService } from './service';
 
+type AttestationDocument = { publicKey: string } & Record<string, unknown>; // TODO: Improve types
 type SuccessfullyValidatedAttestationDocument = {
   validated: true;
-  publicKey: string;
-};
+} & AttestationDocument;
 type FailedToValidateAttestationDocument = {
   validated: false;
   error: string;
@@ -13,15 +13,55 @@ export type ValidateAttestationDocumentResult =
   | FailedToValidateAttestationDocument
   | SuccessfullyValidatedAttestationDocument;
 
-export type EncryptionData = Pick<SuccessfullyValidatedAttestationDocument, 'publicKey'>;
-export class AttestationService implements XMIFService {
+export class AttestationService extends XMIFService {
   name = 'Attestation Service';
-  async init() {}
+  log_prefix = '[AttestationService]';
 
-  async validateAttestationDocument(): Promise<ValidateAttestationDocumentResult> {
+  // This being not null implicitly assumes validation
+  private attestationDoc: AttestationDocument | null = null;
+
+  async init() {
+    try {
+      const attestationDoc = await this.fetchAttestationDoc();
+      this.log('TEE attestation document fetched', JSON.stringify(attestationDoc, null, 2));
+      const validationResult = await this.validateAttestationDoc(attestationDoc);
+      if (!validationResult.validated) {
+        const msg = `Error validating TEE Attestation: ${validationResult.error}`;
+        this.logError(msg);
+        throw new Error(msg);
+      }
+      this.log('TEE attestation document validated! Continuing...');
+      this.attestationDoc = attestationDoc;
+    } catch (e: unknown) {
+      this.logError('Failed to validate attestation document! This error is not recoverable');
+      this.attestationDoc = null;
+      throw e;
+    }
+  }
+
+  async getPublicKeyFromAttestation(): Promise<string> {
+    const doc = this.assertInitialized();
+    return doc.publicKey;
+  }
+
+  private async validateAttestationDoc(
+    attestationDoc: AttestationDocument
+  ): Promise<ValidateAttestationDocumentResult> {
     return {
       validated: true,
-      publicKey: 'mock-public-key', // TODO: implement
+      publicKey: attestationDoc.publicKey,
     };
+  }
+
+  private async fetchAttestationDoc(): Promise<AttestationDocument> {
+    const response = await fetch('http://localhost:3001/attestation', {});
+    return await response.json();
+  }
+
+  private assertInitialized(): NonNullable<typeof this.attestationDoc> {
+    if (!this.attestationDoc) {
+      throw new Error('Attestation service has not been initialized!');
+    }
+    return this.attestationDoc;
   }
 }

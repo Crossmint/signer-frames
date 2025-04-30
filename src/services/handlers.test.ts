@@ -9,7 +9,7 @@ import {
 } from './handlers';
 import { mockDeep, mockReset } from 'vitest-mock-extended';
 import type { CrossmintApiService } from './api';
-import type { ShardingService } from './sharding-service';
+import type { ShardingService } from './sharding';
 import type { SignerInputEvent } from '@crossmint/client-signers';
 import type { SolanaService } from './solana';
 import type { Keypair } from '@solana/web3.js';
@@ -196,8 +196,8 @@ describe('EventHandlers', () => {
       expect(mockShardingService.getDeviceId).toHaveBeenCalledOnce();
       expect(mockCrossmintApiService.createSigner).toHaveBeenCalledWith(
         testDeviceId,
-        testInput.authData,
-        { authId: 'test-auth-id', chainLayer: 'solana' }
+        { authId: 'test-auth-id', chainLayer: 'solana' },
+        testInput.authData
       );
       expect(result).toEqual({});
     });
@@ -238,8 +238,8 @@ describe('EventHandlers', () => {
 
       expect(mockCrossmintApiService.sendOtp).toHaveBeenCalledWith(
         testDeviceId,
-        testInput.authData,
-        { otp: '123456' }
+        { otp: '123456' },
+        testInput.authData
       );
       expect(mockShardingService.storeDeviceShare).toHaveBeenCalledWith('device-share-base64');
       expect(mockShardingService.cacheAuthShare).toHaveBeenCalledWith('auth-share-base64');

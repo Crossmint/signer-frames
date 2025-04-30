@@ -29,6 +29,9 @@ importers:
       shamir-secret-sharing:
         specifier: ^0.0.4
         version: 0.0.4
+      zod:
+        specifier: 3.22.4
+        version: 3.22.4
     devDependencies:
       '@testing-library/jest-dom':
         specifier: ^6.6.3

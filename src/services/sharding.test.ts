@@ -1,19 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ShardingService } from './sharding-service';
+import { ShardingService } from './sharding';
 import type { CrossmintApiService } from './api';
 import { mockDeep, mockReset } from 'vitest-mock-extended';
-import { combine } from 'shamir-secret-sharing';
 
-// Mock shamir-secret-sharing with proper implementation
-vi.mock('shamir-secret-sharing', () => ({
-  combine: vi.fn(shares => {
-    // Properly handle the array of shares being passed
-    if (Array.isArray(shares) && shares.length === 2) {
-      return Promise.resolve(new Uint8Array(32).fill(1));
-    }
-    throw new Error('Invalid shares provided to combine');
-  }),
-}));
+// Create a reusable mock value for the master secret
+const MOCK_MASTER_SECRET = new Uint8Array(32).fill(1);
+
+// Define mocks FIRST before importing any modules that use them
+vi.mock('shamir-secret-sharing', () => {
+  return {
+    combine: vi.fn().mockImplementation(() => Promise.resolve(MOCK_MASTER_SECRET)),
+  };
+});
+
+// Now import shamir after mocking
+import * as shamir from 'shamir-secret-sharing';
+
+// Make mocked combine function available
+const mockCombine = shamir.combine as jest.Mock;
 
 // Mock atob function for base64 decoding
 vi.stubGlobal(
@@ -52,7 +56,6 @@ describe('ShardingService', () => {
   const testDeviceId = 'test-device-id';
   const testDeviceShare = 'test-device-share-base64';
   const testAuthShare = 'test-auth-share-base64';
-  const testMasterSecret = new Uint8Array(32).fill(1);
   const testAuthData = {
     jwt: 'test-jwt',
     apiKey: 'test-api-key',
@@ -65,6 +68,10 @@ describe('ShardingService', () => {
 
     // Reset localStorage and sessionStorage mocks
     vi.resetAllMocks();
+
+    // Make sure the combine mock returns a promise with the expected value
+    mockCombine.mockClear();
+    mockCombine.mockImplementation(() => Promise.resolve(MOCK_MASTER_SECRET));
 
     // Setup crypto.randomUUID mock
     vi.stubGlobal('crypto', {
@@ -172,7 +179,8 @@ describe('ShardingService', () => {
 
       expect(mockSessionStorage.getItem).toHaveBeenCalledWith('auth-share');
       expect(mockApiService.getAuthShard).not.toHaveBeenCalled();
-      expect(result).toEqual(expect.any(Uint8Array));
+      expect(mockCombine).toHaveBeenCalled();
+      expect(result).toEqual(MOCK_MASTER_SECRET);
     });
 
     it('should fetch auth share from API if not cached', async () => {
@@ -192,9 +200,14 @@ describe('ShardingService', () => {
       const result = await service.getMasterSecret(testAuthData);
 
       expect(mockSessionStorage.getItem).toHaveBeenCalledWith('auth-share');
-      expect(mockApiService.getAuthShard).toHaveBeenCalledWith(testDeviceId, testAuthData);
+      expect(mockApiService.getAuthShard).toHaveBeenCalledWith(
+        testDeviceId,
+        undefined,
+        testAuthData
+      );
       expect(mockSessionStorage.setItem).toHaveBeenCalledWith('auth-share', testAuthShare);
-      expect(result).toEqual(expect.any(Uint8Array));
+      expect(mockCombine).toHaveBeenCalled();
+      expect(result).toEqual(MOCK_MASTER_SECRET);
     });
 
     it('should recombine shards and return master secret', async () => {
@@ -210,9 +223,8 @@ describe('ShardingService', () => {
       const result = await service.getMasterSecret(testAuthData);
 
       // Verify the combine function was called with the processed shares
-      expect(combine).toHaveBeenCalledWith([expect.any(Uint8Array), expect.any(Uint8Array)]);
-
-      expect(result).toEqual(expect.any(Uint8Array));
+      expect(mockCombine).toHaveBeenCalledWith([expect.any(Uint8Array), expect.any(Uint8Array)]);
+      expect(result).toEqual(MOCK_MASTER_SECRET);
     });
 
     it('should handle errors when combining shares', async () => {
@@ -226,7 +238,7 @@ describe('ShardingService', () => {
       mockSessionStorage.getItem.mockReturnValueOnce(testAuthShare);
 
       // Mock combine to throw an error
-      (combine as jest.Mock).mockRejectedValueOnce(new Error('Test combine error'));
+      mockCombine.mockRejectedValueOnce(new Error('Test combine error'));
 
       await expect(service.getMasterSecret(testAuthData)).rejects.toThrow(
         'Failed to recombine key shards: Test combine error'
@@ -249,8 +261,8 @@ describe('ShardingService', () => {
       service.getMasterSecret(testAuthData);
 
       // Verify atob was called with the base64 strings
-      expect(atob).toHaveBeenCalledWith(testDeviceShare);
-      expect(atob).toHaveBeenCalledWith(testAuthShare);
+      expect(vi.mocked(atob)).toHaveBeenCalledWith(testDeviceShare);
+      expect(vi.mocked(atob)).toHaveBeenCalledWith(testAuthShare);
     });
   });
 });

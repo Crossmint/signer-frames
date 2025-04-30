@@ -45,7 +45,7 @@ async function createIFrame(url: string): Promise<HTMLIFrameElement> {
 }
 
 const defaultEventOptions = {
-  timeoutMs: 10_000,
+  timeoutMs: 30_000,
   intervalMs: 5_000,
 };
 

@@ -9,6 +9,7 @@ import type { EventHandler } from './services/handlers';
 declare global {
   interface Window {
     XMIF: XMIF;
+    crossmintId?: string;
   }
 }
 
@@ -16,10 +17,32 @@ declare global {
  * Main XMIF class
  */
 class XMIF {
+  private static instance: XMIF | null = null;
+  private static initializationPromise: Promise<XMIF> | null = null;
   constructor(
     private readonly services = createXMIFServices(),
     private readonly handlers = initializeHandlers(services) as EventHandler[]
   ) {}
+
+  /**
+   * Get the singleton instance of XMIF
+   * @returns {Promise<XMIF>} The singleton instance
+   */
+  static async getInstance(): Promise<XMIF> {
+    if (XMIF.instance) {
+      return XMIF.instance;
+    }
+
+    if (!XMIF.initializationPromise) {
+      XMIF.initializationPromise = (async () => {
+        const instance = new XMIF();
+        XMIF.instance = instance;
+        return instance;
+      })();
+    }
+
+    return XMIF.initializationPromise;
+  }
 
   /**
    * Initialize the XMIF framework
@@ -55,8 +78,9 @@ class XMIF {
 
 // Initialize when loaded as IIFE
 if (typeof window !== 'undefined') {
-  const xmifInstance = new XMIF();
-  window.XMIF = xmifInstance;
+  XMIF.getInstance().then(xmifInstance => {
+    window.XMIF = xmifInstance;
+  });
 }
 
 // Export the XMIF class for direct usage

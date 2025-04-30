@@ -1,14 +1,16 @@
 import bs58 from 'bs58';
 import { Keypair, VersionedTransaction } from '@solana/web3.js';
 import type { Ed25519Service } from './ed25519';
-import type { XMIFService } from './service';
+import { XMIFService } from './service';
 
 // TODO: delete this file
-export class SolanaService implements XMIFService {
+export class SolanaService extends XMIFService {
   name = 'Solana Service';
+  log_prefix = '[SolanaService]';
   private readonly ed25519Service: Ed25519Service;
 
   constructor(ed25519Service: Ed25519Service) {
+    super();
     this.ed25519Service = ed25519Service;
   }
 
