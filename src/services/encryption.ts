@@ -40,9 +40,13 @@ export class EncryptionService extends XMIFService {
     const recipientPublicKey = await this.suite.kem.deserializePublicKey(
       this.base64ToArrayBuffer(recipientPublicKeyString)
     );
+    console.log(
+      '[DEBUG] Sender key usages:',
+      JSON.stringify(this.ephemeralKeyPair.privateKey.usages)
+    );
     this.senderContext = await this.suite.createSenderContext({
-      senderKey: this.ephemeralKeyPair.publicKey,
-      recipientPublicKey: recipientPublicKey,
+      // senderKey: this.ephemeralKeyPair.publicKey,
+      recipientPublicKey,
     });
   }
 
