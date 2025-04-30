@@ -192,29 +192,39 @@ export class SignTransactionEventHandler extends BaseEventHandler<'sign-transact
   };
 }
 
-// class SignEventHandler extends BaseEventHandler<'sign'> {
-//   constructor(
-//     services: XMIFServices,
-//     private readonly shardingService = services.sharding,
-//     private readonly edd25519Service = services.ed25519
-//   ) {
-//     super();
-//   }
-//   event = 'request:sign' as const;
-//   responseEvent = 'response:sign' as const;
-//   handler = async (payload: SignerInputEvent<'sign'>) => {
-//     const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
-//     const { algorithm, message } = payload.data;
-//     switch (algorithm) {
-//       case 'ed25519': {
-//         const secretKey = await this.edd25519Service.secretKeyFromSeed(masterSecret);
-//         return this.edd25519Service.sign(message, secretKey);
-//       }
-//       default:
-//         throw new Error(`Algorithm not implemented: ${algorithm}`);
-//     }
-//   };
-// }
+class SignEventHandler extends BaseEventHandler<'sign'> {
+  constructor(
+    services: XMIFServices,
+    private readonly shardingService = services.sharding,
+    private readonly edd25519Service = services.ed25519
+  ) {
+    super();
+  }
+  event = 'request:sign' as const;
+  responseEvent = 'response:sign' as const;
+  handler = async (payload: SignerInputEvent<'sign'>) => {
+    const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
+    const { keyType, bytes, encoding } = payload.data;
+    switch (keyType) {
+      case 'ed25519': {
+        const message = decodeBytes(bytes, encoding);
+        const secretKey = await this.edd25519Service.secretKeyFromSeed(masterSecret);
+        return this.edd25519Service.sign(message, secretKey);
+      }
+      default:
+        throw new Error(`Key type not implemented: ${keyType}`);
+    }
+  };
+}
+
+function decodeBytes(bytes: string, encoding: 'base64' | 'base58'): Uint8Array {
+  switch (encoding) {
+    case 'base58':
+      return bs58.decode(bytes);
+    default:
+      throw new Error(`Unsupported encoding: ${encoding}`);
+  }
+}
 
 export const initializeHandlers = (services: XMIFServices) => [
   new SendOtpEventHandler(services),
@@ -222,5 +232,5 @@ export const initializeHandlers = (services: XMIFServices) => [
   new SignTransactionEventHandler(services),
   new CreateSignerEventHandler(services),
   new GetPublicKeyEventHandler(services),
-  // new SignEventHandler(services),
+  new SignEventHandler(services),
 ];
