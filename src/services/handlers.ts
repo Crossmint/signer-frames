@@ -55,7 +55,7 @@ export class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> 
     services: XMIFServices,
     private readonly api = services.api,
     private readonly shardingService = services.sharding,
-    private readonly solanaService = services.solana
+    private readonly ed25519Service = services.ed25519
   ) {
     super();
   }
@@ -68,9 +68,9 @@ export class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> 
 
     if (this.shardingService.getDeviceShare() != null) {
       const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
-      const keypair = await this.solanaService.getKeypair(masterSecret);
+      const publicKey = await this.ed25519Service.getPublicKey(masterSecret);
       return {
-        address: keypair.publicKey.toBase58(),
+        address: publicKey,
       };
     }
 

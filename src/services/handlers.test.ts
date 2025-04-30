@@ -3,74 +3,16 @@ import {
   CreateSignerEventHandler,
   SendOtpEventHandler,
   GetPublicKeyEventHandler,
-  SignMessageEventHandler,
-  SignTransactionEventHandler,
   initializeHandlers,
 } from './handlers';
 import { mockDeep, mockReset } from 'vitest-mock-extended';
 import type { CrossmintApiService } from './api';
 import type { ShardingService } from './sharding';
 import type { SignerInputEvent } from '@crossmint/client-signers';
-import type { SolanaService } from './solana';
-import type { Keypair } from '@solana/web3.js';
 import type { AttestationService } from './attestation';
 import type { Ed25519Service } from './ed25519';
 import type { XMIFServices } from '.';
 import bs58 from 'bs58';
-// Add missing type for getLocalKeyInstance
-declare module './sharding-service' {
-  interface ShardingService {
-    getLocalKeyInstance(
-      authData: { jwt: string; apiKey: string },
-      chainLayer: string
-    ): Promise<{ publicKey: string }>;
-  }
-}
-
-// Mock @solana/web3.js without using any variables defined in this file
-vi.mock('@solana/web3.js', async () => {
-  const mockPublicKey = {
-    equals: vi.fn().mockReturnValue(true),
-    toBase58: vi.fn().mockReturnValue('mock-public-key'),
-    toBytes: vi.fn().mockReturnValue(new Uint8Array(32)),
-    toBuffer: vi.fn().mockReturnValue(Buffer.from(new Uint8Array(32))),
-    toJSON: vi.fn().mockReturnValue('mock-public-key'),
-    toString: vi.fn().mockReturnValue('mock-public-key'),
-  };
-
-  const mockKeypair = {
-    publicKey: mockPublicKey,
-    secretKey: new Uint8Array(64).fill(1),
-    _keypair: { secretKey: new Uint8Array(64).fill(1) },
-  };
-
-  const mockTransaction = {
-    message: {
-      staticAccountKeys: [mockPublicKey],
-    },
-    sign: vi.fn(),
-    serialize: vi.fn().mockReturnValue(new Uint8Array([5, 6, 7, 8])),
-    signatures: ['test-signature'],
-  };
-
-  return {
-    Keypair: {
-      generate: vi.fn().mockReturnValue(mockKeypair),
-      fromSecretKey: vi.fn().mockReturnValue(mockKeypair),
-      fromSeed: vi.fn().mockReturnValue(mockKeypair),
-    },
-    PublicKey: vi.fn().mockImplementation(() => mockPublicKey),
-    VersionedTransaction: {
-      deserialize: vi.fn().mockReturnValue(mockTransaction),
-    },
-    SystemProgram: {
-      transfer: vi.fn().mockReturnValue({}),
-    },
-    TransactionMessage: vi.fn().mockImplementation(() => ({
-      compileToV0Message: vi.fn().mockReturnValue({}),
-    })),
-  };
-});
 
 // Define common test data
 const testDeviceId = 'test-device-id';
@@ -91,7 +33,6 @@ describe('EventHandlers', () => {
   // Mock dependencies
   const mockCrossmintApiService = mockDeep<CrossmintApiService>();
   const mockShardingService = mockDeep<ShardingService>();
-  const mockSolanaService = mockDeep<SolanaService>();
   const mockAttestationService = mockDeep<AttestationService>();
   const mockEd25519Service = mockDeep<Ed25519Service>();
 
@@ -99,7 +40,6 @@ describe('EventHandlers', () => {
   const mockServices: XMIFServices = {
     api: mockCrossmintApiService,
     sharding: mockShardingService,
-    solana: mockSolanaService,
     attestation: mockAttestationService,
     ed25519: mockEd25519Service,
     events: mockDeep(),
@@ -110,7 +50,6 @@ describe('EventHandlers', () => {
   beforeEach(() => {
     mockReset(mockCrossmintApiService);
     mockReset(mockShardingService);
-    mockReset(mockSolanaService);
     mockReset(mockAttestationService);
     mockReset(mockEd25519Service);
     vi.clearAllMocks();
@@ -133,9 +72,6 @@ describe('EventHandlers', () => {
 
     // Setup common mock behaviors
     mockShardingService.getDeviceId.mockReturnValue(testDeviceId);
-    mockSolanaService.getKeypair.mockReturnValue(
-      Promise.resolve(mockKeypairObj as unknown as Keypair)
-    );
     mockAttestationService.validateAttestationDocument.mockResolvedValue({
       validated: true,
       publicKey: 'mock-attestation-public-key',
