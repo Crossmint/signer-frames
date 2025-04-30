@@ -55,7 +55,7 @@ export class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> 
     services: XMIFServices,
     private readonly api = services.api,
     private readonly shardingService = services.sharding,
-    private readonly solanaService = services.solana
+    private readonly ed25519Service = services.ed25519
   ) {
     super();
   }
@@ -68,9 +68,9 @@ export class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> 
 
     if (this.shardingService.getDeviceShare() != null) {
       const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
-      const keypair = await this.solanaService.getKeypair(masterSecret);
+      const publicKey = await this.ed25519Service.getPublicKey(masterSecret);
       return {
-        address: keypair.publicKey.toBase58(),
+        address: publicKey,
       };
     }
 
@@ -134,64 +134,6 @@ export class GetPublicKeyEventHandler extends BaseEventHandler<'get-public-key'>
     };
   };
 }
-
-export class SignMessageEventHandler extends BaseEventHandler<'sign-message'> {
-  constructor(
-    services: XMIFServices,
-    private readonly shardingService = services.sharding,
-    private readonly ed25519Service = services.ed25519
-  ) {
-    super();
-  }
-  event = 'request:sign-message' as const;
-  responseEvent = 'response:sign-message' as const;
-  async handler(payload: SignerInputEvent<'sign-message'>) {
-    if (payload.data.chainLayer !== 'solana') {
-      throw new Error('Chain layer not implemented');
-    }
-
-    const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
-    const secretKey = await this.ed25519Service.secretKeyFromSeed(masterSecret);
-    const signature = await this.ed25519Service.sign(payload.data.message, secretKey);
-    const publicKey = await this.ed25519Service.getPublicKey(secretKey);
-    return {
-      signature: bs58.encode(signature),
-      publicKey,
-    };
-  }
-}
-
-export class SignTransactionEventHandler extends BaseEventHandler<'sign-transaction'> {
-  constructor(
-    services: XMIFServices,
-    private readonly shardingService = services.sharding,
-    private readonly solanaService = services.solana // TODO: just use the ed25519 service
-  ) {
-    super();
-  }
-  event = 'request:sign-transaction' as const;
-  responseEvent = 'response:sign-transaction' as const;
-  requiresAttestationValidation = false;
-  handler = async (payload: SignerInputEvent<'sign-transaction'>) => {
-    if (payload.data.chainLayer !== 'solana') {
-      throw new Error('Chain layer not implemented');
-    }
-
-    const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
-    const keypair = await this.solanaService.getKeypair(masterSecret);
-    const { transaction, signature } = await this.solanaService.signTransaction(
-      payload.data.transaction,
-      keypair
-    );
-
-    return {
-      publicKey: keypair.publicKey.toBase58(),
-      transaction,
-      signature,
-    };
-  };
-}
-
 class SignEventHandler extends BaseEventHandler<'sign'> {
   constructor(
     services: XMIFServices,
@@ -231,8 +173,6 @@ function decodeBytes(bytes: string, encoding: 'base64' | 'base58'): Uint8Array {
 
 export const initializeHandlers = (services: XMIFServices) => [
   new SendOtpEventHandler(services),
-  new SignMessageEventHandler(services),
-  new SignTransactionEventHandler(services),
   new CreateSignerEventHandler(services),
   new GetPublicKeyEventHandler(services),
   new SignEventHandler(services),

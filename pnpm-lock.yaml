@@ -15,14 +15,11 @@ importers:
         specifier: 1.0.0
         version: 1.0.0
       '@crossmint/client-signers':
-        specifier: 0.0.7
-        version: 0.0.7
+        specifier: 0.0.8
+        version: 0.0.8
       '@hpke/core':
         specifier: ^1.7.2
         version: 1.7.2
-      '@solana/web3.js':
-        specifier: ^1.98.0
-        version: 1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       bs58:
         specifier: ^6.0.0
         version: 6.0.0
@@ -33,6 +30,9 @@ importers:
         specifier: 3.22.4
         version: 3.22.4
     devDependencies:
+      '@solana/web3.js':
+        specifier: ^1.98.0
+        version: 1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       '@testing-library/jest-dom':
         specifier: ^6.6.3
         version: 6.6.3
@@ -299,8 +299,8 @@ packages:
   '@crossmint/client-sdk-window@1.0.0':
     resolution: {integrity: sha512-plzEzSYsJtQUpfyAVElWcUncp74/p1HI8aujH5f2FFdSbc85e3Q17TnQWRn9Gtj9KNpCuIsh36HCTMv8x5504g==}
 
-  '@crossmint/client-signers@0.0.7':
-    resolution: {integrity: sha512-Yzct0C9FKlpWE81XkJlUOQJsOQc8WBOrXbgwTkRgsxaQf7gCoBpMFr0L3BOQ2nDk5CMDH9ufLj98RwmB0/hzzg==}
+  '@crossmint/client-signers@0.0.8':
+    resolution: {integrity: sha512-9PjDp4iNQfQiBx3MQatC1unVg1GAUwHGxZubVkIGgUVVlXwpSq2A0rkaj9BEyJQawDN6xua6Yt6XH3UKR9BU4w==}
 
   '@csstools/color-helpers@5.0.2':
     resolution: {integrity: sha512-JqWH1vsgdGcw2RR6VliXXdA0/59LttzlU8UlRT/iUUsEeWfYq8I+K0yhihEUTTHLRm1EXvpsCx3083EU15ecsA==}
@@ -3748,7 +3748,7 @@ snapshots:
     dependencies:
       zod: 3.22.4
 
-  '@crossmint/client-signers@0.0.7':
+  '@crossmint/client-signers@0.0.8':
     dependencies:
       zod: 3.22.4
 
