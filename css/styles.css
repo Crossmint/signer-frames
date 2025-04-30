@@ -344,4 +344,28 @@ button:disabled {
 .empty-message {
     color: #7f8c8d;
     background-color: #f8f9fa;
+}
+
+.storage-cleanup-btn {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 0.8em;
+    cursor: pointer;
+    z-index: 1000;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+.storage-cleanup-btn:hover {
+    background-color: #c0392b;
+}
+
+.storage-cleanup-btn:active {
+    transform: scale(0.95);
 } 

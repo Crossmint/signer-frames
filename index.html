@@ -12,6 +12,7 @@
     
 </head>
 <body>
+    <button id="storage-cleanup-btn" class="storage-cleanup-btn" title="Clear local storage" style="display: none;">🧹 Clear Storage</button>
     <div class="container">
         <header>
             <h1>🔑 Crossmint Signers Vault</h1>
@@ -27,6 +28,27 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            const isStandalone = window.self === window.top;
+            const cleanupBtn = document.getElementById('storage-cleanup-btn');
+            if (isStandalone) {
+                cleanupBtn.style.display = 'block';
+            }
+            
+            cleanupBtn.addEventListener('click', () => {
+                if (window.XMIF) {
+                    XMIF.cleanLocalStorage();
+                    const statusElement = document.getElementById('status');
+                    const originalStatus = statusElement.textContent;
+                    statusElement.textContent = 'Storage cleared successfully!';
+                    setTimeout(() => {
+                        statusElement.textContent = originalStatus;
+                    }, 2000);
+                } else {
+                    console.error('XMIF not available');
+                }
+            });
+
+            // Initialize XMIF
             if (window.XMIF) {
                 window.XMIF.init()
                     .then(() => {

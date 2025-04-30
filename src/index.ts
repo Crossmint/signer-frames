@@ -63,6 +63,19 @@ class XMIF {
     console.log('-- Event handlers properly registered');
   }
 
+  /**
+   * Clears local and session storage for this origin
+   */
+  static cleanLocalStorage(): void {
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+      console.log('Local and session storage cleared successfully');
+    } catch (error) {
+      console.error('Error clearing storage:', error);
+    }
+  }
+
   private registerHandlers() {
     const messenger = this.services.events.getMessenger();
     for (const handler of this.handlers) {
