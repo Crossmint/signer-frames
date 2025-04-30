@@ -130,13 +130,21 @@ export class EncryptionService extends XMIFService {
 
   async decrypt<T extends Record<string, unknown>>(
     ciphertext: ArrayBuffer,
-    encapsulatedKey: ArrayBuffer
+    encapsulatedKey: ArrayBuffer,
+    { validateTeeSender }: { validateTeeSender: boolean } = { validateTeeSender: true }
   ): Promise<T> {
     const { ephemeralKeyPair } = this.assertInitialized();
     const privKey = ephemeralKeyPair.privateKey;
     const recipient = await this.suite.createRecipientContext({
       recipientKey: privKey,
       enc: encapsulatedKey,
+      ...(validateTeeSender
+        ? {
+            senderPublicKey: await this.suite.kem.deserializePublicKey(
+              this.base64ToArrayBuffer(await this.attestationService.getPublicKeyFromAttestation())
+            ),
+          }
+        : {}),
     });
     const pt = await recipient.open(ciphertext);
     // TODO: validate the response type
@@ -145,11 +153,13 @@ export class EncryptionService extends XMIFService {
 
   async decryptBase64<T extends Record<string, unknown>>(
     ciphertext: string,
-    encapsulatedKey: string
+    encapsulatedKey: string,
+    { validateTeeSender }: { validateTeeSender: boolean } = { validateTeeSender: true }
   ) {
     return this.decrypt<{ data: T }>(
       this.base64ToArrayBuffer(ciphertext),
-      this.base64ToArrayBuffer(encapsulatedKey)
+      this.base64ToArrayBuffer(encapsulatedKey),
+      { validateTeeSender }
     ).then(response => response.data);
   }
 
