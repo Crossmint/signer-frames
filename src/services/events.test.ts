@@ -27,16 +27,14 @@ vi.mock('@crossmint/client-signers', async () => {
     SecureSignerInboundEvents: {
       'request:create-signer': {},
       'request:get-attestation': {},
-      'request:sign-message': {},
-      'request:sign-transaction': {},
       'request:send-otp': {},
+      'request:sign': {},
     },
     SecureSignerOutboundEvents: {
       'response:create-signer': {},
       'response:get-attestation': {},
-      'response:sign-message': {},
-      'response:sign-transaction': {},
       'response:send-otp': {},
+      'response:sign': {},
     },
   };
 });
