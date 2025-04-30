@@ -35,16 +35,18 @@
             }
             
             cleanupBtn.addEventListener('click', () => {
-                if (window.XMIF) {
-                    XMIF.cleanLocalStorage();
+                try {
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    console.log('Local and session storage cleared successfully');
                     const statusElement = document.getElementById('status');
                     const originalStatus = statusElement.textContent;
                     statusElement.textContent = 'Storage cleared successfully!';
                     setTimeout(() => {
                         statusElement.textContent = originalStatus;
                     }, 2000);
-                } else {
-                    console.error('XMIF not available');
+                } catch (error) {
+                    console.error('Error clearing storage:', error);
                 }
             });
 
