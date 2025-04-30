@@ -41,6 +41,7 @@ export class EncryptionService extends XMIFService {
       this.base64ToArrayBuffer(recipientPublicKeyString)
     );
     this.senderContext = await this.suite.createSenderContext({
+      senderKey: this.ephemeralKeyPair.publicKey,
       recipientPublicKey: recipientPublicKey,
     });
   }
