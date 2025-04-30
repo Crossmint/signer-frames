@@ -209,7 +209,10 @@ class SignEventHandler extends BaseEventHandler<'sign'> {
       case 'ed25519': {
         const message = decodeBytes(bytes, encoding);
         const secretKey = await this.edd25519Service.secretKeyFromSeed(masterSecret);
-        return this.edd25519Service.sign(message, secretKey);
+        return {
+          signature: bs58.encode(await this.edd25519Service.sign(message, secretKey)),
+          publicKey: await this.edd25519Service.getPublicKey(secretKey),
+        };
       }
       default:
         throw new Error(`Key type not implemented: ${keyType}`);
