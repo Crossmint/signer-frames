@@ -145,17 +145,17 @@ export default function CrossmintSignerProvider({
         try {
           assertInitialized();
           const response = await iframeWindow.current?.sendAction({
-            event: 'request:sign-message',
-            responseEvent: 'response:sign-message',
+            event: 'request:sign',
+            responseEvent: 'response:sign',
             data: {
               authData: {
                 jwt: jwt as NonNullable<typeof jwt>,
                 apiKey,
               },
               data: {
-                message: bs58.encode(message),
-                chainLayer: 'solana',
+                bytes: bs58.encode(message),
                 encoding: 'base58',
+                keyType: 'ed25519',
               },
             },
             options: defaultEventOptions,
@@ -180,9 +180,7 @@ export default function CrossmintSignerProvider({
           }
 
           // Get serialized transaction
-          const serializedTx = bs58.encode(transaction.serialize());
-          console.log(`Transaction serialized: ${serializedTx.substring(0, 20)}...`);
-
+          const messageData = transaction.message.serialize();
           // Prepare request
           const requestData = {
             authData: {
@@ -190,9 +188,9 @@ export default function CrossmintSignerProvider({
               apiKey,
             },
             data: {
-              transaction: serializedTx,
-              chainLayer: 'solana' as const,
+              bytes: bs58.encode(messageData),
               encoding: 'base58' as const,
+              keyType: 'ed25519' as const,
             },
           };
           console.log('Request prepared');
@@ -200,8 +198,8 @@ export default function CrossmintSignerProvider({
           // Send request
           console.log('Sending signature request');
           const response = await iframeWindow.current.sendAction({
-            event: 'request:sign-transaction',
-            responseEvent: 'response:sign-transaction',
+            event: 'request:sign',
+            responseEvent: 'response:sign',
             data: requestData,
             options: defaultEventOptions,
           });
