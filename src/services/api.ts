@@ -14,6 +14,7 @@ function getHeaders({ jwt, apiKey }: { jwt: string; apiKey: string }) {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${jwt}`,
     'x-api-key': apiKey,
+    ...(window?.crossmintId != null ? { 'x-app-identifier': window?.crossmintId } : {}),
   };
 }
 
@@ -205,4 +206,8 @@ class ApiKeyService {
     }
     return `${baseUrl}/${basePath}`;
   }
+}
+
+interface WindowWithCrossmintAppId extends Window {
+  crossmintAppId?: string;
 }
