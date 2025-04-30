@@ -57,7 +57,7 @@ export class CrossmintRequest<
 
     this.endpoint = options.endpoint;
     this.getHeaders = options.getHeaders;
-    this.fetchImpl = options.fetchImpl || fetch;
+    this.fetchImpl = options.fetchImpl || fetch.bind(window);
   }
 
   async execute(input: I, authData: { jwt: string; apiKey: string }): Promise<O> {

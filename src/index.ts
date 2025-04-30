@@ -9,7 +9,7 @@ import type { EventHandler } from './services/handlers';
 declare global {
   interface Window {
     XMIF: XMIF;
-    crossmintId?: string;
+    crossmintAppId?: string;
   }
 }
 
