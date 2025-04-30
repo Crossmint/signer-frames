@@ -207,7 +207,3 @@ class ApiKeyService {
     return `${baseUrl}/${basePath}`;
   }
 }
-
-interface WindowWithCrossmintAppId extends Window {
-  crossmintAppId?: string;
-}
