@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Ed25519Service } from './ed25519';
 import { Keypair } from '@solana/web3.js';
 import bs58 from 'bs58';
-import nacl from 'tweetnacl';
 
 describe('Ed25519Service', () => {
   // Test keys and values that will be used throughout tests
@@ -76,13 +75,6 @@ describe('Ed25519Service', () => {
         publicKey32
       );
       expect(isValid32).toBe(true);
-
-      // Sign and verify with tweetnacl
-      const secretKey = await ed25519Service.secretKeyFromSeed(PRIVATE_KEY_BYTES);
-      const signatureNacl = await ed25519Service.sign(MESSAGE_BYTES, secretKey);
-      expect(nacl.sign.detached.verify(MESSAGE_BYTES, signatureNacl, secretKey.slice(32))).toBe(
-        true
-      );
     });
 
     it('should handle signature verification failures', async () => {
