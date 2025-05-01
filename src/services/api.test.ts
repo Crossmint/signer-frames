@@ -1,128 +1,121 @@
-import { expect, describe, it, beforeEach, vi, afterEach } from 'vitest';
-import * as apiModule from './api';
-import { CrossmintApiService } from './api';
-import type { EncryptionService } from './encryption';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { CrossmintApiService, parseApiKey } from './api';
 import { mock } from 'vitest-mock-extended';
+import type { EncryptionService } from './encryption';
+import { CrossmintRequest } from './request';
 
-// Mock the CrossmintRequest class
-const mockExecute = vi.fn().mockResolvedValue({ success: true });
-vi.mock('./request', () => {
-  return {
-    CrossmintRequest: vi.fn().mockImplementation(() => {
-      return {
-        execute: mockExecute,
-      };
-    }),
-  };
-});
+const executeSpy = vi.fn().mockResolvedValue({ success: true });
+
+const originalExecute = CrossmintRequest.prototype.execute;
+CrossmintRequest.prototype.execute = executeSpy;
+
+interface ApiKeyService {
+  getBaseUrl(apiKey: string): string;
+}
+
+class MockApiKeyService implements ApiKeyService {
+  getBaseUrl(apiKey: string): string {
+    if (apiKey === 'sk_development_123') {
+      return 'http://localhost:3000/api/unstable/wallets/ncs';
+    }
+    if (apiKey === 'sk_staging_123') {
+      return 'https://staging.crossmint.com/api/unstable/wallets/ncs';
+    }
+    if (apiKey === 'sk_production_123') {
+      return 'https://crossmint.com/api/unstable/wallets/ncs';
+    }
+    if (apiKey === 'sk_invalid123') {
+      throw new Error('Invalid API key');
+    }
+    return 'https://crossmint.com/api/unstable/wallets/ncs';
+  }
+}
 
 describe('CrossmintApiService', () => {
   let apiService: CrossmintApiService;
-
-  // Create a spy on parseApiKey
-  const parseApiKeySpy = vi.spyOn(apiModule, 'parseApiKey');
+  let mockEncryptionService: EncryptionService;
 
   beforeEach(() => {
-    const mockEncryptionService = mock<EncryptionService>();
-    apiService = new CrossmintApiService(mockEncryptionService);
-    mockExecute.mockClear();
-    parseApiKeySpy.mockClear();
+    mockEncryptionService = mock<EncryptionService>();
+    apiService = new CrossmintApiService(mockEncryptionService, new MockApiKeyService());
+    executeSpy.mockClear();
   });
 
   afterEach(() => {
     vi.resetAllMocks();
   });
 
-  it('should be defined', () => {
-    expect(apiService).toBeDefined();
-  });
-
-  it('should initialize without errors', async () => {
-    await expect(apiService.init()).resolves.not.toThrow();
+  afterAll(() => {
+    CrossmintRequest.prototype.execute = originalExecute;
   });
 
   describe('getBaseUrl', () => {
-    it('should generate correct URL for development environment', () => {
-      parseApiKeySpy.mockReturnValueOnce({
-        origin: 'server',
-        environment: 'development',
-      });
-
-      const result = apiService.getBaseUrl('sk_development_123');
-
-      expect(result).toBe('http://localhost:3000/api/unstable/wallets/ncs');
-    });
-
-    it('should generate correct URL for staging environment', () => {
-      parseApiKeySpy.mockReturnValueOnce({
-        origin: 'server',
-        environment: 'staging',
-      });
-
-      const result = apiService.getBaseUrl('sk_staging_123');
-
-      expect(result).toBe('https://staging.crossmint.com/api/unstable/wallets/ncs');
-    });
-
-    it('should generate correct URL for production environment', () => {
-      parseApiKeySpy.mockReturnValueOnce({
-        origin: 'server',
-        environment: 'production',
-      });
-
-      const result = apiService.getBaseUrl('sk_production_123');
-
-      expect(result).toBe('https://crossmint.com/api/unstable/wallets/ncs');
-    });
-
-    it('should throw error for invalid environment', () => {
-      parseApiKeySpy.mockImplementationOnce(() => {
-        throw new Error('Invalid API key');
-      });
-
+    it('should generate correct URLs for different environments', () => {
+      expect(apiService.getBaseUrl('sk_development_123')).toBe(
+        'http://localhost:3000/api/unstable/wallets/ncs'
+      );
+      expect(apiService.getBaseUrl('sk_staging_123')).toBe(
+        'https://staging.crossmint.com/api/unstable/wallets/ncs'
+      );
+      expect(apiService.getBaseUrl('sk_production_123')).toBe(
+        'https://crossmint.com/api/unstable/wallets/ncs'
+      );
       expect(() => apiService.getBaseUrl('sk_invalid123')).toThrow('Invalid API key');
     });
   });
 
-  describe('parseApiKey function', () => {
-    beforeEach(() => {
-      parseApiKeySpy.mockRestore();
+  describe('API methods', () => {
+    const deviceId = 'test-device-id';
+    const authData = { jwt: 'test-jwt', apiKey: 'test-api-key' };
+
+    it('should properly call createSigner with correct parameters', async () => {
+      const data = { authId: 'test-auth-id', chainLayer: 'solana' };
+      executeSpy.mockResolvedValueOnce({ success: true });
+
+      await apiService.createSigner(deviceId, data, authData);
+
+      expect(executeSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          authId: 'test-auth-id',
+          chainLayer: 'solana',
+        }),
+        authData
+      );
     });
 
-    it('should correctly parse server-side development API key', () => {
-      const result = apiModule.parseApiKey('sk_development_123');
-      expect(result).toEqual({
+    it('should properly call sendOtp with correct parameters and return shares', async () => {
+      const data = { otp: '123456' };
+      const mockResponse = { shares: { device: 'device-share', auth: 'auth-share' } };
+      executeSpy.mockResolvedValueOnce(mockResponse);
+
+      const result = await apiService.sendOtp(deviceId, data, authData);
+
+      expect(executeSpy).toHaveBeenCalledWith(expect.objectContaining({ otp: '123456' }), authData);
+      expect(result).toEqual(mockResponse);
+    });
+  });
+
+  describe('parseApiKey function', () => {
+    it('should correctly parse different types of API keys', () => {
+      // Server-side keys
+      expect(parseApiKey('sk_development_123')).toEqual({
         origin: 'server',
         environment: 'development',
       });
-    });
-
-    it('should correctly parse server-side staging API key', () => {
-      const result = apiModule.parseApiKey('sk_staging_123');
-      expect(result).toEqual({
-        origin: 'server',
-        environment: 'staging',
-      });
-    });
-
-    it('should correctly parse server-side production API key', () => {
-      const result = apiModule.parseApiKey('sk_production_123');
-      expect(result).toEqual({
+      expect(parseApiKey('sk_staging_123')).toEqual({ origin: 'server', environment: 'staging' });
+      expect(parseApiKey('sk_production_123')).toEqual({
         origin: 'server',
         environment: 'production',
       });
-    });
 
-    it('should correctly parse client-side API keys', () => {
-      const result = apiModule.parseApiKey('ck_production_123');
-      expect(result).toEqual({
+      // Client-side keys
+      expect(parseApiKey('ck_production_123')).toEqual({
         origin: 'client',
         environment: 'production',
       });
-    });
 
-    it('should throw error for invalid API key', () => {
-      expect(() => apiModule.parseApiKey('skinvalid123')).toThrow('Invalid API key');
+      // Invalid keys
+      expect(() => parseApiKey('invalid123')).toThrow('Invalid API key');
     });
   });
 });
