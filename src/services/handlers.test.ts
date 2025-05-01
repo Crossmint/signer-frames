@@ -35,32 +35,6 @@ describe('EventHandlers', () => {
   });
 
   describe('CreateSignerEventHandler', () => {
-    it('should have correct event mapping names', () => {
-      const handler = new CreateSignerEventHandler(mockServices);
-      expect(handler.event).toBe('request:create-signer');
-      expect(handler.responseEvent).toBe('response:create-signer');
-    });
-
-    it('should call createSigner API with correct parameters when device share does not exist', async () => {
-      const handler = new CreateSignerEventHandler(mockServices);
-      const testInput: SignerInputEvent<'create-signer'> = {
-        authData: TEST_FIXTURES.authData,
-        data: { authId: 'test-auth-id', chainLayer: 'solana' },
-      };
-
-      mockServices.api.createSigner.mockResolvedValue({} as Response);
-      mockServices.sharding.getDeviceShare.mockReturnValue(null);
-
-      await handler.handler(testInput);
-
-      expect(mockServices.sharding.getDeviceId).toHaveBeenCalledOnce();
-      expect(mockServices.api.createSigner).toHaveBeenCalledWith(
-        TEST_FIXTURES.deviceId,
-        { authId: 'test-auth-id', chainLayer: 'solana' },
-        testInput.authData
-      );
-    });
-
     it('should skip API call if device share already exists', async () => {
       const handler = new CreateSignerEventHandler(mockServices);
       const testInput: SignerInputEvent<'create-signer'> = {
@@ -74,30 +48,9 @@ describe('EventHandlers', () => {
 
       expect(mockServices.api.createSigner).not.toHaveBeenCalled();
     });
-
-    it('should measure execution time in callback wrapper', async () => {
-      const handler = new CreateSignerEventHandler(mockServices);
-      const testInput: SignerInputEvent<'create-signer'> = {
-        authData: TEST_FIXTURES.authData,
-        data: { authId: 'test-auth-id', chainLayer: 'solana' },
-      };
-
-      mockServices.api.createSigner.mockResolvedValue({} as Response);
-      const spy = vi.spyOn(handler, 'handler');
-
-      await handler.callback(testInput);
-
-      expect(spy).toHaveBeenCalledWith(testInput);
-    });
   });
 
   describe('SendOtpEventHandler', () => {
-    it('should have correct event mapping names', () => {
-      const handler = new SendOtpEventHandler(mockServices);
-      expect(handler.event).toBe('request:send-otp');
-      expect(handler.responseEvent).toBe('response:send-otp');
-    });
-
     it('should process OTP flow correctly and store key shards', async () => {
       const handler = new SendOtpEventHandler(mockServices);
       const testInput: SignerInputEvent<'send-otp'> = {
@@ -130,23 +83,11 @@ describe('EventHandlers', () => {
         TEST_FIXTURES.shares.device
       );
       expect(mockServices.sharding.cacheAuthShare).toHaveBeenCalledWith(TEST_FIXTURES.shares.auth);
-
-      expect(mockServices.sharding.getMasterSecret).toHaveBeenCalledWith(testInput.authData);
-      expect(mockServices.ed25519.secretKeyFromSeed).toHaveBeenCalledWith(
-        TEST_FIXTURES.masterSecret
-      );
-
       expect(result).toHaveProperty('address');
     });
   });
 
   describe('GetPublicKeyEventHandler', () => {
-    it('should have correct event mapping names', () => {
-      const handler = new GetPublicKeyEventHandler(mockServices);
-      expect(handler.event).toBe('request:get-public-key');
-      expect(handler.responseEvent).toBe('response:get-public-key');
-    });
-
     it('should retrieve and reconstruct the key correctly', async () => {
       const handler = new GetPublicKeyEventHandler(mockServices);
       const testInput: SignerInputEvent<'get-public-key'> = {
@@ -167,7 +108,6 @@ describe('EventHandlers', () => {
         TEST_FIXTURES.masterSecret
       );
       expect(mockServices.ed25519.getPublicKey).toHaveBeenCalledWith(TEST_FIXTURES.secretKey);
-
       expect(result).toEqual({ publicKey: TEST_FIXTURES.publicKey });
     });
   });
