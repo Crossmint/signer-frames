@@ -18,11 +18,15 @@
     "test:coverage": "vitest run --coverage",
     "test:coverage:json": "vitest run --coverage --reporter=json",
     "type-check": "tsc --noEmit",
-    "generate-sri": "node scripts/generate-sri.js",
+    "type-check:tests": "tsc -p tsconfig.test.json --noEmit",
     "lint": "eslint --ext .js,.ts src",
+    "lint:tests": "eslint --ext .test.ts src",
     "lint:fix": "eslint --ext .js,.ts src --fix",
+    "lint:fix:tests": "eslint --ext .test.ts src --fix",
     "format": "prettier --write \"src/**/*.{js,ts}\"",
-    "format:check": "prettier --check \"src/**/*.{js,ts}\""
+    "format:check": "prettier --check \"src/**/*.{js,ts}\"",
+    "validate-tests": "pnpm type-check:tests && pnpm lint:tests",
+    "generate-sri": "node scripts/generate-sri.js"
   },
   "author": "",
   "license": "MIT",

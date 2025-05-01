@@ -43,21 +43,21 @@ describe('backoff', () => {
     });
 
     it('should calculate proper exponential backoff with default values', () => {
-      expect(calculateBackoff(0, defaultRetryConfig)).toBe(1000); // initialDelayMs * 1 * 1
-      expect(calculateBackoff(1, defaultRetryConfig)).toBe(2000); // initialDelayMs * 2 * 1
-      expect(calculateBackoff(2, defaultRetryConfig)).toBe(4000); // initialDelayMs * 2^2 * 1
+      expect(calculateBackoff(0, defaultRetryConfig)).toBe(1000);
+      expect(calculateBackoff(1, defaultRetryConfig)).toBe(2000);
+      expect(calculateBackoff(2, defaultRetryConfig)).toBe(4000);
     });
 
     it('should respect maxDelayMs', () => {
       const config = { ...defaultRetryConfig, maxDelayMs: 3000 };
       expect(calculateBackoff(0, config)).toBe(1000);
       expect(calculateBackoff(1, config)).toBe(2000);
-      expect(calculateBackoff(2, config)).toBe(3000); // Capped at maxDelayMs
+      expect(calculateBackoff(2, config)).toBe(3000);
     });
 
     it('should use Retry-After header when provided', () => {
-      expect(calculateBackoff(0, defaultRetryConfig, '5')).toBe(5000); // 5 seconds
-      expect(calculateBackoff(2, defaultRetryConfig, '10')).toBe(10000); // 10 seconds
+      expect(calculateBackoff(0, defaultRetryConfig, '5')).toBe(5000);
+      expect(calculateBackoff(2, defaultRetryConfig, '10')).toBe(10000);
     });
 
     it('should ignore invalid Retry-After header values', () => {
@@ -66,22 +66,22 @@ describe('backoff', () => {
 
     it('should apply jitter to calculated values', () => {
       vi.spyOn(Math, 'random').mockReturnValue(0);
-      expect(calculateBackoff(1, defaultRetryConfig)).toBe(1000); // 0.5x jitter
+      expect(calculateBackoff(1, defaultRetryConfig)).toBe(1000);
 
       vi.spyOn(Math, 'random').mockReturnValue(0.5);
       vi.restoreAllMocks();
       vi.spyOn(Math, 'random').mockReturnValue(0.5);
-      expect(calculateBackoff(1, defaultRetryConfig)).toBe(2000); // 1x jitter
+      expect(calculateBackoff(1, defaultRetryConfig)).toBe(2000);
 
       vi.restoreAllMocks();
       vi.spyOn(Math, 'random').mockReturnValue(1);
-      expect(calculateBackoff(1, defaultRetryConfig)).toBe(3000); // 1.5x jitter
+      expect(calculateBackoff(1, defaultRetryConfig)).toBe(3000);
     });
 
     it('should respect custom config values', () => {
-      expect(calculateBackoff(0, customConfig)).toBe(500); // initialDelayMs * 1 * 1
-      expect(calculateBackoff(1, customConfig)).toBe(1500); // initialDelayMs * 3 * 1
-      expect(calculateBackoff(2, customConfig)).toBe(4500); // initialDelayMs * 3^2 * 1
+      expect(calculateBackoff(0, customConfig)).toBe(500);
+      expect(calculateBackoff(1, customConfig)).toBe(1500);
+      expect(calculateBackoff(2, customConfig)).toBe(4500);
     });
   });
 });
