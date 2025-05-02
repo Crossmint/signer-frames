@@ -6,17 +6,23 @@ import {
   DhkemP384HkdfSha384,
   type SenderContext,
 } from '@hpke/core';
+const PKCS8_ALG_ID_P_384 = new Uint8Array([
+  48, 78, 2, 1, 0, 48, 16, 6, 7, 42, 134, 72, 206, 61, 2, 1, 6, 5, 43, 129, 4, 0, 34, 4, 55, 48, 53,
+  2, 1, 1, 4, 48,
+]);
 
 import type { AttestationService } from './attestation';
 import { z } from 'zod';
 import {
   AES256_KEY_SPEC,
   ECDH_KEY_SPEC,
-  SerializedKeySchema,
   STORAGE_KEYS,
+  SerializedPrivateKeySchema,
+  SerializedPublicKeySchema,
   type EncryptionResult,
   type DecryptOptions,
-  type SerializedKey,
+  type SerializedPrivateKey,
+  type SerializedPublicKey,
 } from './encryption-consts';
 
 export class EncryptionService extends XMIFService {
@@ -38,6 +44,7 @@ export class EncryptionService extends XMIFService {
     super();
   }
 
+  // Initialization
   async init(): Promise<void> {
     try {
       await this.initEphemeralKeyPair();
@@ -46,6 +53,12 @@ export class EncryptionService extends XMIFService {
     } catch (error) {
       this.log(`Failed to initialize encryption service: ${error}`);
       throw new Error('Encryption initialization failed');
+    }
+  }
+
+  assertInitialized() {
+    if (!this.ephemeralKeyPair || !this.senderContext) {
+      throw new Error('EncryptionService not initialized');
     }
   }
 
@@ -62,41 +75,38 @@ export class EncryptionService extends XMIFService {
   async initFromLocalStorage(): Promise<CryptoKeyPair | null> {
     try {
       const existingKeyPair = localStorage.getItem(STORAGE_KEYS.KEY_PAIR);
-
       if (!existingKeyPair) {
         return null;
       }
-
-      return await this.deserializeKeyPair(this.base64ToArrayBuffer(existingKeyPair));
+      return await this.deserializeKeyPair(this.base64ToBuffer(existingKeyPair));
     } catch (error: unknown) {
       this.logError(`Error initializing from localStorage: ${error}`);
       return null;
     }
   }
 
+  private async initSenderContext() {
+    const recipientPublicKey = await this.getTeePublicKey();
+    this.senderContext = await this.suite.createSenderContext({
+      recipientPublicKey,
+    });
+  }
+
   private async saveKeyPairToLocalStorage(): Promise<void> {
-    if (
-      !this.ephemeralKeyPair ||
-      !this.ephemeralKeyPair.privateKey ||
-      !this.ephemeralKeyPair.publicKey
-    ) {
+    if (!this.ephemeralKeyPair) {
       throw new Error('Encryption key pair not initialized');
     }
 
     try {
       const serializedKeyPair = await this.serializeKeyPair(this.ephemeralKeyPair);
-      localStorage.setItem(STORAGE_KEYS.KEY_PAIR, this.arrayBufferToBase64(serializedKeyPair));
+      localStorage.setItem(STORAGE_KEYS.KEY_PAIR, this.bufferToBase64(serializedKeyPair));
     } catch (error) {
       this.logError(`Failed to save key pair to localStorage: ${error}`);
       throw new Error('Failed to persist encryption keys');
     }
   }
 
-  assertInitialized() {
-    if (!this.ephemeralKeyPair || !this.senderContext) {
-      throw new Error('EncryptionService not initialized');
-    }
-  }
+  // Encryption
 
   async encrypt<T extends Record<string, unknown>>(
     data: T
@@ -115,7 +125,7 @@ export class EncryptionService extends XMIFService {
         this.serialize({
           data,
           encryptionContext: {
-            senderPublicKey: this.arrayBufferToBase64(serializedPublicKey),
+            senderPublicKey: this.bufferToBase64(serializedPublicKey),
           },
         })
       );
@@ -137,9 +147,9 @@ export class EncryptionService extends XMIFService {
     const { ciphertext, encapsulatedKey, publicKey } = await this.encrypt(data);
 
     return {
-      ciphertext: this.arrayBufferToBase64(ciphertext),
-      encapsulatedKey: this.arrayBufferToBase64(encapsulatedKey),
-      publicKey: this.arrayBufferToBase64(publicKey),
+      ciphertext: this.bufferToBase64(ciphertext),
+      encapsulatedKey: this.bufferToBase64(encapsulatedKey),
+      publicKey: this.bufferToBase64(publicKey),
     };
   }
 
@@ -153,8 +163,8 @@ export class EncryptionService extends XMIFService {
       ephemeralKeyPair: this.ephemeralKeyPair as NonNullable<typeof this.ephemeralKeyPair>,
     };
 
-    const ciphertext = this.parseBufferOrStringToBuffer(ciphertextInput);
-    const encapsulatedKey = this.parseBufferOrStringToBuffer(encapsulatedKeyInput);
+    const ciphertext = this.bufferOrStringToBuffer(ciphertextInput);
+    const encapsulatedKey = this.bufferOrStringToBuffer(encapsulatedKeyInput);
 
     try {
       const recipientConfig = {
@@ -165,7 +175,7 @@ export class EncryptionService extends XMIFService {
       if (validateTeeSender) {
         const attestationPublicKey = await this.attestationService.getPublicKeyFromAttestation();
         const senderPublicKey = await this.suite.kem.deserializePublicKey(
-          this.base64ToArrayBuffer(attestationPublicKey)
+          this.base64ToBuffer(attestationPublicKey)
         );
 
         const recipientConfigWithSender = {
@@ -175,18 +185,20 @@ export class EncryptionService extends XMIFService {
 
         const recipient = await this.suite.createRecipientContext(recipientConfigWithSender);
         const plaintext = await recipient.open(ciphertext);
-        return this.deserialize<T>(plaintext);
+        return this.deserialize<{ data: T }>(plaintext).data;
       }
 
       const recipient = await this.suite.createRecipientContext(recipientConfig);
       const plaintext = await recipient.open(ciphertext);
 
-      return this.deserialize<T>(plaintext);
+      return this.deserialize<{ data: T }>(plaintext).data;
     } catch (error) {
       this.logError(`Decryption failed: ${error}`);
       throw new Error('Failed to decrypt data');
     }
   }
+
+  // Key derivation
 
   private async deriveAES256EncryptionKey(): Promise<CryptoKey> {
     this.assertInitialized();
@@ -195,7 +207,7 @@ export class EncryptionService extends XMIFService {
     };
     const recipientPublicKeyBuffer = await this.attestationService
       .getPublicKeyFromAttestation()
-      .then(this.base64ToArrayBuffer);
+      .then(this.base64ToBuffer);
     const recipientPublicKey = await this.suite.kem.deserializePublicKey(recipientPublicKeyBuffer);
     return this.cryptoApi.deriveKey(
       {
@@ -216,19 +228,9 @@ export class EncryptionService extends XMIFService {
     return new Uint8Array(await this.cryptoApi.exportKey('raw', this.aes256EncryptionKey));
   }
 
-  // Initialization functions
   private async getTeePublicKey() {
     const recipientPublicKeyString = await this.attestationService.getPublicKeyFromAttestation();
-    return await this.suite.kem.deserializePublicKey(
-      this.base64ToArrayBuffer(recipientPublicKeyString)
-    );
-  }
-
-  private async initSenderContext() {
-    const recipientPublicKey = await this.getTeePublicKey();
-    this.senderContext = await this.suite.createSenderContext({
-      recipientPublicKey,
-    });
+    return await this.suite.kem.deserializePublicKey(this.base64ToBuffer(recipientPublicKeyString));
   }
 
   private async generateKeyPair(): Promise<CryptoKeyPair> {
@@ -239,7 +241,8 @@ export class EncryptionService extends XMIFService {
     this.aes256EncryptionKey = await this.deriveAES256EncryptionKey();
   }
 
-  // Utility methods
+  // Serialization
+
   private serialize<T extends Record<string, unknown>>(data: T): ArrayBuffer {
     return new TextEncoder().encode(JSON.stringify(data));
   }
@@ -248,90 +251,85 @@ export class EncryptionService extends XMIFService {
     return JSON.parse(new TextDecoder().decode(data)) as T;
   }
 
-  private async serializeKey(
-    key: CryptoKey,
-    options: { isPublicKey?: boolean } = {}
-  ): Promise<ArrayBuffer> {
-    this.log(
-      `Serializing ${options.isPublicKey ? 'public' : 'private'} key with algorithm: ${JSON.stringify(
-        key.algorithm
-      )}`
-    );
-
-    let keyRaw: ArrayBuffer;
-    if (options.isPublicKey) {
-      keyRaw = await this.cryptoApi.exportKey('raw', key);
-    } else {
-      const jwk = await this.cryptoApi.exportKey('jwk', key);
-      if (!('d' in jwk) || !jwk.d) {
-        throw new Error('Not private key');
-      }
-      keyRaw = await this.base64UrlToArrayBuffer(jwk.d as string);
+  private async serializePrivateKey(key: CryptoKey): Promise<ArrayBuffer> {
+    const jwk = await this.cryptoApi.exportKey('jwk', key);
+    if (!('d' in jwk) || !jwk.d) {
+      throw new Error('Not a private key');
     }
-    const keyBundle: SerializedKey = {
-      raw: this.arrayBufferToBase64(keyRaw),
+
+    const keyBundle: SerializedPrivateKey = {
+      raw: jwk,
       usages: key.usages,
       algorithm: key.algorithm,
     };
 
-    return this.serialize(SerializedKeySchema.parse(keyBundle));
+    return this.serialize(SerializedPrivateKeySchema.parse(keyBundle));
   }
 
-  private async deserializeKey(
-    serializedKey: ArrayBuffer,
-    options: { isPublicKey?: boolean } = {}
-  ): Promise<CryptoKey> {
-    const parseResult = SerializedKeySchema.safeParse(
-      this.deserialize<SerializedKey>(serializedKey)
+  private async serializePublicKey(key: CryptoKey): Promise<ArrayBuffer> {
+    this.log(`Serializing public key with algorithm: ${JSON.stringify(key.algorithm)}`);
+    const keyBundle: SerializedPublicKey = {
+      raw: this.bufferToBase64(await this.cryptoApi.exportKey('raw', key)),
+      algorithm: key.algorithm,
+    };
+
+    return this.serialize(SerializedPublicKeySchema.parse(keyBundle));
+  }
+
+  private async deserializePublicKey(serializedKey: ArrayBuffer): Promise<CryptoKey> {
+    const parseResult = SerializedPublicKeySchema.safeParse(
+      this.deserialize<SerializedPublicKey>(serializedKey)
+    );
+    if (!parseResult.success) {
+      throw new Error('Invalid key serialization');
+    }
+    const { raw, algorithm } = parseResult.data;
+    const rawBuffer = this.base64ToBuffer(raw);
+    return this.cryptoApi.importKey('raw', rawBuffer, algorithm, true, []);
+  }
+
+  private async deserializePrivateKey(serializedKey: ArrayBuffer): Promise<CryptoKey> {
+    const parseResult = SerializedPrivateKeySchema.safeParse(
+      this.deserialize<SerializedPrivateKey>(serializedKey)
     );
     if (!parseResult.success) {
       throw new Error('Invalid key serialization');
     }
     const { raw, algorithm, usages } = parseResult.data;
-    return this.cryptoApi.importKey(
-      'raw',
-      this.base64ToArrayBuffer(raw),
-      algorithm,
-      true,
-      options.isPublicKey ? usages : []
-    );
+    return await this.cryptoApi.importKey('jwk', raw, algorithm, true, usages);
   }
 
   private async serializeKeyPair(keyPair: CryptoKeyPair): Promise<ArrayBuffer> {
+    const privateKey = await this.serializePrivateKey(keyPair.privateKey);
+    const publicKey = await this.serializePublicKey(keyPair.publicKey);
     return this.serialize({
-      privateKey: this.arrayBufferToBase64(await this.serializeKey(keyPair.privateKey)),
-      publicKey: this.arrayBufferToBase64(
-        await this.serializeKey(keyPair.publicKey, {
-          isPublicKey: true,
-        })
-      ),
+      privateKey,
+      publicKey,
     });
   }
 
   private async deserializeKeyPair(serializedKeyPair: ArrayBuffer): Promise<CryptoKeyPair> {
-    const parseResult = z
-      .object({
-        privateKey: z.string(),
-        publicKey: z.string(),
-      })
-      .safeParse(this.deserialize<{ privateKey: string; publicKey: string }>(serializedKeyPair));
-    if (!parseResult.success) {
-      throw new Error('Invalid key pair serialization');
-    }
-    const keyPairBundle = parseResult.data;
+    const keyPairBundle = this.deserialize<{ privateKey: string; publicKey: string }>(
+      serializedKeyPair
+    );
+    const privateKey = await this.deserializePrivateKey(
+      this.base64ToBuffer(keyPairBundle.privateKey)
+    );
+    const publicKey = await this.deserializePublicKey(this.base64ToBuffer(keyPairBundle.publicKey));
+
     return {
-      privateKey: await this.deserializeKey(this.base64ToArrayBuffer(keyPairBundle.privateKey)),
-      publicKey: await this.deserializeKey(this.base64ToArrayBuffer(keyPairBundle.publicKey), {
-        isPublicKey: true,
-      }),
+      privateKey,
+      publicKey,
     };
   }
 
-  private arrayBufferToBase64(buffer: ArrayBuffer): string {
+  // Encoding methods
+
+  private bufferToBase64(buffer: ArrayBuffer): string {
     return btoa(String.fromCharCode(...new Uint8Array(buffer)));
   }
 
-  private base64ToArrayBuffer(base64: string): ArrayBuffer {
+  private base64ToBuffer(base64: string): ArrayBuffer {
     const binaryString = atob(base64);
     const bytes = new Uint8Array(binaryString.length);
 
@@ -342,17 +340,7 @@ export class EncryptionService extends XMIFService {
     return bytes.buffer;
   }
 
-  private base64UrlToArrayBuffer(v: string): ArrayBuffer {
-    const base64 = v.replace(/-/g, '+').replace(/_/g, '/');
-    const byteString = atob(base64);
-    const ret = new Uint8Array(byteString.length);
-    for (let i = 0; i < byteString.length; i++) {
-      ret[i] = byteString.charCodeAt(i);
-    }
-    return ret.buffer;
-  }
-
-  private parseBufferOrStringToBuffer(value: string | ArrayBuffer): ArrayBuffer {
-    return typeof value === 'string' ? this.base64ToArrayBuffer(value) : value;
+  private bufferOrStringToBuffer(value: string | ArrayBuffer): ArrayBuffer {
+    return typeof value === 'string' ? this.base64ToBuffer(value) : value;
   }
 }

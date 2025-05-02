@@ -115,6 +115,7 @@ export class CrossmintRequest<
       this.log('Decryption successful!');
       this.log(`[TRACE] Decrypted response: ${JSON.stringify(response, null, 2)}`);
     }
+    console.log('response', JSON.stringify(response, null, 2));
     return this.outputSchema.parse(response);
   }
 }
