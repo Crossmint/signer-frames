@@ -53,9 +53,10 @@ export class EncryptionService extends XMIFService {
     const existingKeyPair = await this.initFromLocalStorage();
     if (existingKeyPair) {
       this.ephemeralKeyPair = existingKeyPair;
+    } else {
+      this.ephemeralKeyPair = await this.generateKeyPair();
+      await this.saveKeyPairToLocalStorage();
     }
-    this.ephemeralKeyPair = await this.generateKeyPair();
-    await this.saveKeyPairToLocalStorage();
   }
 
   async initFromLocalStorage(): Promise<CryptoKeyPair | null> {
