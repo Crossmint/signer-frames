@@ -32,5 +32,6 @@ export const ECDH_KEY_SPEC: EcKeyGenParams = {
 } as const;
 
 export const STORAGE_KEYS = {
-  KEY_PAIR: 'ephemeral-key-pair',
+  PRIV_KEY: 'private-key',
+  PUB_KEY: 'public-key',
 } as const;

@@ -6,13 +6,8 @@ import {
   DhkemP384HkdfSha384,
   type SenderContext,
 } from '@hpke/core';
-const PKCS8_ALG_ID_P_384 = new Uint8Array([
-  48, 78, 2, 1, 0, 48, 16, 6, 7, 42, 134, 72, 206, 61, 2, 1, 6, 5, 43, 129, 4, 0, 34, 4, 55, 48, 53,
-  2, 1, 1, 4, 48,
-]);
 
 import type { AttestationService } from './attestation';
-import { z } from 'zod';
 import {
   AES256_KEY_SPEC,
   ECDH_KEY_SPEC,
@@ -74,11 +69,15 @@ export class EncryptionService extends XMIFService {
 
   async initFromLocalStorage(): Promise<CryptoKeyPair | null> {
     try {
-      const existingKeyPair = localStorage.getItem(STORAGE_KEYS.KEY_PAIR);
-      if (!existingKeyPair) {
+      const existingPrivKey = localStorage.getItem(STORAGE_KEYS.PRIV_KEY);
+      const existingPubKey = localStorage.getItem(STORAGE_KEYS.PUB_KEY);
+      if (!existingPrivKey || !existingPubKey) {
         return null;
       }
-      return await this.deserializeKeyPair(this.base64ToBuffer(existingKeyPair));
+      return {
+        privateKey: await this.deserializePrivateKey(this.base64ToBuffer(existingPrivKey)),
+        publicKey: await this.deserializePublicKey(this.base64ToBuffer(existingPubKey)),
+      };
     } catch (error: unknown) {
       this.logError(`Error initializing from localStorage: ${error}`);
       return null;
@@ -98,8 +97,10 @@ export class EncryptionService extends XMIFService {
     }
 
     try {
-      const serializedKeyPair = await this.serializeKeyPair(this.ephemeralKeyPair);
-      localStorage.setItem(STORAGE_KEYS.KEY_PAIR, this.bufferToBase64(serializedKeyPair));
+      const serializedPrivKey = await this.serializePrivateKey(this.ephemeralKeyPair.privateKey);
+      const serializedPubKey = await this.serializePublicKey(this.ephemeralKeyPair.publicKey);
+      localStorage.setItem(STORAGE_KEYS.PRIV_KEY, this.bufferToBase64(serializedPrivKey));
+      localStorage.setItem(STORAGE_KEYS.PUB_KEY, this.bufferToBase64(serializedPubKey));
     } catch (error) {
       this.logError(`Failed to save key pair to localStorage: ${error}`);
       throw new Error('Failed to persist encryption keys');
@@ -299,32 +300,7 @@ export class EncryptionService extends XMIFService {
     return await this.cryptoApi.importKey('jwk', raw, algorithm, true, usages);
   }
 
-  private async serializeKeyPair(keyPair: CryptoKeyPair): Promise<ArrayBuffer> {
-    const privateKey = await this.serializePrivateKey(keyPair.privateKey);
-    const publicKey = await this.serializePublicKey(keyPair.publicKey);
-    return this.serialize({
-      privateKey,
-      publicKey,
-    });
-  }
-
-  private async deserializeKeyPair(serializedKeyPair: ArrayBuffer): Promise<CryptoKeyPair> {
-    const keyPairBundle = this.deserialize<{ privateKey: string; publicKey: string }>(
-      serializedKeyPair
-    );
-    const privateKey = await this.deserializePrivateKey(
-      this.base64ToBuffer(keyPairBundle.privateKey)
-    );
-    const publicKey = await this.deserializePublicKey(this.base64ToBuffer(keyPairBundle.publicKey));
-
-    return {
-      privateKey,
-      publicKey,
-    };
-  }
-
   // Encoding methods
-
   private bufferToBase64(buffer: ArrayBuffer): string {
     return btoa(String.fromCharCode(...new Uint8Array(buffer)));
   }
