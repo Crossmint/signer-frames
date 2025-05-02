@@ -6,10 +6,6 @@ describe('FPEService', () => {
   let fpeService: FPEService;
   let input: number[];
   const encryptionServiceMock = mock<EncryptionService>();
-  // const key = new Uint8Array([
-  //   156, 161, 238, 80, 84, 230, 40, 147, 212, 166, 85, 71, 189, 19, 216, 222, 239, 239, 247, 244,
-  //   254, 223, 161, 182, 178, 156, 92, 134, 113, 32, 54, 74,
-  // ]);
   const key = new Uint8Array([
     112, 105, 70, 134, 182, 201, 2, 79, 163, 230, 51, 84, 242, 105, 138, 10, 214, 195, 186, 219, 90,
     157, 132, 181, 18, 34, 253, 157, 17, 29, 46, 107,
