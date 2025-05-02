@@ -86,7 +86,8 @@ export class SendOtpEventHandler extends BaseEventHandler<'send-otp'> {
     services: XMIFServices,
     private readonly api = services.api,
     private readonly shardingService = services.sharding,
-    private readonly ed25519Service = services.ed25519
+    private readonly ed25519Service = services.ed25519,
+    private readonly fpeService = services.fpe
   ) {
     super();
   }
@@ -94,6 +95,7 @@ export class SendOtpEventHandler extends BaseEventHandler<'send-otp'> {
   responseEvent = 'response:send-otp' as const;
   handler = async (payload: SignerInputEvent<'send-otp'>) => {
     const deviceId = this.shardingService.getDeviceId();
+    // const decryptedOtp = await this.fpeService.decrypt(payload.data.encryptedOtp);
     const decryptedOtp = payload.data.encryptedOtp;
     const response = await this.api.sendOtp(
       deviceId,

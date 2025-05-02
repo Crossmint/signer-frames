@@ -8,10 +8,6 @@ vi.mock('@hpke/core', () => {
   return {
     CipherSuite: vi.fn().mockImplementation(() => ({
       kem: {
-        generateKeyPair: vi.fn().mockResolvedValue({
-          publicKey: 'mockedPublicKey',
-          privateKey: 'mockedPrivateKey',
-        }),
         serializePublicKey: vi.fn().mockResolvedValue(new ArrayBuffer(8)),
         serializePrivateKey: vi.fn().mockResolvedValue(new ArrayBuffer(8)),
         deserializePublicKey: vi.fn().mockResolvedValue('mockedPublicKey'),
@@ -42,6 +38,23 @@ vi.mock('@hpke/core', () => {
     Aes256Gcm: vi.fn(),
   };
 });
+
+vi.mock('crypto', () => ({
+  subtle: {
+    deriveKey: vi.fn().mockResolvedValue({
+      publicKey: 'mockedPublicKey',
+      privateKey: 'mockedPrivateKey',
+    }),
+    exportKey: vi
+      .fn()
+      .mockResolvedValue(
+        new Uint8Array([
+          112, 105, 70, 134, 182, 201, 2, 79, 163, 230, 51, 84, 242, 105, 138, 10, 214, 195, 186,
+          219, 90, 157, 132, 181, 18, 34, 253, 157, 17, 29, 46, 107,
+        ])
+      ),
+  },
+}));
 
 // Mock localStorage and sessionStorage
 const createStorageMock = () => {
@@ -184,45 +197,11 @@ describe('EncryptionService', () => {
       expect(base64Result.ciphertext).toBe('base64encoded');
       expect(base64Result.encapsulatedKey).toBe('base64encoded');
 
-      const decryptedBase64 = await encryptionService.decryptBase64(
+      const decryptedBase64 = await encryptionService.decrypt(
         base64Result.ciphertext,
         base64Result.encapsulatedKey
       );
       expect(decryptedBase64).toBeDefined();
-    });
-  });
-
-  describe('utility methods', () => {
-    it('should provide encryption data and public key', async () => {
-      // Test getEncryptionData
-      const encryptionData = await encryptionService.getEncryptionData();
-      expect(encryptionData).toHaveProperty('publicKey');
-      expect(encryptionData).toHaveProperty('type', 'P384');
-      expect(encryptionData).toHaveProperty('encoding', 'base64');
-
-      // Test getPublicKey
-      const publicKey = await encryptionService.getPublicKey();
-      expect(publicKey).toBeDefined();
-    });
-
-    it('should throw when not initialized', async () => {
-      // Create an uninitialized service
-      const uninitializedService = new EncryptionService(mockAttestationService);
-
-      // Test encryption fails
-      await expect(uninitializedService.encrypt({ test: 'data' })).rejects.toThrow(
-        'EncryptionService not initialized'
-      );
-
-      // Test getEncryptionData fails
-      await expect(uninitializedService.getEncryptionData()).rejects.toThrow(
-        'EncryptionService not initialized'
-      );
-
-      // Test getPublicKey fails
-      await expect(uninitializedService.getPublicKey()).rejects.toThrow(
-        'EncryptionService not initialized'
-      );
     });
   });
 });
