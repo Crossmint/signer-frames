@@ -280,7 +280,6 @@ export class EncryptionService extends XMIFService {
     serializedKey: ArrayBuffer,
     options: { isPublicKey?: boolean } = {}
   ): Promise<CryptoKey> {
-    this.log('patataaa', this.deserialize<SerializedKey>(serializedKey));
     const parseResult = SerializedKeySchema.safeParse(
       this.deserialize<SerializedKey>(serializedKey)
     );
