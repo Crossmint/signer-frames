@@ -50,17 +50,17 @@ export class EncryptionService extends XMIFService {
   }
 
   async initEphemeralKeyPair(): Promise<void> {
-    const existingKeyPair = await this.initFromSessionStorage();
+    const existingKeyPair = await this.initFromLocalStorage();
     if (existingKeyPair) {
       this.ephemeralKeyPair = existingKeyPair;
     }
     this.ephemeralKeyPair = await this.generateKeyPair();
-    await this.saveKeyPairToSessionStorage();
+    await this.saveKeyPairToLocalStorage();
   }
 
-  async initFromSessionStorage(): Promise<CryptoKeyPair | null> {
+  async initFromLocalStorage(): Promise<CryptoKeyPair | null> {
     try {
-      const existingKeyPair = sessionStorage.getItem(STORAGE_KEYS.KEY_PAIR);
+      const existingKeyPair = localStorage.getItem(STORAGE_KEYS.KEY_PAIR);
 
       if (!existingKeyPair) {
         return null;
@@ -73,7 +73,7 @@ export class EncryptionService extends XMIFService {
     }
   }
 
-  private async saveKeyPairToSessionStorage(): Promise<void> {
+  private async saveKeyPairToLocalStorage(): Promise<void> {
     if (
       !this.ephemeralKeyPair ||
       !this.ephemeralKeyPair.privateKey ||
@@ -84,7 +84,7 @@ export class EncryptionService extends XMIFService {
 
     try {
       const serializedKeyPair = await this.serializeKeyPair(this.ephemeralKeyPair);
-      sessionStorage.setItem(STORAGE_KEYS.KEY_PAIR, this.arrayBufferToBase64(serializedKeyPair));
+      localStorage.setItem(STORAGE_KEYS.KEY_PAIR, this.arrayBufferToBase64(serializedKeyPair));
     } catch (error) {
       this.logError(`Failed to save key pair to localStorage: ${error}`);
       throw new Error('Failed to persist encryption keys');

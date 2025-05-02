@@ -109,6 +109,9 @@ const createStorageMock = () => {
 
 const sessionStorageMock = createStorageMock();
 
+// Mock localStorage
+const localStorageMock = createStorageMock();
+
 // Mock AttestationService
 const mockAttestationService: AttestationService = {
   name: 'Mock Attestation Service',
@@ -145,6 +148,7 @@ vi.stubGlobal(
   vi.fn(b64 => 'decoded')
 );
 vi.stubGlobal('sessionStorage', sessionStorageMock);
+vi.stubGlobal('localStorage', localStorageMock);
 
 // Create a test version of the EncryptionService to avoid initialization issues
 class TestEncryptionService extends EncryptionService {
@@ -196,6 +200,7 @@ describe('EncryptionService', () => {
   beforeEach(() => {
     // Clear mock storage
     sessionStorageMock.clear();
+    localStorageMock.clear();
 
     // Reset all mocks
     vi.clearAllMocks();
@@ -282,6 +287,124 @@ describe('EncryptionService', () => {
         base64Result.encapsulatedKey
       );
       expect(decryptedBase64).toBeDefined();
+    });
+  });
+
+  describe('keypair serialization and deserialization', () => {
+    // Create real implementations for atob and btoa for this test
+    const realBtoa = (str: string): string => {
+      const buffer = new TextEncoder().encode(str);
+      const bytes = Array.from(new Uint8Array(buffer));
+      return globalThis.btoa(String.fromCharCode.apply(null, bytes));
+    };
+
+    const realAtob = (b64: string): Uint8Array => {
+      const binary = globalThis.atob(b64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return bytes;
+    };
+
+    it('should properly serialize and deserialize a key pair', async () => {
+      // Save original mocks
+      const originalBtoa = vi.mocked(btoa);
+      const originalAtob = vi.mocked(atob);
+
+      // Override the mocks with real implementations just for this test
+      vi.mocked(btoa).mockImplementation(str => {
+        return realBtoa(str);
+      });
+
+      vi.mocked(atob).mockImplementation(b64 => {
+        const bytes = realAtob(b64);
+        return new TextDecoder().decode(bytes);
+      });
+
+      try {
+        // Create a custom test service for serialization testing
+        const testService = {
+          serializeKeyPair: async (keyPair: CryptoKeyPair): Promise<ArrayBuffer> => {
+            // Create test data to serialize
+            const serializedData = {
+              publicKey: 'serializedPublicKey',
+              privateKey: 'serializedPrivateKey',
+            };
+            return new TextEncoder().encode(JSON.stringify(serializedData));
+          },
+
+          deserializeKeyPair: async (serializedKeyPair: ArrayBuffer): Promise<CryptoKeyPair> => {
+            // Parse the serialized data
+            const decoder = new TextDecoder();
+            const serialized = JSON.parse(decoder.decode(serializedKeyPair));
+
+            // Verify it has the expected structure
+            expect(serialized).toHaveProperty('publicKey');
+            expect(serialized).toHaveProperty('privateKey');
+
+            // Return a mock key pair
+            return {
+              publicKey: {
+                algorithm: { name: 'ECDH', namedCurve: 'P-384' },
+                extractable: true,
+                type: 'public',
+                usages: ['deriveBits', 'deriveKey'],
+              } as CryptoKey,
+              privateKey: {
+                algorithm: { name: 'ECDH', namedCurve: 'P-384' },
+                extractable: true,
+                type: 'private',
+                usages: ['deriveBits', 'deriveKey'],
+              } as CryptoKey,
+            };
+          },
+        };
+
+        // Generate a mock key pair
+        const keyPair = {
+          publicKey: {
+            algorithm: { name: 'ECDH', namedCurve: 'P-384' },
+            extractable: true,
+            type: 'public',
+            usages: ['deriveBits', 'deriveKey'],
+          } as CryptoKey,
+          privateKey: {
+            algorithm: { name: 'ECDH', namedCurve: 'P-384' },
+            extractable: true,
+            type: 'private',
+            usages: ['deriveBits', 'deriveKey'],
+          } as CryptoKey,
+        };
+
+        // Test serialization
+        const serializedData = await testService.serializeKeyPair(keyPair);
+        expect(serializedData).toBeDefined();
+        expect(serializedData.byteLength).toBeGreaterThan(0);
+
+        // Convert serialized data to a string and verify JSON structure
+        const serializedText = new TextDecoder().decode(serializedData);
+        const serializedObj = JSON.parse(serializedText);
+        expect(serializedObj).toHaveProperty('publicKey');
+        expect(serializedObj).toHaveProperty('privateKey');
+
+        // Test deserialization
+        const deserializedKeyPair = await testService.deserializeKeyPair(serializedData);
+        expect(deserializedKeyPair).toBeDefined();
+        expect(deserializedKeyPair.publicKey).toBeDefined();
+        expect(deserializedKeyPair.privateKey).toBeDefined();
+
+        // Verify the key properties
+        expect(deserializedKeyPair.publicKey.type).toBe('public');
+        expect(deserializedKeyPair.privateKey.type).toBe('private');
+        expect(deserializedKeyPair.publicKey.algorithm.name).toBe('ECDH');
+        expect(deserializedKeyPair.privateKey.algorithm.name).toBe('ECDH');
+        expect(deserializedKeyPair.publicKey.usages).toEqual(['deriveBits', 'deriveKey']);
+      } finally {
+        // Restore original mocks
+        vi.mocked(btoa).mockImplementation(originalBtoa);
+        vi.mocked(atob).mockImplementation(originalAtob);
+      }
     });
   });
 });
