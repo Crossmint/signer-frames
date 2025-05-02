@@ -14,17 +14,10 @@ import {
   ECDH_KEY_SPEC,
   SerializedKeySchema,
   STORAGE_KEYS,
+  type EncryptionResult,
+  type DecryptOptions,
+  type SerializedKey,
 } from './encryption-consts';
-
-type EncryptionResult<T extends ArrayBuffer | string> = {
-  ciphertext: T;
-  encapsulatedKey: T;
-  publicKey: T;
-};
-
-type DecryptOptions = {
-  validateTeeSender: boolean;
-};
 
 export class EncryptionService extends XMIFService {
   name = 'Encryption service';
@@ -272,49 +265,47 @@ export class EncryptionService extends XMIFService {
       if (!('d' in jwk) || !jwk.d) {
         throw new Error('Not private key');
       }
-      this.log('jwk.d', jwk.d);
       keyRaw = await this.base64UrlToArrayBuffer(jwk.d as string);
     }
-    const keyBundle = {
-      raw: keyRaw,
+    const keyBundle: SerializedKey = {
+      raw: this.arrayBufferToBase64(keyRaw),
       usages: key.usages,
       algorithm: key.algorithm,
     };
 
-    return new TextEncoder().encode(JSON.stringify(SerializedKeySchema.parse(keyBundle)));
+    return this.serialize(SerializedKeySchema.parse(keyBundle));
   }
 
   private async deserializeKey(
     serializedKey: ArrayBuffer,
     options: { isPublicKey?: boolean } = {}
   ): Promise<CryptoKey> {
+    this.log('patataaa', this.deserialize<SerializedKey>(serializedKey));
     const parseResult = SerializedKeySchema.safeParse(
-      JSON.parse(new TextDecoder().decode(serializedKey))
+      this.deserialize<SerializedKey>(serializedKey)
     );
     if (!parseResult.success) {
       throw new Error('Invalid key serialization');
     }
-    const keyBundle = parseResult.data;
+    const { raw, algorithm, usages } = parseResult.data;
     return this.cryptoApi.importKey(
       'raw',
-      keyBundle.raw,
-      keyBundle.algorithm,
+      this.base64ToArrayBuffer(raw),
+      algorithm,
       true,
-      options.isPublicKey ? keyBundle.usages : []
+      options.isPublicKey ? usages : []
     );
   }
 
   private async serializeKeyPair(keyPair: CryptoKeyPair): Promise<ArrayBuffer> {
-    return new TextEncoder().encode(
-      JSON.stringify({
-        privateKey: this.arrayBufferToBase64(await this.serializeKey(keyPair.privateKey)),
-        publicKey: this.arrayBufferToBase64(
-          await this.serializeKey(keyPair.publicKey, {
-            isPublicKey: true,
-          })
-        ),
-      })
-    );
+    return this.serialize({
+      privateKey: this.arrayBufferToBase64(await this.serializeKey(keyPair.privateKey)),
+      publicKey: this.arrayBufferToBase64(
+        await this.serializeKey(keyPair.publicKey, {
+          isPublicKey: true,
+        })
+      ),
+    });
   }
 
   private async deserializeKeyPair(serializedKeyPair: ArrayBuffer): Promise<CryptoKeyPair> {
@@ -323,7 +314,7 @@ export class EncryptionService extends XMIFService {
         privateKey: z.string(),
         publicKey: z.string(),
       })
-      .safeParse(JSON.parse(new TextDecoder().decode(serializedKeyPair)));
+      .safeParse(this.deserialize<{ privateKey: string; publicKey: string }>(serializedKeyPair));
     if (!parseResult.success) {
       throw new Error('Invalid key pair serialization');
     }
