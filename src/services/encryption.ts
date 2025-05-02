@@ -107,8 +107,14 @@ export class EncryptionService extends XMIFService {
     }
   }
 
-  // Encryption
+  async getPublicKey(): Promise<string> {
+    this.assertInitialized();
+    const ephemeralKeyPair = this.ephemeralKeyPair as NonNullable<typeof this.ephemeralKeyPair>;
+    const serializedPublicKey = await this.suite.kem.serializePublicKey(ephemeralKeyPair.publicKey);
+    return this.bufferToBase64(serializedPublicKey);
+  }
 
+  // Encryption
   async encrypt<T extends Record<string, unknown>>(
     data: T
   ): Promise<EncryptionResult<ArrayBuffer>> {

@@ -84,13 +84,16 @@ describe('CrossmintApiService', () => {
     });
 
     it('should properly call sendOtp with correct parameters and return shares', async () => {
-      const data = { otp: '123456' };
+      const data = { otp: '123456', publicKey: 'test-public-key' };
       const mockResponse = { shares: { device: 'device-share', auth: 'auth-share' } };
       executeSpy.mockResolvedValueOnce(mockResponse);
 
       const result = await apiService.sendOtp(deviceId, data, authData);
 
-      expect(executeSpy).toHaveBeenCalledWith(expect.objectContaining({ otp: '123456' }), authData);
+      expect(executeSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ otp: '123456', publicKey: 'test-public-key' }),
+        authData
+      );
       expect(result).toEqual(mockResponse);
     });
   });

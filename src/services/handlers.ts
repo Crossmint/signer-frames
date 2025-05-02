@@ -87,6 +87,7 @@ export class SendOtpEventHandler extends BaseEventHandler<'send-otp'> {
     private readonly api = services.api,
     private readonly shardingService = services.sharding,
     private readonly ed25519Service = services.ed25519,
+    private readonly encryptionService = services.encrypt,
     private readonly fpeService = services.fpe
   ) {
     super();
@@ -97,10 +98,12 @@ export class SendOtpEventHandler extends BaseEventHandler<'send-otp'> {
     const deviceId = this.shardingService.getDeviceId();
     // const decryptedOtp = await this.fpeService.decrypt(payload.data.encryptedOtp);
     const decryptedOtp = payload.data.encryptedOtp;
+    const senderPublicKey = await this.encryptionService.getPublicKey();
     const response = await this.api.sendOtp(
       deviceId,
       {
         otp: decryptedOtp,
+        publicKey: senderPublicKey,
       },
       payload.authData
     );
