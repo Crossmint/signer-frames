@@ -11,7 +11,7 @@ import { FPEService } from './fpe';
  * Services index - Export all services
  */
 export { initializeHandlers } from './handlers';
-export type { XMIFService } from './service';
+export { XMIFService } from './service';
 
 export type XMIFServices = {
   events: EventsService;

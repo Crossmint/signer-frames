@@ -11,24 +11,29 @@ describe('FPEService', () => {
     157, 132, 181, 18, 34, 253, 157, 17, 29, 46, 107,
   ]);
 
-  beforeEach(() => {
+  beforeEach(async () => {
     input = Array.from({ length: 6 }, () => Math.floor(Math.random() * 10));
     encryptionServiceMock.getAES256EncryptionKey.mockResolvedValue(key);
     fpeService = new FPEService(encryptionServiceMock);
+    await fpeService.init();
+    encryptionServiceMock.assertInitialized.mockImplementation(() => {
+      return;
+    });
+    encryptionServiceMock.getAES256EncryptionKey.mockResolvedValue(key);
   });
 
   describe('encrypt-decrypt', () => {
-    it('should encrypt  and decrypt a number array', async () => {
+    it('should encrypt and decrypt a number array', async () => {
       const encrypted = await fpeService.encrypt(input);
       const decrypted = await fpeService.decrypt(encrypted);
       expect(decrypted).toEqual(input);
     });
 
     // Skipped due to performance, but can be run manually if needed
-    it(
+    it.skip(
       'exhaustive operational check',
       async () => {
-        for (let i = 0; i < 100000; i++) {
+        for (let i = 0; i < 1_000_000; i++) {
           const digits = i.toString().padStart(6, '0').split('').map(Number);
           const encrypted = await fpeService.encrypt(digits);
           const decrypted = await fpeService.decrypt(encrypted);

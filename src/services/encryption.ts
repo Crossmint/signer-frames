@@ -98,20 +98,20 @@ export class EncryptionService extends XMIFService {
     }
   }
 
-  private assertInitialized() {
+  assertInitialized() {
     if (!this.ephemeralKeyPair || !this.senderContext) {
       throw new Error('EncryptionService not initialized');
     }
-    return {
-      ephemeralKeyPair: this.ephemeralKeyPair,
-      senderContext: this.senderContext,
-    };
   }
 
   async encrypt<T extends Record<string, unknown>>(
     data: T
   ): Promise<EncryptionResult<ArrayBuffer>> {
-    const { ephemeralKeyPair, senderContext } = this.assertInitialized();
+    this.assertInitialized();
+    const { ephemeralKeyPair, senderContext } = {
+      ephemeralKeyPair: this.ephemeralKeyPair as NonNullable<typeof this.ephemeralKeyPair>,
+      senderContext: this.senderContext as NonNullable<typeof this.senderContext>,
+    };
 
     try {
       const serializedPublicKey = await this.suite.kem.serializePublicKey(
@@ -154,7 +154,10 @@ export class EncryptionService extends XMIFService {
     encapsulatedKeyInput: U,
     { validateTeeSender = true }: Partial<DecryptOptions> = {}
   ): Promise<T> {
-    const { ephemeralKeyPair } = this.assertInitialized();
+    this.assertInitialized();
+    const { ephemeralKeyPair } = {
+      ephemeralKeyPair: this.ephemeralKeyPair as NonNullable<typeof this.ephemeralKeyPair>,
+    };
 
     const ciphertext = this.parseBufferOrStringToBuffer(ciphertextInput);
     const encapsulatedKey = this.parseBufferOrStringToBuffer(encapsulatedKeyInput);
@@ -192,7 +195,10 @@ export class EncryptionService extends XMIFService {
   }
 
   private async deriveAES256EncryptionKey(): Promise<CryptoKey> {
-    const { ephemeralKeyPair } = this.assertInitialized();
+    this.assertInitialized();
+    const { ephemeralKeyPair } = {
+      ephemeralKeyPair: this.ephemeralKeyPair as NonNullable<typeof this.ephemeralKeyPair>,
+    };
     const recipientPublicKeyBuffer = await this.attestationService
       .getPublicKeyFromAttestation()
       .then(this.base64ToArrayBuffer);
