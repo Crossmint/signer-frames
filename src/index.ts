@@ -3,7 +3,6 @@
  */
 
 import { initializeHandlers, createXMIFServices } from './services';
-import { XMIFService } from './services';
 import type { EventHandler } from './services/handlers';
 
 // Define window augmentation
