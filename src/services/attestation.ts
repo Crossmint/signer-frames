@@ -54,7 +54,7 @@ export class AttestationService extends XMIFService {
   }
 
   private async fetchAttestationDoc(): Promise<AttestationDocument> {
-    const response = await fetch('https://tee-ts.onrender.com/attestation', {});
+    const response = await fetch('http://localhost:3001/attestation', {});
     return await response.json();
   }
 

@@ -55,7 +55,8 @@ export class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> 
     services: XMIFServices,
     private readonly api = services.api,
     private readonly shardingService = services.sharding,
-    private readonly ed25519Service = services.ed25519
+    private readonly ed25519Service = services.ed25519,
+    private readonly encryptionService = services.encrypt
   ) {
     super();
   }
@@ -76,7 +77,16 @@ export class CreateSignerEventHandler extends BaseEventHandler<'create-signer'> 
 
     console.log('Signer not yet initialized, creating a new one...');
     const deviceId = this.shardingService.getDeviceId();
-    await this.api.createSigner(deviceId, payload.data, payload.authData);
+    await this.api.createSigner(
+      deviceId,
+      {
+        ...payload.data,
+        encryptionContext: {
+          publicKey: await this.encryptionService.getPublicKey(),
+        },
+      },
+      payload.authData
+    );
     return {};
   }
 }
@@ -96,8 +106,11 @@ export class SendOtpEventHandler extends BaseEventHandler<'send-otp'> {
   responseEvent = 'response:send-otp' as const;
   handler = async (payload: SignerInputEvent<'send-otp'>) => {
     const deviceId = this.shardingService.getDeviceId();
-    // const decryptedOtp = await this.fpeService.decrypt(payload.data.encryptedOtp);
-    const decryptedOtp = payload.data.encryptedOtp;
+    const decryptedOtp = (
+      await this.fpeService.decrypt(payload.data.encryptedOtp.split('').map(Number))
+    ).join('');
+
+    // const decryptedOtp = payload.data.encryptedOtp;
     const senderPublicKey = await this.encryptionService.getPublicKey();
     const response = await this.api.sendOtp(
       deviceId,
