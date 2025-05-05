@@ -69,7 +69,13 @@ describe('CrossmintApiService', () => {
     const authData = { jwt: 'test-jwt', apiKey: 'test-api-key' };
 
     it('should properly call createSigner with correct parameters', async () => {
-      const data = { authId: 'test-auth-id', chainLayer: 'solana' };
+      const data = {
+        authId: 'test-auth-id',
+        chainLayer: 'solana',
+        encryptionContext: {
+          publicKey: 'test-public-key',
+        },
+      };
       executeSpy.mockResolvedValueOnce({ success: true });
 
       await apiService.createSigner(deviceId, data, authData);
@@ -78,6 +84,9 @@ describe('CrossmintApiService', () => {
         expect.objectContaining({
           authId: 'test-auth-id',
           chainLayer: 'solana',
+          encryptionContext: {
+            publicKey: 'test-public-key',
+          },
         }),
         authData
       );
