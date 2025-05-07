@@ -4,6 +4,7 @@
 
 import { initializeHandlers, createXMIFServices } from './services';
 import type { EventHandler } from './services/handlers';
+import { measureFunctionTime } from './services/utils';
 
 // Define window augmentation
 declare global {
@@ -54,7 +55,7 @@ class XMIF {
     for (const service of Object.values(this.services)) {
       const serviceName = service.name;
       console.log(`-- Initializing ${serviceName}`);
-      await service.init();
+      await measureFunctionTime(`[${serviceName} init]`, () => service.init());
       console.log(`-- ${serviceName} initialized!`);
     }
 
