@@ -8,20 +8,25 @@ import type { RetryConfig } from './backoff';
 import { z } from 'zod';
 import type { EncryptionService } from './encryption';
 import { type AuthData, CrossmintRequest } from './request';
+export type Environment = 'development' | 'staging' | 'production';
 
-function getHeaders({ jwt, apiKey }: { jwt: string; apiKey: string }) {
+function getHeaders(authData?: AuthData) {
   return {
     'Content-Type': 'application/json',
-    Authorization: `Bearer ${jwt}`,
-    'x-api-key': apiKey,
     ...(window?.crossmintAppId != null ? { 'x-app-identifier': window?.crossmintAppId } : {}),
+    ...(authData != null
+      ? {
+          Authorization: `Bearer ${authData.jwt}`,
+          'x-api-key': authData.apiKey,
+        }
+      : {}),
   };
 }
 
 // Export parseApiKey function to make it accessible for tests
 export function parseApiKey(apiKey: string): {
   origin: 'server' | 'client';
-  environment: 'development' | 'staging' | 'production';
+  environment: Environment;
 } {
   let origin: 'server' | 'client';
   switch (apiKey.slice(0, 2)) {
@@ -52,13 +57,12 @@ export class CrossmintApiService extends XMIFService {
   name = 'Crossmint API Service';
   log_prefix = '[CrossmintApiService]';
   private retryConfig: RetryConfig;
+  private readonly environment: Environment;
 
-  constructor(
-    private readonly encryptionService: EncryptionService,
-    private readonly apiKeyService = new ApiKeyService()
-  ) {
+  constructor(private readonly encryptionService: EncryptionService) {
     super();
     this.retryConfig = defaultRetryConfig;
+    this.environment = 'staging'; // TODO: Make this configurable
   }
 
   async init() {}
@@ -86,6 +90,11 @@ export class CrossmintApiService extends XMIFService {
     keyShare: z.string(),
   });
 
+  static getAttestationInputSchema = z.undefined();
+  static getAttestationOutputSchema = z.object({
+    publicKey: z.string(),
+  });
+
   async createSigner(
     deviceId: string,
     input: z.infer<typeof CrossmintApiService.createSignerInputSchema>,
@@ -96,14 +105,15 @@ export class CrossmintApiService extends XMIFService {
       name: 'createSigner',
       inputSchema: CrossmintApiService.createSignerInputSchema,
       outputSchema: CrossmintApiService.createSignerOutputSchema,
-      endpoint: (_input, authData) =>
-        `${this.apiKeyService.getBaseUrl(authData.apiKey)}/${deviceId}`,
+      environment: parseApiKey(authData.apiKey).environment,
+      authData,
+      endpoint: _input => `/${deviceId}`,
       method: 'POST',
       encrypted: false,
       encryptionService: this.encryptionService,
       getHeaders,
     });
-    return request.execute(input, authData);
+    return request.execute(input);
   }
 
   async sendOtp(
@@ -114,16 +124,32 @@ export class CrossmintApiService extends XMIFService {
     CrossmintApiService.sendOtpInputSchema.parse(input);
     const request = new CrossmintRequest({
       name: 'sendOtp',
+      authData,
       inputSchema: CrossmintApiService.sendOtpInputSchema,
       outputSchema: CrossmintApiService.sendOtpOutputSchema,
-      endpoint: (_input, authData) =>
-        `${this.apiKeyService.getBaseUrl(authData.apiKey)}/${deviceId}/auth`,
+      environment: parseApiKey(authData.apiKey).environment,
+      endpoint: _input => `/${deviceId}/auth`,
       method: 'POST',
       encrypted: true,
       encryptionService: this.encryptionService,
       getHeaders,
     });
-    return request.execute(input, authData);
+    return request.execute(input);
+  }
+
+  async getAttestation(): Promise<z.infer<typeof CrossmintApiService.getAttestationOutputSchema>> {
+    const request = new CrossmintRequest({
+      name: 'getAttestation',
+      inputSchema: CrossmintApiService.getAttestationInputSchema,
+      outputSchema: CrossmintApiService.getAttestationOutputSchema,
+      environment: this.environment,
+      endpoint: () => '/attestation',
+      method: 'GET',
+      encrypted: false,
+      encryptionService: this.encryptionService,
+      getHeaders,
+    });
+    return request.execute(undefined);
   }
 
   async getAuthShard(
@@ -136,14 +162,15 @@ export class CrossmintApiService extends XMIFService {
       name: 'getAuthShard',
       inputSchema: CrossmintApiService.getAuthShardInputSchema,
       outputSchema: CrossmintApiService.getAuthShardOutputSchema,
-      endpoint: (_input, authData) =>
-        `${this.apiKeyService.getBaseUrl(authData.apiKey)}/${deviceId}/key-shares`,
+      environment: parseApiKey(authData.apiKey).environment,
+      authData,
+      endpoint: _input => `/${deviceId}/key-shares`,
       method: 'GET',
       encrypted: false,
       encryptionService: this.encryptionService,
       getHeaders,
     });
-    return request.execute(undefined, authData);
+    return request.execute(undefined);
   }
 
   protected async fetchWithRetry(
@@ -183,32 +210,5 @@ export class CrossmintApiService extends XMIFService {
       // If max retries reached, throw the error
       throw error;
     }
-  }
-
-  // Make the getBaseUrl method public for testing
-  getBaseUrl(apiKey: string) {
-    return this.apiKeyService.getBaseUrl(apiKey);
-  }
-}
-
-class ApiKeyService {
-  getBaseUrl(apiKey: string) {
-    const { environment } = parseApiKey(apiKey);
-    const basePath = 'api/unstable/wallets/ncs';
-    let baseUrl: string;
-    switch (environment) {
-      case 'development':
-        baseUrl = 'http://localhost:3000';
-        break;
-      case 'staging':
-        baseUrl = 'https://staging.crossmint.com';
-        break;
-      case 'production':
-        baseUrl = 'https://crossmint.com';
-        break;
-      default:
-        throw new Error('Invalid environment');
-    }
-    return `${baseUrl}/${basePath}`;
   }
 }

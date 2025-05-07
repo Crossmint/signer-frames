@@ -5,15 +5,9 @@ import type {
 } from '@crossmint/client-signers';
 import bs58 from 'bs58';
 import type { XMIFServices } from '.';
+import { measureFunctionTime } from './utils';
 const DEFAULT_TIMEOUT_MS = 30_000;
 
-const measureFunctionTime = async <T>(fnName: string, fn: () => Promise<T>): Promise<T> => {
-  const start = performance.now();
-  const result = await fn();
-  const end = performance.now();
-  console.log(`Function ${fnName} took ${end - start}ms to execute`);
-  return result;
-};
 export interface EventHandler<EventName extends SignerIFrameEventName = SignerIFrameEventName> {
   event: `request:${EventName}`;
   responseEvent: `response:${EventName}`;

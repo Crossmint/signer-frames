@@ -1,3 +1,4 @@
+import type { CrossmintApiService } from './api';
 import { XMIFService } from './service';
 
 type AttestationDocument = { publicKey: string } & Record<string, unknown>; // TODO: Improve types
@@ -16,6 +17,10 @@ export type ValidateAttestationDocumentResult =
 export class AttestationService extends XMIFService {
   name = 'Attestation Service';
   log_prefix = '[AttestationService]';
+
+  constructor(private readonly api: CrossmintApiService) {
+    super();
+  }
 
   // This being not null implicitly assumes validation
   private attestationDoc: AttestationDocument | null = null;
@@ -54,8 +59,7 @@ export class AttestationService extends XMIFService {
   }
 
   private async fetchAttestationDoc(): Promise<AttestationDocument> {
-    const response = await fetch('https://tee-ts.onrender.com/attestation', {});
-    return await response.json();
+    return this.api.getAttestation();
   }
 
   private assertInitialized(): NonNullable<typeof this.attestationDoc> {
