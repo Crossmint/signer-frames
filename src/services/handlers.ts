@@ -106,11 +106,13 @@ export class SendOtpEventHandler extends BaseEventHandler<'send-otp'> {
   responseEvent = 'response:send-otp' as const;
   handler = async (payload: SignerInputEvent<'send-otp'>) => {
     const deviceId = this.shardingService.getDeviceId();
+    console.log(
+      `[DEBUG, ${this.event} handler] Received encrypted OTP: ${payload.data.encryptedOtp}. Decrypting`
+    );
     const decryptedOtp = (
       await this.fpeService.decrypt(payload.data.encryptedOtp.split('').map(Number))
     ).join('');
-
-    // const decryptedOtp = payload.data.encryptedOtp;
+    console.log(`[DEBUG, ${this.event} handler] Decrypted OTP: ${decryptedOtp}.`);
     const senderPublicKey = await this.encryptionService.getPublicKey();
     const response = await this.api.sendOtp(
       deviceId,
