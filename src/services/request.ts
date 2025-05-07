@@ -107,7 +107,7 @@ export class CrossmintRequest<
       this.log('Detected encrypted response. Decrypting...');
       this.log(`[TRACE] Parsing encrypted response ${JSON.stringify(apiResponse, null, 2)}...`);
       const parsedResponseData = this.encryptedPayloadSchema.parse(apiResponse);
-      response = await this.encryptionService.decryptBase64(
+      response = await this.encryptionService.decrypt(
         parsedResponseData.ciphertext,
         parsedResponseData.encapsulatedKey,
         { validateTeeSender: true }

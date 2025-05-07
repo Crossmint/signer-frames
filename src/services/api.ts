@@ -64,10 +64,15 @@ export class CrossmintApiService extends XMIFService {
   async init() {}
 
   // Zod schemas
-  static createSignerInputSchema = z.object({ authId: z.string() });
+  static createSignerInputSchema = z.object({
+    authId: z.string(),
+    encryptionContext: z.object({
+      publicKey: z.string(),
+    }),
+  });
   static createSignerOutputSchema = z.object({});
 
-  static sendOtpInputSchema = z.object({ otp: z.string() });
+  static sendOtpInputSchema = z.object({ otp: z.string(), publicKey: z.string() });
   static sendOtpOutputSchema = z.object({
     shares: z.object({
       device: z.string(),

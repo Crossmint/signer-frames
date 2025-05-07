@@ -69,7 +69,13 @@ describe('CrossmintApiService', () => {
     const authData = { jwt: 'test-jwt', apiKey: 'test-api-key' };
 
     it('should properly call createSigner with correct parameters', async () => {
-      const data = { authId: 'test-auth-id', chainLayer: 'solana' };
+      const data = {
+        authId: 'test-auth-id',
+        chainLayer: 'solana',
+        encryptionContext: {
+          publicKey: 'test-public-key',
+        },
+      };
       executeSpy.mockResolvedValueOnce({ success: true });
 
       await apiService.createSigner(deviceId, data, authData);
@@ -78,19 +84,25 @@ describe('CrossmintApiService', () => {
         expect.objectContaining({
           authId: 'test-auth-id',
           chainLayer: 'solana',
+          encryptionContext: {
+            publicKey: 'test-public-key',
+          },
         }),
         authData
       );
     });
 
     it('should properly call sendOtp with correct parameters and return shares', async () => {
-      const data = { otp: '123456' };
+      const data = { otp: '123456', publicKey: 'test-public-key' };
       const mockResponse = { shares: { device: 'device-share', auth: 'auth-share' } };
       executeSpy.mockResolvedValueOnce(mockResponse);
 
       const result = await apiService.sendOtp(deviceId, data, authData);
 
-      expect(executeSpy).toHaveBeenCalledWith(expect.objectContaining({ otp: '123456' }), authData);
+      expect(executeSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ otp: '123456', publicKey: 'test-public-key' }),
+        authData
+      );
       expect(result).toEqual(mockResponse);
     });
   });

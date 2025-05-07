@@ -61,6 +61,8 @@ describe('EventHandlers', () => {
         },
       };
 
+      mockServices.fpe.decrypt.mockResolvedValue([1, 2, 3, 4, 5, 6]);
+
       mockServices.api.sendOtp.mockResolvedValue({
         shares: TEST_FIXTURES.shares,
       });
@@ -75,7 +77,7 @@ describe('EventHandlers', () => {
 
       expect(mockServices.api.sendOtp).toHaveBeenCalledWith(
         TEST_FIXTURES.deviceId,
-        { otp: '123456' },
+        expect.objectContaining({ otp: '123456' }),
         testInput.authData
       );
 

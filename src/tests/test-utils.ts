@@ -8,6 +8,7 @@ import type { AttestationService } from '../services/attestation';
 import type { Ed25519Service } from '../services/ed25519';
 import type { EventsService } from '../services/events';
 import type { EncryptionService } from '../services/encryption';
+import type { FPEService } from '../services/fpe';
 
 /**
  * Creates mock services for testing with proper typing
@@ -19,6 +20,7 @@ export function createMockServices(): MockProxy<XMIFServices> & {
   ed25519: MockProxy<Ed25519Service>;
   events: MockProxy<EventsService>;
   encrypt: MockProxy<EncryptionService>;
+  fpe: MockProxy<FPEService>;
 } {
   return {
     api: mock<CrossmintApiService>(),
@@ -27,6 +29,7 @@ export function createMockServices(): MockProxy<XMIFServices> & {
     ed25519: mock<Ed25519Service>(),
     events: mock<EventsService>(),
     encrypt: mock<EncryptionService>(),
+    fpe: mock<FPEService>(),
   };
 }
 

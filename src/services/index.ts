@@ -5,12 +5,13 @@ import { EncryptionService } from './encryption';
 import { Ed25519Service } from './ed25519';
 import { ShardingService } from './sharding';
 import type { XMIFService } from './service';
+import { FPEService } from './fpe';
 
 /**
  * Services index - Export all services
  */
 export { initializeHandlers } from './handlers';
-export type { XMIFService } from './service';
+export { XMIFService } from './service';
 
 export type XMIFServices = {
   events: EventsService;
@@ -19,6 +20,7 @@ export type XMIFServices = {
   encrypt: EncryptionService;
   attestation: AttestationService;
   ed25519: Ed25519Service;
+  fpe: FPEService;
 };
 
 export const createXMIFServices = () => {
@@ -28,6 +30,7 @@ export const createXMIFServices = () => {
   const encryptionService = new EncryptionService(attestationService);
   const crossmintApiService = new CrossmintApiService(encryptionService);
   const shardingService = new ShardingService(crossmintApiService);
+  const fpeService = new FPEService(encryptionService);
   const services = {
     events: eventsService,
     attestation: attestationService,
@@ -35,6 +38,7 @@ export const createXMIFServices = () => {
     encrypt: encryptionService,
     api: crossmintApiService,
     sharding: shardingService,
+    fpe: fpeService,
   } satisfies Record<string, XMIFService>;
   return services;
 };
