@@ -57,6 +57,7 @@ export class EncryptionService extends XMIFService {
   // Initialization
   async init(): Promise<void> {
     try {
+      this.assertAttestationService();
       await this.initEphemeralKeyPair();
       await this.initSenderContext();
       await this.initSymmetricEncryptionKey();
