@@ -91,7 +91,9 @@ export class CrossmintApiService extends XMIFService {
   });
 
   static getAttestationInputSchema = z.undefined();
-  static getAttestationOutputSchema = z.record(z.string(), z.unknown());
+  static getAttestationOutputSchema = z.object({
+    publicKey: z.string(),
+  });
 
   async createSigner(
     deviceId: string,
@@ -135,15 +137,13 @@ export class CrossmintApiService extends XMIFService {
     return request.execute(input);
   }
 
-  async getAttestation(
-    deviceId: string
-  ): Promise<z.infer<typeof CrossmintApiService.getAttestationOutputSchema>> {
+  async getAttestation(): Promise<z.infer<typeof CrossmintApiService.getAttestationOutputSchema>> {
     const request = new CrossmintRequest({
       name: 'getAttestation',
       inputSchema: CrossmintApiService.getAttestationInputSchema,
       outputSchema: CrossmintApiService.getAttestationOutputSchema,
       environment: this.environment,
-      endpoint: _input => `/${deviceId}/attestation`,
+      endpoint: () => '/attestation',
       method: 'POST',
       encrypted: false,
       encryptionService: this.encryptionService,

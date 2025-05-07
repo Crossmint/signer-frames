@@ -24,9 +24,10 @@ export class EncryptionService extends XMIFService {
   name = 'Encryption service';
   log_prefix = '[EncryptionService]';
   private cryptoApi: SubtleCrypto = crypto.subtle;
+  private attestationService: AttestationService | null = null;
 
   constructor(
-    private readonly attestationService: AttestationService,
+    attestationService?: AttestationService,
     private readonly suite = new CipherSuite({
       kem: new DhkemP384HkdfSha384(),
       kdf: new HkdfSha384(),
@@ -37,6 +38,20 @@ export class EncryptionService extends XMIFService {
     private aes256EncryptionKey: CryptoKey | null = null
   ) {
     super();
+    if (attestationService) {
+      this.setAttestationService(attestationService);
+    }
+  }
+
+  setAttestationService(service: AttestationService) {
+    this.attestationService = service;
+  }
+
+  private assertAttestationService(): AttestationService {
+    if (!this.attestationService) {
+      throw new Error('AttestationService not set');
+    }
+    return this.attestationService;
   }
 
   // Initialization
@@ -180,7 +195,8 @@ export class EncryptionService extends XMIFService {
       } as const;
 
       if (validateTeeSender) {
-        const attestationPublicKey = await this.attestationService.getPublicKeyFromAttestation();
+        const attestationService = this.assertAttestationService();
+        const attestationPublicKey = await attestationService.getPublicKeyFromAttestation();
         const senderPublicKey = await this.suite.kem.deserializePublicKey(
           this.base64ToBuffer(attestationPublicKey)
         );
@@ -212,7 +228,8 @@ export class EncryptionService extends XMIFService {
     const { ephemeralKeyPair } = {
       ephemeralKeyPair: this.ephemeralKeyPair as NonNullable<typeof this.ephemeralKeyPair>,
     };
-    const recipientPublicKeyBuffer = await this.attestationService
+    const attestationService = this.assertAttestationService();
+    const recipientPublicKeyBuffer = await attestationService
       .getPublicKeyFromAttestation()
       .then(this.base64ToBuffer);
     const recipientPublicKey = await this.suite.kem.deserializePublicKey(recipientPublicKeyBuffer);
@@ -236,7 +253,8 @@ export class EncryptionService extends XMIFService {
   }
 
   private async getTeePublicKey() {
-    const recipientPublicKeyString = await this.attestationService.getPublicKeyFromAttestation();
+    const attestationService = this.assertAttestationService();
+    const recipientPublicKeyString = await attestationService.getPublicKeyFromAttestation();
     return await this.suite.kem.deserializePublicKey(this.base64ToBuffer(recipientPublicKeyString));
   }
 
