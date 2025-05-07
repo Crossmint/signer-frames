@@ -57,13 +57,12 @@ export class CrossmintApiService extends XMIFService {
   name = 'Crossmint API Service';
   log_prefix = '[CrossmintApiService]';
   private retryConfig: RetryConfig;
+  private readonly environment: Environment;
 
-  constructor(
-    private readonly environment: Environment,
-    private readonly encryptionService: EncryptionService
-  ) {
+  constructor(private readonly encryptionService: EncryptionService) {
     super();
     this.retryConfig = defaultRetryConfig;
+    this.environment = 'staging'; // TODO: Make this configurable
   }
 
   async init() {}
@@ -137,8 +136,7 @@ export class CrossmintApiService extends XMIFService {
   }
 
   async getAttestation(
-    deviceId: string,
-    authData: AuthData
+    deviceId: string
   ): Promise<z.infer<typeof CrossmintApiService.getAttestationOutputSchema>> {
     const request = new CrossmintRequest({
       name: 'getAttestation',

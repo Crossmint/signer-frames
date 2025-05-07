@@ -9,35 +9,13 @@ const executeSpy = vi.fn().mockResolvedValue({ success: true });
 const originalExecute = CrossmintRequest.prototype.execute;
 CrossmintRequest.prototype.execute = executeSpy;
 
-interface ApiKeyService {
-  getBaseUrl(apiKey: string): string;
-}
-
-class MockApiKeyService implements ApiKeyService {
-  getBaseUrl(apiKey: string): string {
-    if (apiKey === 'sk_development_123') {
-      return 'http://localhost:3000/api/unstable/wallets/ncs';
-    }
-    if (apiKey === 'sk_staging_123') {
-      return 'https://staging.crossmint.com/api/unstable/wallets/ncs';
-    }
-    if (apiKey === 'sk_production_123') {
-      return 'https://crossmint.com/api/unstable/wallets/ncs';
-    }
-    if (apiKey === 'sk_invalid123') {
-      throw new Error('Invalid API key');
-    }
-    return 'https://crossmint.com/api/unstable/wallets/ncs';
-  }
-}
-
 describe('CrossmintApiService', () => {
   let apiService: CrossmintApiService;
   let mockEncryptionService: EncryptionService;
 
   beforeEach(() => {
     mockEncryptionService = mock<EncryptionService>();
-    apiService = new CrossmintApiService(mockEncryptionService, new MockApiKeyService());
+    apiService = new CrossmintApiService(mockEncryptionService);
     executeSpy.mockClear();
   });
 
@@ -49,24 +27,9 @@ describe('CrossmintApiService', () => {
     CrossmintRequest.prototype.execute = originalExecute;
   });
 
-  describe('getBaseUrl', () => {
-    it('should generate correct URLs for different environments', () => {
-      expect(apiService.getBaseUrl('sk_development_123')).toBe(
-        'http://localhost:3000/api/unstable/wallets/ncs'
-      );
-      expect(apiService.getBaseUrl('sk_staging_123')).toBe(
-        'https://staging.crossmint.com/api/unstable/wallets/ncs'
-      );
-      expect(apiService.getBaseUrl('sk_production_123')).toBe(
-        'https://crossmint.com/api/unstable/wallets/ncs'
-      );
-      expect(() => apiService.getBaseUrl('sk_invalid123')).toThrow('Invalid API key');
-    });
-  });
-
   describe('API methods', () => {
     const deviceId = 'test-device-id';
-    const authData = { jwt: 'test-jwt', apiKey: 'test-api-key' };
+    const authData = { jwt: 'test-jwt', apiKey: 'sk_development_test' };
 
     it('should properly call createSigner with correct parameters', async () => {
       const data = {
@@ -80,16 +43,13 @@ describe('CrossmintApiService', () => {
 
       await apiService.createSigner(deviceId, data, authData);
 
-      expect(executeSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          authId: 'test-auth-id',
-          chainLayer: 'solana',
-          encryptionContext: {
-            publicKey: 'test-public-key',
-          },
-        }),
-        authData
-      );
+      expect(executeSpy).toHaveBeenCalledWith({
+        authId: 'test-auth-id',
+        chainLayer: 'solana',
+        encryptionContext: {
+          publicKey: 'test-public-key',
+        },
+      });
     });
 
     it('should properly call sendOtp with correct parameters and return shares', async () => {
@@ -99,10 +59,10 @@ describe('CrossmintApiService', () => {
 
       const result = await apiService.sendOtp(deviceId, data, authData);
 
-      expect(executeSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ otp: '123456', publicKey: 'test-public-key' }),
-        authData
-      );
+      expect(executeSpy).toHaveBeenCalledWith({
+        otp: '123456',
+        publicKey: 'test-public-key',
+      });
       expect(result).toEqual(mockResponse);
     });
   });
