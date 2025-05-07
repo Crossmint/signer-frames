@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { ZodSchema } from 'zod';
 import type { EncryptionService } from './encryption';
+import type { Environment } from './api';
 
 export type AuthData = {
   apiKey: string;
@@ -11,11 +12,13 @@ export interface CrossmintRequestOptions<I, O> {
   name?: string;
   inputSchema: ZodSchema<I>;
   outputSchema: ZodSchema<O>;
-  endpoint: (input: I, authData: AuthData) => string;
+  environment: Environment;
+  authData?: AuthData;
+  endpoint: (input: I) => string;
   method: 'GET' | 'POST' | 'PUT' | 'DELETE';
   encrypted?: boolean;
   encryptionService: EncryptionService;
-  getHeaders: (authData: AuthData) => Record<string, string>;
+  getHeaders: (authData?: AuthData) => Record<string, string>;
   fetchImpl?: typeof fetch;
 }
 
@@ -29,6 +32,9 @@ export class CrossmintRequest<
   O extends Record<string, unknown>,
 > {
   private name: string | undefined;
+  private environment: Environment;
+  private basePath = 'api/unstable/wallets/ncs';
+  private authData: AuthData | undefined;
   private inputSchema: ZodSchema<I>;
   private outputSchema: ZodSchema<O>;
   private method: string;
@@ -43,8 +49,8 @@ export class CrossmintRequest<
     console.log(`[Request${this.name ? `: ${this.name}` : ''}]`, ...args);
   };
 
-  private endpoint: (input: I, authData: AuthData) => string;
-  private getHeaders: (authData: AuthData) => Record<string, string>;
+  private endpoint: (input: I) => string;
+  private getHeaders: (authData?: AuthData) => Record<string, string>;
   private fetchImpl: typeof fetch;
 
   constructor(options: CrossmintRequestOptions<I, O>) {
@@ -54,22 +60,27 @@ export class CrossmintRequest<
     this.method = options.method;
     this.encrypted = options.encrypted || false;
     this.encryptionService = options.encryptionService;
-
+    this.authData = options.authData;
+    this.environment = options.environment;
     this.endpoint = options.endpoint;
     this.getHeaders = options.getHeaders;
     this.fetchImpl = options.fetchImpl || fetch.bind(window);
   }
 
-  async execute(input: I, authData: { jwt: string; apiKey: string }): Promise<O> {
+  async execute(input: I): Promise<O> {
     this.log(`Executing ${this.encrypted ? 'encrypted' : 'unencrypted'} ${this.method} request...`);
     this.log(`[TRACE] Parsing input ${JSON.stringify(input, null, 2)}...`);
     const parsedInput = this.inputSchema.parse(input);
     const bodyObject = parsedInput ? await this.constructBody(parsedInput) : undefined;
     this.log(`[TRACE] Body: ${JSON.stringify(bodyObject, null, 2)}...`);
     const body = bodyObject ? JSON.stringify(bodyObject) : undefined;
-    const headers = this.getHeaders(authData);
+    const headers = this.getHeaders(this.authData);
+    const url = new URL(
+      this.basePath + this.endpoint(parsedInput),
+      this.getUrlFromEnvironment(this.environment)
+    );
 
-    const json = await this.fetchImpl(this.endpoint(parsedInput, authData), {
+    const json = await this.fetchImpl(url.toString(), {
       method: this.method,
       body,
       headers,
@@ -116,5 +127,18 @@ export class CrossmintRequest<
       this.log(`[TRACE] Decrypted response: ${JSON.stringify(response, null, 2)}`);
     }
     return this.outputSchema.parse(response);
+  }
+
+  private getUrlFromEnvironment(environment: Environment) {
+    switch (environment) {
+      case 'development':
+        return 'http://localhost:3000/';
+      case 'staging':
+        return 'https://staging.crossmint.com/';
+      case 'production':
+        return 'https://crossmint.com/';
+      default:
+        throw new Error('Invalid environment');
+    }
   }
 }
