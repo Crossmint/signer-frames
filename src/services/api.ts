@@ -144,7 +144,7 @@ export class CrossmintApiService extends XMIFService {
       outputSchema: CrossmintApiService.getAttestationOutputSchema,
       environment: this.environment,
       endpoint: () => '/attestation',
-      method: 'POST',
+      method: 'GET',
       encrypted: false,
       encryptionService: this.encryptionService,
       getHeaders,

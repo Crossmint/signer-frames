@@ -24,7 +24,6 @@ export type XMIFServices = {
 };
 
 export const createXMIFServices = () => {
-  // Create all services first
   const eventsService = new EventsService();
   const ed25519Service = new Ed25519Service();
   const encryptionService = new EncryptionService();
@@ -32,6 +31,7 @@ export const createXMIFServices = () => {
   const attestationService = new AttestationService(crossmintApiService);
   const shardingService = new ShardingService(crossmintApiService);
   const fpeService = new FPEService(encryptionService);
+
   encryptionService.setAttestationService(attestationService);
 
   const services = {
