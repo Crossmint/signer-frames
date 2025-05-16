@@ -100,16 +100,16 @@ describe('EventHandlers', () => {
       };
 
       mockServices.sharding.getMasterSecret.mockResolvedValue(TEST_FIXTURES.masterSecret);
-      mockServices.ed25519.secretKeyFromSeed.mockResolvedValue(TEST_FIXTURES.secretKey);
-      mockServices.ed25519.getPublicKey.mockResolvedValue(TEST_FIXTURES.publicKey);
+      mockServices.keyGeneration.getPrivateKeyFromSeed.mockResolvedValue(TEST_FIXTURES.secretKey);
+      mockServices.keyGeneration.getAddressFromSeed.mockResolvedValue(TEST_FIXTURES.publicKey);
 
       const result = await handler.handler(testInput);
 
       expect(mockServices.sharding.getMasterSecret).toHaveBeenCalledWith(testInput.authData);
-      expect(mockServices.ed25519.secretKeyFromSeed).toHaveBeenCalledWith(
+      expect(mockServices.keyGeneration.getAddressFromSeed).toHaveBeenCalledWith(
+        'solana',
         TEST_FIXTURES.masterSecret
       );
-      expect(mockServices.ed25519.getPublicKey).toHaveBeenCalledWith(TEST_FIXTURES.secretKey);
       expect(result).toEqual({ publicKey: TEST_FIXTURES.publicKey });
     });
   });

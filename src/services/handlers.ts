@@ -6,7 +6,6 @@ import type {
 import bs58 from 'bs58';
 import type { XMIFServices } from '.';
 import { measureFunctionTime } from './utils';
-import { AddressGenerator } from './address-generator';
 const DEFAULT_TIMEOUT_MS = 30_000;
 
 export interface EventHandler<EventName extends SignerIFrameEventName = SignerIFrameEventName> {
@@ -91,10 +90,9 @@ export class SendOtpEventHandler extends BaseEventHandler<'send-otp'> {
     services: XMIFServices,
     private readonly api = services.api,
     private readonly shardingService = services.sharding,
-    private readonly ed25519Service = services.ed25519,
-    private readonly secp256k1Service = services.secp256k1,
     private readonly encryptionService = services.encrypt,
-    private readonly fpeService = services.fpe
+    private readonly fpeService = services.fpe,
+    private readonly keyGenerationService = services.keyGeneration
   ) {
     super();
   }
@@ -123,10 +121,10 @@ export class SendOtpEventHandler extends BaseEventHandler<'send-otp'> {
     this.shardingService.cacheAuthShare(response.shares.auth);
     const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
     return {
-      address: await new AddressGenerator(
-        this.ed25519Service,
-        this.secp256k1Service
-      ).getAddressFromSeed(payload.data.chainLayer, masterSecret),
+      address: await this.keyGenerationService.getAddressFromSeed(
+        payload.data.chainLayer,
+        masterSecret
+      ),
     };
   };
 }
@@ -135,8 +133,7 @@ export class GetPublicKeyEventHandler extends BaseEventHandler<'get-public-key'>
   constructor(
     services: XMIFServices,
     private readonly shardingService = services.sharding,
-    private readonly ed25519Service = services.ed25519,
-    private readonly secp256k1Service = services.secp256k1
+    private readonly keyGenerationService = services.keyGeneration
   ) {
     super();
   }
@@ -145,10 +142,10 @@ export class GetPublicKeyEventHandler extends BaseEventHandler<'get-public-key'>
   handler = async (payload: SignerInputEvent<'get-public-key'>) => {
     const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
     return {
-      publicKey: await new AddressGenerator(
-        this.ed25519Service,
-        this.secp256k1Service
-      ).getAddressFromSeed(payload.data.chainLayer, masterSecret),
+      publicKey: await this.keyGenerationService.getAddressFromSeed(
+        payload.data.chainLayer,
+        masterSecret
+      ),
     };
   };
 }
