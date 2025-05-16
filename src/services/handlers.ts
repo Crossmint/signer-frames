@@ -90,9 +90,9 @@ export class SendOtpEventHandler extends BaseEventHandler<'send-otp'> {
     services: XMIFServices,
     private readonly api = services.api,
     private readonly shardingService = services.sharding,
-    private readonly ed25519Service = services.ed25519,
     private readonly encryptionService = services.encrypt,
-    private readonly fpeService = services.fpe
+    private readonly fpeService = services.fpe,
+    private readonly keyGenerationService = services.keyGeneration
   ) {
     super();
   }
@@ -119,12 +119,12 @@ export class SendOtpEventHandler extends BaseEventHandler<'send-otp'> {
 
     this.shardingService.storeDeviceShare(response.shares.device);
     this.shardingService.cacheAuthShare(response.shares.auth);
-
     const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
-    const secretKey = await this.ed25519Service.secretKeyFromSeed(masterSecret);
-    const publicKey = await this.ed25519Service.getPublicKey(secretKey);
     return {
-      address: publicKey,
+      address: await this.keyGenerationService.getAddressFromSeed(
+        payload.data.chainLayer,
+        masterSecret
+      ),
     };
   };
 }
@@ -133,7 +133,7 @@ export class GetPublicKeyEventHandler extends BaseEventHandler<'get-public-key'>
   constructor(
     services: XMIFServices,
     private readonly shardingService = services.sharding,
-    private readonly ed25519Service = services.ed25519
+    private readonly keyGenerationService = services.keyGeneration
   ) {
     super();
   }
@@ -141,10 +141,11 @@ export class GetPublicKeyEventHandler extends BaseEventHandler<'get-public-key'>
   responseEvent = 'response:get-public-key' as const;
   handler = async (payload: SignerInputEvent<'get-public-key'>) => {
     const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
-    const secretKey = await this.ed25519Service.secretKeyFromSeed(masterSecret);
-    const publicKey = await this.ed25519Service.getPublicKey(secretKey);
     return {
-      publicKey,
+      publicKey: await this.keyGenerationService.getAddressFromSeed(
+        payload.data.chainLayer,
+        masterSecret
+      ),
     };
   };
 }
@@ -152,7 +153,8 @@ class SignEventHandler extends BaseEventHandler<'sign'> {
   constructor(
     services: XMIFServices,
     private readonly shardingService = services.sharding,
-    private readonly edd25519Service = services.ed25519
+    private readonly ed25519Service = services.ed25519,
+    private readonly secp256k1Service = services.secp256k1
   ) {
     super();
   }
@@ -164,10 +166,18 @@ class SignEventHandler extends BaseEventHandler<'sign'> {
     switch (keyType) {
       case 'ed25519': {
         const message = decodeBytes(bytes, encoding);
-        const secretKey = await this.edd25519Service.secretKeyFromSeed(masterSecret);
+        const secretKey = await this.ed25519Service.secretKeyFromSeed(masterSecret);
         return {
-          signature: bs58.encode(await this.edd25519Service.sign(message, secretKey)),
-          publicKey: await this.edd25519Service.getPublicKey(secretKey),
+          signature: bs58.encode(await this.ed25519Service.sign(message, secretKey)),
+          publicKey: await this.ed25519Service.getPublicKey(secretKey),
+        };
+      }
+      case 'secp256k1': {
+        const message = decodeBytes(bytes, encoding);
+        const privKey = await this.secp256k1Service.privateKeyFromSeed(masterSecret);
+        return {
+          signature: await this.secp256k1Service.sign(message, privKey),
+          publicKey: await this.secp256k1Service.getAddress(privKey), // Abuse of notation, this is the address
         };
       }
       default:
@@ -176,10 +186,12 @@ class SignEventHandler extends BaseEventHandler<'sign'> {
   };
 }
 
-function decodeBytes(bytes: string, encoding: 'base64' | 'base58'): Uint8Array {
+function decodeBytes(bytes: string, encoding: 'base64' | 'base58' | 'hex'): Uint8Array {
   switch (encoding) {
     case 'base58':
       return bs58.decode(bytes);
+    case 'hex':
+      return Buffer.from(bytes.replace('0x', ''), 'hex');
     default:
       throw new Error(`Unsupported encoding: ${encoding}`);
   }

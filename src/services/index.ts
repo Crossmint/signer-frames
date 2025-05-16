@@ -6,6 +6,8 @@ import { Ed25519Service } from './ed25519';
 import { ShardingService } from './sharding';
 import type { XMIFService } from './service';
 import { FPEService } from './fpe';
+import { Secp256k1Service } from './secp256k1';
+import { KeyGenerationService } from './key-generation';
 
 /**
  * Services index - Export all services
@@ -20,17 +22,21 @@ export type XMIFServices = {
   encrypt: EncryptionService;
   attestation: AttestationService;
   ed25519: Ed25519Service;
+  secp256k1: Secp256k1Service;
   fpe: FPEService;
+  keyGeneration: KeyGenerationService;
 };
 
 export const createXMIFServices = () => {
   const eventsService = new EventsService();
   const ed25519Service = new Ed25519Service();
   const encryptionService = new EncryptionService();
+  const secp256k1Service = new Secp256k1Service();
   const crossmintApiService = new CrossmintApiService(encryptionService);
   const attestationService = new AttestationService(crossmintApiService);
   const shardingService = new ShardingService(crossmintApiService);
   const fpeService = new FPEService(encryptionService);
+  const keyGenerationService = new KeyGenerationService(ed25519Service, secp256k1Service);
 
   encryptionService.setAttestationService(attestationService);
 
@@ -38,10 +44,12 @@ export const createXMIFServices = () => {
     events: eventsService,
     attestation: attestationService,
     ed25519: ed25519Service,
+    secp256k1: secp256k1Service,
     encrypt: encryptionService,
     api: crossmintApiService,
     sharding: shardingService,
     fpe: fpeService,
+    keyGeneration: keyGenerationService,
   } satisfies Record<string, XMIFService>;
   return services;
 };
