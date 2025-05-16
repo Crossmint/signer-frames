@@ -2,7 +2,7 @@ import { XMIFService } from './service';
 import { secp256k1 } from 'ethereum-cryptography/secp256k1.js';
 import { keccak256 } from 'ethereum-cryptography/keccak.js';
 import { sha256 } from 'ethereum-cryptography/sha256.js';
-const { toHex } = require('ethereum-cryptography/utils');
+import { toHex } from 'ethereum-cryptography/utils';
 
 export type Hex = `0x${string}`;
 export type PrivKey = Uint8Array;
