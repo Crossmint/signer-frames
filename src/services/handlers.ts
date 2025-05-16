@@ -177,7 +177,7 @@ class SignEventHandler extends BaseEventHandler<'sign'> {
         const privKey = await this.secp256k1Service.privateKeyFromSeed(masterSecret);
         return {
           signature: await this.secp256k1Service.sign(message, privKey),
-          publicKey: await this.secp256k1Service.getPublicKey(privKey),
+          publicKey: await this.secp256k1Service.getAddress(privKey), // Abuse of notation, this is the address
         };
       }
       default:
@@ -186,10 +186,12 @@ class SignEventHandler extends BaseEventHandler<'sign'> {
   };
 }
 
-function decodeBytes(bytes: string, encoding: 'base64' | 'base58'): Uint8Array {
+function decodeBytes(bytes: string, encoding: 'base64' | 'base58' | 'hex'): Uint8Array {
   switch (encoding) {
     case 'base58':
       return bs58.decode(bytes);
+    case 'hex':
+      return Buffer.from(bytes.replace('0x', ''), 'hex');
     default:
       throw new Error(`Unsupported encoding: ${encoding}`);
   }
