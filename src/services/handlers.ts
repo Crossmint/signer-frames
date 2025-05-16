@@ -91,6 +91,7 @@ export class SendOtpEventHandler extends BaseEventHandler<'send-otp'> {
     private readonly api = services.api,
     private readonly shardingService = services.sharding,
     private readonly ed25519Service = services.ed25519,
+    private readonly secp256k1Service = services.secp256k1,
     private readonly encryptionService = services.encrypt,
     private readonly fpeService = services.fpe
   ) {
@@ -120,12 +121,27 @@ export class SendOtpEventHandler extends BaseEventHandler<'send-otp'> {
     this.shardingService.storeDeviceShare(response.shares.device);
     this.shardingService.cacheAuthShare(response.shares.auth);
 
-    const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
-    const secretKey = await this.ed25519Service.secretKeyFromSeed(masterSecret);
-    const publicKey = await this.ed25519Service.getPublicKey(secretKey);
-    return {
-      address: publicKey,
-    };
+    switch (payload.data.chainLayer) {
+      case 'solana': {
+        const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
+        const secretKey = await this.ed25519Service.secretKeyFromSeed(masterSecret);
+        const publicKey = await this.ed25519Service.getPublicKey(secretKey);
+        return {
+          address: publicKey,
+        };
+      }
+      case 'evm': {
+        const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
+        const secretKey = await this.secp256k1Service.privateKeyFromSeed(masterSecret);
+        const publicKey = await this.secp256k1Service.getPublicKey(secretKey);
+        const address = await this.secp256k1Service.getAddress(publicKey);
+        return {
+          address,
+        };
+      }
+      default:
+        throw new Error(`Unsupported chain layer: ${payload.data.chainLayer}`);
+    }
   };
 }
 
@@ -142,18 +158,32 @@ export class GetPublicKeyEventHandler extends BaseEventHandler<'get-public-key'>
   responseEvent = 'response:get-public-key' as const;
   handler = async (payload: SignerInputEvent<'get-public-key'>) => {
     const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
-    const secretKey = await this.ed25519Service.secretKeyFromSeed(masterSecret);
-    const publicKey = await this.ed25519Service.getPublicKey(secretKey);
-    return {
-      publicKey,
-    };
+    switch (payload.data.chainLayer) {
+      case 'solana': {
+        const secretKey = await this.ed25519Service.secretKeyFromSeed(masterSecret);
+        const publicKey = await this.ed25519Service.getPublicKey(secretKey);
+        return {
+          publicKey,
+        };
+      }
+      case 'evm': {
+        const secretKey = await this.secp256k1Service.privateKeyFromSeed(masterSecret);
+        const publicKey = await this.secp256k1Service.getPublicKey(secretKey);
+        const address = await this.secp256k1Service.getAddress(publicKey);
+        return {
+          publicKey: address, // Review the notation here
+        };
+      }
+      default:
+        throw new Error(`Unsupported chain layer: ${payload.data.chainLayer}`);
+    }
   };
 }
 class SignEventHandler extends BaseEventHandler<'sign'> {
   constructor(
     services: XMIFServices,
     private readonly shardingService = services.sharding,
-    private readonly edd25519Service = services.ed25519,
+    private readonly ed25519Service = services.ed25519,
     private readonly secp256k1Service = services.secp256k1
   ) {
     super();
@@ -166,10 +196,10 @@ class SignEventHandler extends BaseEventHandler<'sign'> {
     switch (keyType) {
       case 'ed25519': {
         const message = decodeBytes(bytes, encoding);
-        const secretKey = await this.edd25519Service.secretKeyFromSeed(masterSecret);
+        const secretKey = await this.ed25519Service.secretKeyFromSeed(masterSecret);
         return {
-          signature: bs58.encode(await this.edd25519Service.sign(message, secretKey)),
-          publicKey: await this.edd25519Service.getPublicKey(secretKey),
+          signature: bs58.encode(await this.ed25519Service.sign(message, secretKey)),
+          publicKey: await this.ed25519Service.getPublicKey(secretKey),
         };
       }
       case 'secp256k1': {
