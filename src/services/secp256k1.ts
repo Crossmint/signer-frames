@@ -47,6 +47,7 @@ export class Secp256k1Service extends XMIFService {
     return `0x${r}${s}${v}` as Hex;
   }
 
+  // https://eips.ethereum.org/EIPS/eip-55
   private toChecksumAddress(address: Hex): Hex {
     const hashInput = Buffer.from(address.toLowerCase().replace('0x', ''), 'ascii');
     const hash = [...keccak256(hashInput)].map(v => v.toString(16).padStart(2, '0')).join('');
