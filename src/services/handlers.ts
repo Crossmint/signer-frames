@@ -133,7 +133,8 @@ export class GetPublicKeyEventHandler extends BaseEventHandler<'get-public-key'>
   constructor(
     services: XMIFServices,
     private readonly shardingService = services.sharding,
-    private readonly ed25519Service = services.ed25519
+    private readonly ed25519Service = services.ed25519,
+    private readonly secp256k1Service = services.secp256k1
   ) {
     super();
   }
@@ -152,7 +153,8 @@ class SignEventHandler extends BaseEventHandler<'sign'> {
   constructor(
     services: XMIFServices,
     private readonly shardingService = services.sharding,
-    private readonly edd25519Service = services.ed25519
+    private readonly edd25519Service = services.ed25519,
+    private readonly secp256k1Service = services.secp256k1
   ) {
     super();
   }
@@ -168,6 +170,14 @@ class SignEventHandler extends BaseEventHandler<'sign'> {
         return {
           signature: bs58.encode(await this.edd25519Service.sign(message, secretKey)),
           publicKey: await this.edd25519Service.getPublicKey(secretKey),
+        };
+      }
+      case 'secp256k1': {
+        const message = decodeBytes(bytes, encoding);
+        const privKey = await this.secp256k1Service.privateKeyFromSeed(masterSecret);
+        return {
+          signature: await this.secp256k1Service.sign(message, privKey),
+          publicKey: await this.secp256k1Service.getPublicKey(privKey),
         };
       }
       default:
