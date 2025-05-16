@@ -6,6 +6,7 @@ import type {
 import bs58 from 'bs58';
 import type { XMIFServices } from '.';
 import { measureFunctionTime } from './utils';
+import { AddressGenerator } from './address-generator';
 const DEFAULT_TIMEOUT_MS = 30_000;
 
 export interface EventHandler<EventName extends SignerIFrameEventName = SignerIFrameEventName> {
@@ -120,28 +121,13 @@ export class SendOtpEventHandler extends BaseEventHandler<'send-otp'> {
 
     this.shardingService.storeDeviceShare(response.shares.device);
     this.shardingService.cacheAuthShare(response.shares.auth);
-
-    switch (payload.data.chainLayer) {
-      case 'solana': {
-        const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
-        const secretKey = await this.ed25519Service.secretKeyFromSeed(masterSecret);
-        const publicKey = await this.ed25519Service.getPublicKey(secretKey);
-        return {
-          address: publicKey,
-        };
-      }
-      case 'evm': {
-        const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
-        const secretKey = await this.secp256k1Service.privateKeyFromSeed(masterSecret);
-        const publicKey = await this.secp256k1Service.getPublicKey(secretKey);
-        const address = await this.secp256k1Service.getAddress(publicKey);
-        return {
-          address,
-        };
-      }
-      default:
-        throw new Error(`Unsupported chain layer: ${payload.data.chainLayer}`);
-    }
+    const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
+    return {
+      address: await new AddressGenerator(
+        this.ed25519Service,
+        this.secp256k1Service
+      ).getAddressFromSeed(payload.data.chainLayer, masterSecret),
+    };
   };
 }
 
@@ -158,25 +144,12 @@ export class GetPublicKeyEventHandler extends BaseEventHandler<'get-public-key'>
   responseEvent = 'response:get-public-key' as const;
   handler = async (payload: SignerInputEvent<'get-public-key'>) => {
     const masterSecret = await this.shardingService.getMasterSecret(payload.authData);
-    switch (payload.data.chainLayer) {
-      case 'solana': {
-        const secretKey = await this.ed25519Service.secretKeyFromSeed(masterSecret);
-        const publicKey = await this.ed25519Service.getPublicKey(secretKey);
-        return {
-          publicKey,
-        };
-      }
-      case 'evm': {
-        const secretKey = await this.secp256k1Service.privateKeyFromSeed(masterSecret);
-        const publicKey = await this.secp256k1Service.getPublicKey(secretKey);
-        const address = await this.secp256k1Service.getAddress(publicKey);
-        return {
-          publicKey: address, // Review the notation here
-        };
-      }
-      default:
-        throw new Error(`Unsupported chain layer: ${payload.data.chainLayer}`);
-    }
+    return {
+      publicKey: await new AddressGenerator(
+        this.ed25519Service,
+        this.secp256k1Service
+      ).getAddressFromSeed(payload.data.chainLayer, masterSecret),
+    };
   };
 }
 class SignEventHandler extends BaseEventHandler<'sign'> {
