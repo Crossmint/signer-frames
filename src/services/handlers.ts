@@ -132,7 +132,7 @@ export class GetStatusEventHandler extends EventHandler<'get-status'> {
   }
 }
 
-class SignEventHandler extends EventHandler<'sign'> {
+export class SignEventHandler extends EventHandler<'sign'> {
   event = 'request:sign' as const;
   responseEvent = 'response:sign' as const;
 
