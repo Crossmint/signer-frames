@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ShardingService } from './sharding';
 import { createMockServices } from '../tests/test-utils';
+import { XMIFCodedError } from './error';
 
 const MOCK_MASTER_SECRET = new Uint8Array(32).fill(1);
 
@@ -12,11 +13,16 @@ const TEST_AUTH_DATA = {
   apiKey: 'test-api-key',
 };
 
+// Constants from the sharding service
+const DEVICE_SHARE_KEY = 'device-share';
+const DEVICE_ID_KEY = 'device-id';
+
 vi.mock('shamir-secret-sharing', () => ({
   combine: vi.fn().mockImplementation(() => Promise.resolve(MOCK_MASTER_SECRET)),
 }));
 
 import * as shamir from 'shamir-secret-sharing';
+import { subtle } from 'crypto';
 
 const mockCombine = shamir.combine as ReturnType<typeof vi.fn>;
 
@@ -49,21 +55,32 @@ describe('ShardingService', () => {
     mockCombine.mockClear();
     mockCombine.mockImplementation(() => Promise.resolve(MOCK_MASTER_SECRET));
 
+    // Create a mock ArrayBuffer that will convert to "h(xyz)" when base64 encoded
+    const mockDigestResult = new Uint8Array([104, 40, 120, 121, 122, 41]).buffer;
+
     vi.stubGlobal('crypto', {
       randomUUID: vi.fn().mockReturnValue(TEST_DEVICE_ID),
+      subtle: { digest: vi.fn().mockResolvedValue(mockDigestResult) },
     });
 
     vi.stubGlobal('localStorage', mockLocalStorage);
     vi.stubGlobal('sessionStorage', mockSessionStorage);
 
+    // Mock the base64 conversion functions
     vi.stubGlobal(
       'atob',
       vi.fn(() => 'ABCD')
     );
 
+    vi.stubGlobal(
+      'btoa',
+      vi.fn(() => 'h(xyz)')
+    );
+
     service = new ShardingService(mockServices.api);
 
     vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'debug').mockImplementation(() => {});
   });
 
   // Only keeping essential tests for device identity management
@@ -73,7 +90,7 @@ describe('ShardingService', () => {
     const result = service.getDeviceId();
 
     expect(crypto.randomUUID).toHaveBeenCalled();
-    expect(mockLocalStorage.setItem).toHaveBeenCalledWith('deviceId', TEST_DEVICE_ID);
+    expect(mockLocalStorage.setItem).toHaveBeenCalledWith('device-id', TEST_DEVICE_ID);
     expect(result).toBe(TEST_DEVICE_ID);
   });
 
@@ -82,7 +99,7 @@ describe('ShardingService', () => {
     beforeEach(() => {
       mockLocalStorage.getItem.mockImplementation(key => {
         if (key === 'device-share') return TEST_DEVICE_SHARE;
-        if (key === 'deviceId') return TEST_DEVICE_ID;
+        if (key === 'device-id') return TEST_DEVICE_ID;
         return null;
       });
     });
@@ -93,17 +110,15 @@ describe('ShardingService', () => {
       mockServices.api.getAuthShard.mockResolvedValueOnce({
         deviceId: TEST_DEVICE_ID,
         keyShare: TEST_AUTH_SHARE,
+        deviceKeyShareHash: 'h(xyz)',
       });
 
-      const result = await service.getMasterSecret(TEST_AUTH_DATA);
-
-      // Verify the API call was made and result cached
+      const result = await service.reconstructMasterSecret(TEST_AUTH_DATA);
       expect(mockServices.api.getAuthShard).toHaveBeenCalledWith(
         TEST_DEVICE_ID,
         undefined,
         TEST_AUTH_DATA
       );
-      expect(mockSessionStorage.setItem).toHaveBeenCalledWith('auth-share', TEST_AUTH_SHARE);
 
       // Verify the shares were combined
       expect(mockCombine).toHaveBeenCalledWith(
@@ -114,22 +129,57 @@ describe('ShardingService', () => {
 
     it('should throw error if device share is not found', async () => {
       mockLocalStorage.getItem.mockImplementation(key => {
-        if (key === 'deviceId') return TEST_DEVICE_ID;
+        if (key === 'device-id') return TEST_DEVICE_ID;
         return null;
       });
 
-      await expect(service.getMasterSecret(TEST_AUTH_DATA)).rejects.toThrow(
+      await expect(service.reconstructMasterSecret(TEST_AUTH_DATA)).rejects.toThrow(
         'Device share not found'
       );
     });
 
     it('should handle share combination failures', async () => {
-      mockSessionStorage.getItem.mockReturnValueOnce(TEST_AUTH_SHARE);
+      // Mock API response first to avoid destructuring error
+      mockServices.api.getAuthShard.mockResolvedValueOnce({
+        deviceId: TEST_DEVICE_ID,
+        keyShare: TEST_AUTH_SHARE,
+        deviceKeyShareHash: 'h(xyz)',
+      });
+
+      // Then make combine throw the expected error
       mockCombine.mockRejectedValueOnce(new Error('Failed to combine shares'));
 
-      await expect(service.getMasterSecret(TEST_AUTH_DATA)).rejects.toThrow(
+      await expect(service.reconstructMasterSecret(TEST_AUTH_DATA)).rejects.toThrow(
         'Failed to combine shares'
       );
+    });
+
+    it('should throw error when device share hash does not match', async () => {
+      // Override the btoa mock to return a different hash value
+      vi.stubGlobal(
+        'btoa',
+        vi.fn(() => 'mismatched-hash')
+      );
+
+      // Mock API to return a different hash than what our device generates
+      mockServices.api.getAuthShard.mockResolvedValue({
+        deviceId: TEST_DEVICE_ID,
+        keyShare: TEST_AUTH_SHARE,
+        deviceKeyShareHash: 'expected-hash', // Different from what btoa returns
+      });
+
+      try {
+        await service.reconstructMasterSecret(TEST_AUTH_DATA);
+        expect.fail('Should have thrown an error');
+      } catch (error) {
+        expect(error).toBeInstanceOf(XMIFCodedError);
+        expect((error as XMIFCodedError).code).toBe('invalid-device-share');
+        expect((error as Error).message).toMatch(/Key share stored on this device does not match/);
+      }
+
+      // Verify localStorage items were removed
+      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith(DEVICE_SHARE_KEY);
+      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith(DEVICE_ID_KEY);
     });
   });
 });

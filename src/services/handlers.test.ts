@@ -42,7 +42,7 @@ describe('EventHandlers', () => {
         data: { authId: 'test-auth-id', chainLayer: 'solana' },
       };
 
-      mockServices.sharding.getDeviceShare.mockReturnValue(TEST_FIXTURES.shares.device);
+      mockServices.sharding.status.mockReturnValue('ready');
 
       await handler.handler(testInput);
 
@@ -65,9 +65,10 @@ describe('EventHandlers', () => {
 
       mockServices.api.sendOtp.mockResolvedValue({
         shares: TEST_FIXTURES.shares,
+        deviceKeyShareHash: 'h(xyz)',
       });
 
-      mockServices.sharding.getMasterSecret.mockResolvedValue(TEST_FIXTURES.masterSecret);
+      mockServices.sharding.reconstructMasterSecret.mockResolvedValue(TEST_FIXTURES.masterSecret);
       mockServices.ed25519.secretKeyFromSeed.mockResolvedValue(TEST_FIXTURES.secretKey);
       mockServices.ed25519.getPublicKey.mockResolvedValue(
         bs58.encode(TEST_FIXTURES.secretKey.slice(32))
@@ -84,7 +85,6 @@ describe('EventHandlers', () => {
       expect(mockServices.sharding.storeDeviceShare).toHaveBeenCalledWith(
         TEST_FIXTURES.shares.device
       );
-      expect(mockServices.sharding.cacheAuthShare).toHaveBeenCalledWith(TEST_FIXTURES.shares.auth);
       expect(result).toHaveProperty('address');
     });
   });
@@ -99,13 +99,15 @@ describe('EventHandlers', () => {
         },
       };
 
-      mockServices.sharding.getMasterSecret.mockResolvedValue(TEST_FIXTURES.masterSecret);
+      mockServices.sharding.reconstructMasterSecret.mockResolvedValue(TEST_FIXTURES.masterSecret);
       mockServices.ed25519.secretKeyFromSeed.mockResolvedValue(TEST_FIXTURES.secretKey);
       mockServices.ed25519.getPublicKey.mockResolvedValue(TEST_FIXTURES.publicKey);
 
       const result = await handler.handler(testInput);
 
-      expect(mockServices.sharding.getMasterSecret).toHaveBeenCalledWith(testInput.authData);
+      expect(mockServices.sharding.reconstructMasterSecret).toHaveBeenCalledWith(
+        testInput.authData
+      );
       expect(mockServices.ed25519.secretKeyFromSeed).toHaveBeenCalledWith(
         TEST_FIXTURES.masterSecret
       );
