@@ -62,7 +62,7 @@ export class CrossmintApiService extends XMIFService {
   constructor(private readonly encryptionService: EncryptionService) {
     super();
     this.retryConfig = defaultRetryConfig;
-    this.environment = 'development'; // changed
+    this.environment = 'staging'; // TODO: Make this configurable
   }
 
   async init() {}
@@ -82,7 +82,6 @@ export class CrossmintApiService extends XMIFService {
       device: z.string(),
       auth: z.string(),
     }),
-    deviceKeyShareHash: z.string(),
   });
 
   static getAuthShardInputSchema = z.undefined();
