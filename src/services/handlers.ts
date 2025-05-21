@@ -86,7 +86,7 @@ export class GetAttestationEventHandler extends EventHandler<'get-attestation'> 
   responseEvent = 'response:get-attestation' as const;
 
   async handler(payload: SignerInputEvent<'get-attestation'>) {
-    const attestationDocument = {} as Record<string, unknown>;
+    const attestationDocument = await this.services.attestation.getAttestationDocument();
     return {
       attestationDocument,
     };
