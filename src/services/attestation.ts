@@ -44,6 +44,11 @@ export class AttestationService extends XMIFService {
     }
   }
 
+  async getAttestationDocument(): Promise<AttestationDocument> {
+    const doc = this.assertInitialized();
+    return doc;
+  }
+
   async getPublicKeyFromAttestation(): Promise<string> {
     const doc = this.assertInitialized();
     return doc.publicKey;
