@@ -67,7 +67,6 @@ describe('EventHandlers', () => {
 
       mockServices.api.sendOtp.mockResolvedValue({
         shares: TEST_FIXTURES.shares,
-        deviceKeyShareHash: 'h(xyz)',
       });
 
       mockServices.sharding.reconstructMasterSecret.mockResolvedValue(TEST_FIXTURES.masterSecret);
@@ -104,6 +103,7 @@ describe('EventHandlers', () => {
       mockServices.sharding.reconstructMasterSecret.mockResolvedValue(TEST_FIXTURES.masterSecret);
       mockServices.ed25519.secretKeyFromSeed.mockResolvedValue(TEST_FIXTURES.secretKey);
       mockServices.ed25519.getPublicKey.mockResolvedValue(TEST_FIXTURES.publicKey);
+      mockServices.keyGeneration.getAddressFromSeed.mockResolvedValue(TEST_FIXTURES.publicKey);
 
       const result = await handler.handler(testInput);
 
