@@ -9,6 +9,10 @@ import { measureFunctionTime } from './utils';
 import { XMIFCodedError } from './error';
 
 const DEFAULT_TIMEOUT_MS = 30_000;
+type SuccessfulEventHandlerResult<EventName extends SignerIFrameEventName> = Omit<
+  SignerOutputEvent<EventName>,
+  'status'
+>;
 
 export abstract class EventHandler<
   EventName extends SignerIFrameEventName = SignerIFrameEventName,
@@ -22,7 +26,7 @@ export abstract class EventHandler<
 
   constructor(protected readonly services: XMIFServices) {}
 
-  async callback(payload: SignerInputEvent<EventName>): Promise<SignerOutputEvent<EventName>> {
+  async callback(payload: SignerInputEvent<EventName>) {
     try {
       const result = await measureFunctionTime(`[${this.event} handler]`, async () =>
         this.handler(payload)
@@ -55,9 +59,12 @@ export class CreateSignerEventHandler extends EventHandler<'create-signer'> {
   async handler(payload: SignerInputEvent<'create-signer'>) {
     if (this.services.sharding.status() === 'ready') {
       const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
-      const publicKey = await this.services.ed25519.getPublicKey(masterSecret);
+      const publicKey = await this.services.keyGeneration.getPublicKeyFromSeed(
+        payload.data.keyType,
+        masterSecret
+      );
       return {
-        address: publicKey,
+        publicKey,
       };
     }
 
@@ -101,11 +108,9 @@ export class SendOtpEventHandler extends EventHandler<'send-otp'> {
 
     this.services.sharding.storeDeviceShare(response.shares.device);
     const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
-    const secretKey = await this.services.ed25519.secretKeyFromSeed(masterSecret);
-    const publicKey = await this.services.ed25519.getPublicKey(secretKey);
     return {
-      address: await this.services.keyGeneration.getAddressFromSeed(
-        payload.data.chainLayer,
+      publicKey: await this.services.keyGeneration.getPublicKeyFromSeed(
+        payload.data.keyType,
         masterSecret
       ),
     };
@@ -118,11 +123,9 @@ export class GetPublicKeyEventHandler extends EventHandler<'get-public-key'> {
 
   async handler(payload: SignerInputEvent<'get-public-key'>) {
     const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
-    const secretKey = await this.services.ed25519.secretKeyFromSeed(masterSecret);
-    const publicKey = await this.services.ed25519.getPublicKey(secretKey);
     return {
-      publicKey: await this.services.keyGeneration.getAddressFromSeed(
-        payload.data.chainLayer,
+      publicKey: await this.services.keyGeneration.getPublicKeyFromSeed(
+        payload.data.keyType,
         masterSecret
       ),
     };

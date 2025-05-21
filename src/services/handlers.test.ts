@@ -41,10 +41,16 @@ describe('EventHandlers', () => {
       const handler = new CreateSignerEventHandler(mockServices);
       const testInput: SignerInputEvent<'create-signer'> = {
         authData: TEST_FIXTURES.authData,
-        data: { authId: 'test-auth-id', chainLayer: 'solana' },
+        data: { authId: 'test-auth-id', keyType: 'ed25519' },
       };
 
       mockServices.sharding.status.mockReturnValue('ready');
+      mockServices.sharding.reconstructMasterSecret.mockResolvedValue(TEST_FIXTURES.masterSecret);
+      mockServices.keyGeneration.getPublicKeyFromSeed.mockResolvedValue({
+        bytes: TEST_FIXTURES.publicKey,
+        encoding: 'base58',
+        keyType: 'ed25519',
+      });
 
       await handler.handler(testInput);
 
@@ -59,7 +65,7 @@ describe('EventHandlers', () => {
         authData: TEST_FIXTURES.authData,
         data: {
           encryptedOtp: '123456',
-          chainLayer: 'solana',
+          keyType: 'ed25519',
         },
       };
 
@@ -74,6 +80,11 @@ describe('EventHandlers', () => {
       mockServices.ed25519.getPublicKey.mockResolvedValue(
         bs58.encode(TEST_FIXTURES.secretKey.slice(32))
       );
+      mockServices.keyGeneration.getPublicKeyFromSeed.mockResolvedValue({
+        bytes: TEST_FIXTURES.publicKey,
+        encoding: 'base58',
+        keyType: 'ed25519',
+      });
 
       const result = await handler.handler(testInput);
 
@@ -86,7 +97,7 @@ describe('EventHandlers', () => {
       expect(mockServices.sharding.storeDeviceShare).toHaveBeenCalledWith(
         TEST_FIXTURES.shares.device
       );
-      expect(result).toHaveProperty('address');
+      expect(result).toHaveProperty('publicKey');
     });
   });
 
@@ -96,24 +107,33 @@ describe('EventHandlers', () => {
       const testInput: SignerInputEvent<'get-public-key'> = {
         authData: TEST_FIXTURES.authData,
         data: {
-          chainLayer: 'solana',
+          keyType: 'ed25519',
         },
       };
 
       mockServices.sharding.reconstructMasterSecret.mockResolvedValue(TEST_FIXTURES.masterSecret);
-      mockServices.ed25519.secretKeyFromSeed.mockResolvedValue(TEST_FIXTURES.secretKey);
-      mockServices.ed25519.getPublicKey.mockResolvedValue(TEST_FIXTURES.publicKey);
-      mockServices.keyGeneration.getAddressFromSeed.mockResolvedValue(TEST_FIXTURES.publicKey);
+      mockServices.keyGeneration.getPublicKeyFromSeed.mockResolvedValue({
+        bytes: TEST_FIXTURES.publicKey,
+        encoding: 'base58',
+        keyType: 'ed25519',
+      });
 
       const result = await handler.handler(testInput);
 
       expect(mockServices.sharding.reconstructMasterSecret).toHaveBeenCalledWith(
         testInput.authData
       );
-      expect(mockServices.ed25519.secretKeyFromSeed).toHaveBeenCalledWith(
+      expect(mockServices.keyGeneration.getPublicKeyFromSeed).toHaveBeenCalledWith(
+        testInput.data.keyType,
         TEST_FIXTURES.masterSecret
       );
-      expect(result).toEqual({ publicKey: TEST_FIXTURES.publicKey });
+      expect(result).toEqual({
+        publicKey: {
+          bytes: TEST_FIXTURES.publicKey,
+          encoding: 'base58',
+          keyType: 'ed25519',
+        },
+      });
     });
   });
 
