@@ -46,7 +46,7 @@ describe('EventHandlers', () => {
 
       mockServices.sharding.status.mockReturnValue('ready');
       mockServices.sharding.reconstructMasterSecret.mockResolvedValue(TEST_FIXTURES.masterSecret);
-      mockServices.keyGeneration.getPublicKeyFromSeed.mockResolvedValue({
+      mockServices.cryptoKey.getPublicKeyFromSeed.mockResolvedValue({
         bytes: TEST_FIXTURES.publicKey,
         encoding: 'base58',
         keyType: 'ed25519',
@@ -80,7 +80,7 @@ describe('EventHandlers', () => {
       mockServices.ed25519.getPublicKey.mockResolvedValue(
         bs58.encode(TEST_FIXTURES.secretKey.slice(32))
       );
-      mockServices.keyGeneration.getPublicKeyFromSeed.mockResolvedValue({
+      mockServices.cryptoKey.getPublicKeyFromSeed.mockResolvedValue({
         bytes: TEST_FIXTURES.publicKey,
         encoding: 'base58',
         keyType: 'ed25519',
@@ -112,7 +112,7 @@ describe('EventHandlers', () => {
       };
 
       mockServices.sharding.reconstructMasterSecret.mockResolvedValue(TEST_FIXTURES.masterSecret);
-      mockServices.keyGeneration.getPublicKeyFromSeed.mockResolvedValue({
+      mockServices.cryptoKey.getPublicKeyFromSeed.mockResolvedValue({
         bytes: TEST_FIXTURES.publicKey,
         encoding: 'base58',
         keyType: 'ed25519',
@@ -123,7 +123,7 @@ describe('EventHandlers', () => {
       expect(mockServices.sharding.reconstructMasterSecret).toHaveBeenCalledWith(
         testInput.authData
       );
-      expect(mockServices.keyGeneration.getPublicKeyFromSeed).toHaveBeenCalledWith(
+      expect(mockServices.cryptoKey.getPublicKeyFromSeed).toHaveBeenCalledWith(
         testInput.data.keyType,
         TEST_FIXTURES.masterSecret
       );

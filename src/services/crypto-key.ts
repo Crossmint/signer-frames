@@ -2,10 +2,11 @@ import { toHex } from 'ethereum-cryptography/utils';
 import type { Ed25519Service } from './ed25519';
 import type { Secp256k1Service } from './secp256k1';
 import { XMIFService } from './service';
+import bs58 from 'bs58';
 export type KeyType = 'ed25519' | 'secp256k1';
-export class KeyGenerationService extends XMIFService {
-  name = 'Key Generation Service';
-  log_prefix = '[KeyGenerationService]';
+export class CryptoKeyService extends XMIFService {
+  name = 'Crypto Key Service';
+  log_prefix = '[CryptoKeyService]';
   constructor(
     private readonly ed25519Service: Ed25519Service,
     private readonly secp256k1Service: Secp256k1Service
@@ -36,15 +37,29 @@ export class KeyGenerationService extends XMIFService {
       }
       case 'secp256k1': {
         const privateKey = await this.secp256k1Service.privateKeyFromSeed(seed);
-        // TODO: change to hex
         return {
-          bytes: Buffer.from(await this.secp256k1Service.getPublicKey(privateKey)).toString(
-            'base64'
-          ),
-          encoding: 'base64' as const,
+          bytes: toHex(await this.secp256k1Service.getPublicKey(privateKey)),
+          encoding: 'hex' as const,
           keyType,
         };
       }
+      default:
+        throw new Error(`Unsupported key type: ${keyType}`);
+    }
+  }
+
+  async sign(keyType: KeyType, seed: Uint8Array, message: Uint8Array) {
+    switch (keyType) {
+      case 'ed25519':
+        return {
+          bytes: bs58.encode(await this.ed25519Service.sign(seed, message)),
+          encoding: 'base58' as const,
+        };
+      case 'secp256k1':
+        return {
+          bytes: await this.secp256k1Service.sign(seed, message),
+          encoding: 'hex' as const,
+        };
       default:
         throw new Error(`Unsupported key type: ${keyType}`);
     }

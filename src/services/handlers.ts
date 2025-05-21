@@ -57,7 +57,7 @@ export class CreateSignerEventHandler extends EventHandler<'create-signer'> {
   async handler(payload: SignerInputEvent<'create-signer'>) {
     if (this.services.sharding.status() === 'ready') {
       const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
-      const publicKey = await this.services.keyGeneration.getPublicKeyFromSeed(
+      const publicKey = await this.services.cryptoKey.getPublicKeyFromSeed(
         payload.data.keyType,
         masterSecret
       );
@@ -119,7 +119,7 @@ export class SendOtpEventHandler extends EventHandler<'send-otp'> {
     this.services.sharding.storeDeviceShare(response.shares.device);
     const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
     return {
-      publicKey: await this.services.keyGeneration.getPublicKeyFromSeed(
+      publicKey: await this.services.cryptoKey.getPublicKeyFromSeed(
         payload.data.keyType,
         masterSecret
       ),
@@ -134,7 +134,7 @@ export class GetPublicKeyEventHandler extends EventHandler<'get-public-key'> {
   async handler(payload: SignerInputEvent<'get-public-key'>) {
     const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
     return {
-      publicKey: await this.services.keyGeneration.getPublicKeyFromSeed(
+      publicKey: await this.services.cryptoKey.getPublicKeyFromSeed(
         payload.data.keyType,
         masterSecret
       ),
@@ -158,33 +158,14 @@ export class SignEventHandler extends EventHandler<'sign'> {
   async handler(payload: SignerInputEvent<'sign'>) {
     const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
     const { keyType, bytes, encoding } = payload.data;
-
-    switch (keyType) {
-      case 'ed25519': {
-        const message = decodeBytes(bytes, encoding);
-        const secretKey = await this.services.ed25519.secretKeyFromSeed(masterSecret);
-        return {
-          signature: {
-            bytes: bs58.encode(await this.services.ed25519.sign(message, secretKey)),
-            encoding: 'base58' as const,
-          },
-          publicKey: await this.services.keyGeneration.getPublicKeyFromSeed(keyType, masterSecret),
-        };
-      }
-      case 'secp256k1': {
-        const message = decodeBytes(bytes, encoding);
-        const privKey = await this.services.secp256k1.privateKeyFromSeed(masterSecret);
-        return {
-          signature: {
-            bytes: await this.services.secp256k1.sign(message, privKey),
-            encoding: 'base64' as const, // TODO: Use hex. It's hex
-          },
-          publicKey: await this.services.keyGeneration.getPublicKeyFromSeed(keyType, masterSecret),
-        };
-      }
-      default:
-        throw new Error(`Key type not implemented: ${keyType}`);
-    }
+    const privateKey = await this.services.cryptoKey.getPrivateKeyFromSeed(keyType, masterSecret);
+    const message = decodeBytes(bytes, encoding);
+    const signature = await this.services.cryptoKey.sign(keyType, privateKey, message);
+    const publicKey = await this.services.cryptoKey.getPublicKeyFromSeed(keyType, masterSecret);
+    return {
+      signature,
+      publicKey,
+    };
   }
 }
 

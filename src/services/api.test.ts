@@ -34,7 +34,6 @@ describe('CrossmintApiService', () => {
     it('should properly call createSigner with correct parameters', async () => {
       const data = {
         authId: 'test-auth-id',
-        chainLayer: 'solana',
         encryptionContext: {
           publicKey: 'test-public-key',
         },
@@ -45,7 +44,6 @@ describe('CrossmintApiService', () => {
 
       expect(executeSpy).toHaveBeenCalledWith({
         authId: 'test-auth-id',
-        chainLayer: 'solana',
         encryptionContext: {
           publicKey: 'test-public-key',
         },
