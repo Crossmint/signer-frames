@@ -9,10 +9,6 @@ import { measureFunctionTime } from './utils';
 import { XMIFCodedError } from './error';
 
 const DEFAULT_TIMEOUT_MS = 30_000;
-type SuccessfulEventHandlerResult<EventName extends SignerIFrameEventName> = Omit<
-  SignerOutputEvent<EventName>,
-  'status'
->;
 
 export abstract class EventHandler<
   EventName extends SignerIFrameEventName = SignerIFrameEventName,
@@ -22,17 +18,17 @@ export abstract class EventHandler<
 
   abstract handler(
     payload: SignerInputEvent<EventName>
-  ): Promise<Omit<SignerOutputEvent<EventName>, 'status'>>;
+  ): Promise<Omit<Extract<SignerOutputEvent<EventName>, { status: 'success' }>, 'status'>>;
 
   constructor(protected readonly services: XMIFServices) {}
 
-  async callback(payload: SignerInputEvent<EventName>) {
+  async callback(payload: SignerInputEvent<EventName>): Promise<SignerOutputEvent<EventName>> {
     try {
       const result = await measureFunctionTime(`[${this.event} handler]`, async () =>
         this.handler(payload)
       );
       return {
-        status: 'success',
+        status: 'success' as const,
         ...result,
       };
     } catch (error: unknown) {
@@ -80,6 +76,18 @@ export class CreateSignerEventHandler extends EventHandler<'create-signer'> {
     );
 
     return {};
+  }
+}
+
+export class GetAttestationEventHandler extends EventHandler<'get-attestation'> {
+  event = 'request:get-attestation' as const;
+  responseEvent = 'response:get-attestation' as const;
+
+  async handler(payload: SignerInputEvent<'get-attestation'>) {
+    const attestationDocument = {} as Record<string, unknown>;
+    return {
+      attestationDocument,
+    };
   }
 }
 
@@ -131,11 +139,12 @@ export class GetPublicKeyEventHandler extends EventHandler<'get-public-key'> {
     };
   }
 }
+
 export class GetStatusEventHandler extends EventHandler<'get-status'> {
   event = 'request:get-status' as const;
   responseEvent = 'response:get-status' as const;
 
-  async handler() {
+  async handler(payload: SignerInputEvent<'get-status'>) {
     return { signerStatus: this.services.sharding.status() };
   }
 }
@@ -147,21 +156,28 @@ export class SignEventHandler extends EventHandler<'sign'> {
   async handler(payload: SignerInputEvent<'sign'>) {
     const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
     const { keyType, bytes, encoding } = payload.data;
+
     switch (keyType) {
       case 'ed25519': {
         const message = decodeBytes(bytes, encoding);
         const secretKey = await this.services.ed25519.secretKeyFromSeed(masterSecret);
         return {
-          signature: bs58.encode(await this.services.ed25519.sign(message, secretKey)),
-          publicKey: await this.services.ed25519.getPublicKey(secretKey),
+          signature: {
+            bytes: bs58.encode(await this.services.ed25519.sign(message, secretKey)),
+            encoding: 'base58' as const,
+          },
+          publicKey: await this.services.keyGeneration.getPublicKeyFromSeed(keyType, masterSecret),
         };
       }
       case 'secp256k1': {
         const message = decodeBytes(bytes, encoding);
         const privKey = await this.services.secp256k1.privateKeyFromSeed(masterSecret);
         return {
-          signature: await this.services.secp256k1.sign(message, privKey),
-          publicKey: await this.services.secp256k1.getAddress(privKey), // Abuse of notation, this is the address
+          signature: {
+            bytes: await this.services.secp256k1.sign(message, privKey),
+            encoding: 'base64' as const, // TODO: Use hex. It's hex
+          },
+          publicKey: await this.services.keyGeneration.getPublicKeyFromSeed(keyType, masterSecret),
         };
       }
       default:
@@ -187,4 +203,5 @@ export const initializeHandlers = (services: XMIFServices) => [
   new GetPublicKeyEventHandler(services),
   new SignEventHandler(services),
   new GetStatusEventHandler(services),
+  new GetAttestationEventHandler(services),
 ];
