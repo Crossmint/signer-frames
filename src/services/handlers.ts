@@ -9,6 +9,10 @@ import { measureFunctionTime } from './utils';
 import { XMIFCodedError } from './error';
 
 const DEFAULT_TIMEOUT_MS = 30_000;
+type SuccessfulOutputEvent<EventName extends SignerIFrameEventName> = Omit<
+  Extract<SignerOutputEvent<EventName>, { status: 'success' }>,
+  'status'
+>;
 
 export abstract class EventHandler<
   EventName extends SignerIFrameEventName = SignerIFrameEventName,
@@ -16,9 +20,7 @@ export abstract class EventHandler<
   abstract event: `request:${EventName}`;
   abstract responseEvent: `response:${EventName}`;
 
-  abstract handler(
-    payload: SignerInputEvent<EventName>
-  ): Promise<Omit<Extract<SignerOutputEvent<EventName>, { status: 'success' }>, 'status'>>;
+  abstract handler(payload: SignerInputEvent<EventName>): Promise<SuccessfulOutputEvent<EventName>>;
 
   constructor(protected readonly services: XMIFServices) {}
 
