@@ -3,7 +3,6 @@
  */
 
 import { initializeHandlers, createXMIFServices } from './services';
-import type { Environment } from './services/api';
 import type { EventHandler } from './services/handlers';
 import { measureFunctionTime } from './services/utils';
 
