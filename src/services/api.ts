@@ -8,7 +8,12 @@ import type { RetryConfig } from './backoff';
 import { z } from 'zod';
 import type { EncryptionService } from './encryption';
 import { type AuthData, CrossmintRequest } from './request';
+
 export type Environment = 'development' | 'staging' | 'production';
+const DEFAULT_ENVIRONMENT: Environment = 'staging';
+const isEnvironment = (env: unknown): env is Environment => {
+  return ['development', 'staging', 'production'].includes(env as Environment);
+};
 
 function getHeaders(authData?: AuthData) {
   return {
@@ -62,7 +67,16 @@ export class CrossmintApiService extends XMIFService {
   constructor(private readonly encryptionService: EncryptionService) {
     super();
     this.retryConfig = defaultRetryConfig;
-    this.environment = 'staging'; // TODO: Make this configurable
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const envParam = urlParams.get('environment');
+    if (isEnvironment(envParam)) {
+      this.log(`Environment: ${envParam}`);
+      this.environment = envParam;
+    } else {
+      this.log(`Using default environment: ${DEFAULT_ENVIRONMENT}`);
+      this.environment = DEFAULT_ENVIRONMENT;
+    }
   }
 
   async init() {}
