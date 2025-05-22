@@ -48,16 +48,16 @@ export class CryptoKeyService extends XMIFService {
     }
   }
 
-  async sign(keyType: KeyType, seed: Uint8Array, message: Uint8Array) {
+  async sign(keyType: KeyType, privateKey: Uint8Array, message: Uint8Array) {
     switch (keyType) {
       case 'ed25519':
         return {
-          bytes: bs58.encode(await this.ed25519Service.sign(seed, message)),
+          bytes: bs58.encode(await this.ed25519Service.sign(message, privateKey)),
           encoding: 'base58' as const,
         };
       case 'secp256k1':
         return {
-          bytes: await this.secp256k1Service.sign(seed, message),
+          bytes: await this.secp256k1Service.sign(message, privateKey),
           encoding: 'hex' as const,
         };
       default:
