@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
-  CreateSignerEventHandler,
-  SendOtpEventHandler,
+  StartOnboardingEventHandler,
+  CompleteOnboardingEventHandler,
   GetPublicKeyEventHandler,
   SignEventHandler,
 } from './handlers';
@@ -36,9 +36,9 @@ describe('EventHandlers', () => {
     );
   });
 
-  describe('CreateSignerEventHandler', () => {
+  describe('StartOnboardingEventHandler', () => {
     it('should skip API call if device share already exists', async () => {
-      const handler = new CreateSignerEventHandler(mockServices);
+      const handler = new StartOnboardingEventHandler(mockServices);
       const testInput: SignerInputEvent<'create-signer'> = {
         authData: TEST_FIXTURES.authData,
         data: { authId: 'test-auth-id', keyType: 'ed25519' },
@@ -58,9 +58,9 @@ describe('EventHandlers', () => {
     });
   });
 
-  describe('SendOtpEventHandler', () => {
+  describe('CompleteOnboardingEventHandler', () => {
     it('should process OTP flow correctly and store key shards', async () => {
-      const handler = new SendOtpEventHandler(mockServices);
+      const handler = new CompleteOnboardingEventHandler(mockServices);
       const testInput: SignerInputEvent<'send-otp'> = {
         authData: TEST_FIXTURES.authData,
         data: {
