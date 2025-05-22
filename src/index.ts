@@ -20,7 +20,7 @@ declare global {
 class XMIF {
   private static instance: XMIF | null = null;
   private static initializationPromise: Promise<XMIF> | null = null;
-  constructor(
+  private constructor(
     private readonly services = createXMIFServices(),
     private readonly handlers = initializeHandlers(services) as EventHandler[]
   ) {}
