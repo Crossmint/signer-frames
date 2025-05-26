@@ -70,7 +70,7 @@ describe('Secp256k1Service', () => {
   });
 
   it('should generate a private key from a seed', async () => {
-    const address = '0x41aD2bc63A2059f9b623533d87fe99887D794847';
+    const address = '0x332fD0972BC42eabb397fAe91D97c9bbDc53CF5e';
     const privateKey = await service.privateKeyFromSeed(new Uint8Array(0));
     expect(privateKey).toBeDefined();
     expect(await service.getAddress(await service.getPublicKey(privateKey))).toBe(address);
