@@ -60,7 +60,7 @@ export class StartOnboardingEventHandler extends EventHandler<'start-onboarding'
     if (signerStatus === 'ready') {
       const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
       const publicKeys = await this.services.cryptoKey.getAllPublicKeysFromSeed(masterSecret);
-      console.log(`[DEBUG, ${this.event} handler] Public keys: ${publicKeys}`);
+      console.log(`[DEBUG, ${this.event} handler] Public keys: ${JSON.stringify(publicKeys)}`);
       return {
         status: 'success' as const,
         signerStatus,
@@ -132,7 +132,7 @@ export class CompleteOnboardingEventHandler extends EventHandler<'complete-onboa
     this.services.sharding.storeDeviceShare(response.shares.device);
     const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
     const publicKeys = await this.services.cryptoKey.getAllPublicKeysFromSeed(masterSecret);
-    console.log(`[DEBUG, ${this.event} handler] Public keys: ${publicKeys}`);
+    console.log(`[DEBUG, ${this.event} handler] Public keys: ${JSON.stringify(publicKeys)}`);
     return {
       status: 'success' as const,
       signerStatus: 'ready' as const,
@@ -153,7 +153,7 @@ export class GetStatusEventHandler extends EventHandler<'get-status'> {
       case 'ready': {
         const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
         const publicKeys = await this.services.cryptoKey.getAllPublicKeysFromSeed(masterSecret);
-        console.log(`[DEBUG, ${this.event} handler] Public keys: ${publicKeys}`);
+        console.log(`[DEBUG, ${this.event} handler] Public keys: ${JSON.stringify(publicKeys)}`);
         return {
           status: 'success',
           signerStatus,
