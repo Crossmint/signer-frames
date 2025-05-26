@@ -33,7 +33,7 @@ export class CrossmintRequest<
 > {
   private name: string | undefined;
   private environment: Environment;
-  private basePath = 'api/unstable/wallets/ncs';
+  private basePath = 'api/v1/signers';
   private authData: AuthData | undefined;
   private inputSchema: ZodSchema<I>;
   private outputSchema: ZodSchema<O>;

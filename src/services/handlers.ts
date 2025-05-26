@@ -67,12 +67,12 @@ export class StartOnboardingEventHandler extends EventHandler<'start-onboarding'
     }
 
     await this.services.api.startOnboarding(
-      this.services.sharding.getDeviceId(),
       {
         ...payload.data,
         encryptionContext: {
           publicKey: await this.services.encrypt.getPublicKey(),
         },
+        deviceId: this.services.sharding.getDeviceId(),
       },
       payload.authData
     );
@@ -109,7 +109,6 @@ export class CompleteOnboardingEventHandler extends EventHandler<'complete-onboa
     const senderPublicKey = await this.services.encrypt.getPublicKey();
 
     const response = await this.services.api.completeOnboarding(
-      deviceId,
       {
         publicKey: senderPublicKey,
         onboardingAuthentication: {
