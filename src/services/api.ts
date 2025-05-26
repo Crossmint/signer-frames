@@ -84,6 +84,7 @@ export class CrossmintApiService extends XMIFService {
   // Zod schemas
   static startOnboardingInputSchema = z.object({
     authId: z.string(),
+    deviceId: z.string(),
     encryptionContext: z.object({
       publicKey: z.string(),
     }),
@@ -117,7 +118,6 @@ export class CrossmintApiService extends XMIFService {
   });
 
   async startOnboarding(
-    deviceId: string,
     input: z.infer<typeof CrossmintApiService.startOnboardingInputSchema>,
     authData: AuthData
   ) {
@@ -128,17 +128,18 @@ export class CrossmintApiService extends XMIFService {
       outputSchema: CrossmintApiService.startOnboardingOutputSchema,
       environment: parseApiKey(authData.apiKey).environment,
       authData,
-      endpoint: _input => `/${deviceId}`,
+      endpoint: () => '/start-onboarding',
       method: 'POST',
       encrypted: false,
       encryptionService: this.encryptionService,
       getHeaders,
     });
-    return request.execute(input);
+    return request.execute({
+      ...input,
+    });
   }
 
   async completeOnboarding(
-    deviceId: string,
     input: z.infer<typeof CrossmintApiService.completeOnboardingInputSchema>,
     authData: AuthData
   ): Promise<z.infer<typeof CrossmintApiService.completeOnboardingOutputSchema>> {
@@ -149,7 +150,7 @@ export class CrossmintApiService extends XMIFService {
       inputSchema: CrossmintApiService.completeOnboardingInputSchema,
       outputSchema: CrossmintApiService.completeOnboardingOutputSchema,
       environment: parseApiKey(authData.apiKey).environment,
-      endpoint: _input => `/${deviceId}/auth`,
+      endpoint: () => '/complete-onboarding',
       method: 'POST',
       encrypted: true,
       encryptionService: this.encryptionService,

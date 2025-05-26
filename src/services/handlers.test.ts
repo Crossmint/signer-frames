@@ -91,9 +91,9 @@ describe('EventHandlers', () => {
       const result = await handler.handler(testInput);
 
       expect(mockServices.api.completeOnboarding).toHaveBeenCalledWith(
-        TEST_FIXTURES.deviceId,
         expect.objectContaining({
           onboardingAuthentication: { otp: '123456' },
+          deviceId: TEST_FIXTURES.deviceId,
         }),
         testInput.authData
       );
