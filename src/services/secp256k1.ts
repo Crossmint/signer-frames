@@ -3,6 +3,7 @@ import { secp256k1 } from 'ethereum-cryptography/secp256k1.js';
 import { keccak256 } from 'ethereum-cryptography/keccak.js';
 import { sha256 } from 'ethereum-cryptography/sha256.js';
 import { toHex } from 'ethereum-cryptography/utils';
+const SECP256K1_DERIVATION_PATH = new Uint8Array([0x42]);
 
 export type Hex = `0x${string}`;
 export type PrivKey = Uint8Array;
@@ -11,7 +12,10 @@ export class Secp256k1Service extends XMIFService {
   log_prefix = 'secp256k1';
 
   async privateKeyFromSeed(seed: Uint8Array): Promise<PrivKey> {
-    const privateKey = sha256(seed);
+    const secp256k1DerivationSeed = new Uint8Array(seed.length + SECP256K1_DERIVATION_PATH.length);
+    secp256k1DerivationSeed.set(seed, 0);
+    secp256k1DerivationSeed.set(SECP256K1_DERIVATION_PATH, seed.length);
+    const privateKey = sha256(secp256k1DerivationSeed);
 
     // An Ethereum private key must be an integer > 0 and < N (the order of the secp256k1 curve ~2^256-2^32-977).
     // The probability of a SHA256 hash being 0 or >= N is astronomically small.
