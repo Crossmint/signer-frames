@@ -57,7 +57,7 @@
     "vitest-mock-extended": "^3.1.0"
   },
   "dependencies": {
-    "@crossmint/client-signers": "0.0.14",
+    "@crossmint/client-signers": "0.0.15",
     "@crossmint/client-sdk-rn-window": "0.2.1",
     "@crossmint/client-sdk-window": "1.0.0",
     "@hpke/core": "^1.7.2",

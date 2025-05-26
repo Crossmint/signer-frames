@@ -118,7 +118,7 @@ export default function CrossmintSignerProvider({
     if (iframe.current == null) {
       try {
         setIsInitializing(true);
-        const iframe = await createIFrame(`${iframeUrl.toString()}`);
+        const iframe = await createIFrame(`${iframeUrl.toString()}?environment=development`);
         iframeWindow.current = await IFrameWindow.init(iframe, {
           targetOrigin: iframeUrl.origin,
           incomingEvents: signerOutboundEvents,
