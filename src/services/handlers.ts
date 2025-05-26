@@ -60,6 +60,7 @@ export class StartOnboardingEventHandler extends EventHandler<'start-onboarding'
     if (signerStatus === 'ready') {
       const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
       const publicKeys = await this.services.cryptoKey.getAllPublicKeysFromSeed(masterSecret);
+      console.log(`[DEBUG, ${this.event} handler] Public keys: ${publicKeys}`);
       return {
         status: 'success' as const,
         signerStatus,
@@ -130,10 +131,12 @@ export class CompleteOnboardingEventHandler extends EventHandler<'complete-onboa
 
     this.services.sharding.storeDeviceShare(response.shares.device);
     const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
+    const publicKeys = await this.services.cryptoKey.getAllPublicKeysFromSeed(masterSecret);
+    console.log(`[DEBUG, ${this.event} handler] Public keys: ${publicKeys}`);
     return {
       status: 'success' as const,
       signerStatus: 'ready' as const,
-      publicKeys: await this.services.cryptoKey.getAllPublicKeysFromSeed(masterSecret),
+      publicKeys,
     };
   }
 }
@@ -149,10 +152,12 @@ export class GetStatusEventHandler extends EventHandler<'get-status'> {
     switch (signerStatus) {
       case 'ready': {
         const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
+        const publicKeys = await this.services.cryptoKey.getAllPublicKeysFromSeed(masterSecret);
+        console.log(`[DEBUG, ${this.event} handler] Public keys: ${publicKeys}`);
         return {
           status: 'success',
           signerStatus,
-          publicKeys: await this.services.cryptoKey.getAllPublicKeysFromSeed(masterSecret),
+          publicKeys,
         };
       }
       case 'new-device': {
