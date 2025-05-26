@@ -40,7 +40,7 @@ describe('EventHandlers', () => {
       const handler = new StartOnboardingEventHandler(mockServices);
       const testInput: SignerInputEvent<'start-onboarding'> = {
         authData: TEST_FIXTURES.authData,
-        data: { authId: 'test-auth-id', keyType: 'ed25519' },
+        data: { authId: 'test-auth-id' },
       };
 
       mockServices.sharding.status.mockReturnValue('ready');
@@ -63,7 +63,6 @@ describe('EventHandlers', () => {
       const testInput: SignerInputEvent<'complete-onboarding'> = {
         authData: TEST_FIXTURES.authData,
         data: {
-          keyType: 'ed25519',
           onboardingAuthentication: {
             encryptedOtp: '123456',
           },
@@ -105,7 +104,7 @@ describe('EventHandlers', () => {
       expect(mockServices.sharding.storeDeviceShare).toHaveBeenCalledWith(
         TEST_FIXTURES.shares.device
       );
-      expect(result).toHaveProperty('publicKey');
+      expect(result).toHaveProperty('publicKeys');
     });
   });
 
