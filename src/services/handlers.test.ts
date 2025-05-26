@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   StartOnboardingEventHandler,
   CompleteOnboardingEventHandler,
-  GetPublicKeyEventHandler,
   SignEventHandler,
 } from './handlers';
 import { createMockServices } from '../tests/test-utils';
@@ -41,7 +40,7 @@ describe('EventHandlers', () => {
       const handler = new StartOnboardingEventHandler(mockServices);
       const testInput: SignerInputEvent<'start-onboarding'> = {
         authData: TEST_FIXTURES.authData,
-        data: { authId: 'test-auth-id', keyType: 'ed25519' },
+        data: { authId: 'test-auth-id' },
       };
 
       mockServices.sharding.status.mockReturnValue('ready');
@@ -64,7 +63,6 @@ describe('EventHandlers', () => {
       const testInput: SignerInputEvent<'complete-onboarding'> = {
         authData: TEST_FIXTURES.authData,
         data: {
-          keyType: 'ed25519',
           onboardingAuthentication: {
             encryptedOtp: '123456',
           },
@@ -82,10 +80,15 @@ describe('EventHandlers', () => {
       mockServices.ed25519.getPublicKey.mockResolvedValue(
         bs58.encode(TEST_FIXTURES.secretKey.slice(32))
       );
-      mockServices.cryptoKey.getPublicKeyFromSeed.mockResolvedValue({
-        bytes: TEST_FIXTURES.publicKey,
-        encoding: 'base58',
-        keyType: 'ed25519',
+      mockServices.cryptoKey.getAllPublicKeysFromSeed.mockResolvedValue({
+        ed25519: {
+          bytes: TEST_FIXTURES.publicKey,
+          encoding: 'base58',
+        },
+        secp256k1: {
+          bytes: 'test-secp256k1-public-key',
+          encoding: 'hex',
+        },
       });
 
       const result = await handler.handler(testInput);
@@ -101,43 +104,7 @@ describe('EventHandlers', () => {
       expect(mockServices.sharding.storeDeviceShare).toHaveBeenCalledWith(
         TEST_FIXTURES.shares.device
       );
-      expect(result).toHaveProperty('publicKey');
-    });
-  });
-
-  describe('GetPublicKeyEventHandler', () => {
-    it('should retrieve and reconstruct the key correctly', async () => {
-      const handler = new GetPublicKeyEventHandler(mockServices);
-      const testInput: SignerInputEvent<'get-public-key'> = {
-        authData: TEST_FIXTURES.authData,
-        data: {
-          keyType: 'ed25519',
-        },
-      };
-
-      mockServices.sharding.reconstructMasterSecret.mockResolvedValue(TEST_FIXTURES.masterSecret);
-      mockServices.cryptoKey.getPublicKeyFromSeed.mockResolvedValue({
-        bytes: TEST_FIXTURES.publicKey,
-        encoding: 'base58',
-        keyType: 'ed25519',
-      });
-
-      const result = await handler.handler(testInput);
-
-      expect(mockServices.sharding.reconstructMasterSecret).toHaveBeenCalledWith(
-        testInput.authData
-      );
-      expect(mockServices.cryptoKey.getPublicKeyFromSeed).toHaveBeenCalledWith(
-        testInput.data.keyType,
-        TEST_FIXTURES.masterSecret
-      );
-      expect(result).toEqual({
-        publicKey: {
-          bytes: TEST_FIXTURES.publicKey,
-          encoding: 'base58',
-          keyType: 'ed25519',
-        },
-      });
+      expect(result).toHaveProperty('publicKeys');
     });
   });
 

@@ -118,7 +118,7 @@ export default function CrossmintSignerProvider({
     if (iframe.current == null) {
       try {
         setIsInitializing(true);
-        const iframe = await createIFrame(`${iframeUrl.toString()}`);
+        const iframe = await createIFrame(`${iframeUrl.toString()}?environment=development`);
         iframeWindow.current = await IFrameWindow.init(iframe, {
           targetOrigin: iframeUrl.origin,
           incomingEvents: signerOutboundEvents,
@@ -291,13 +291,15 @@ export default function CrossmintSignerProvider({
         },
         data: {
           authId: user?.email ? `email:${user.email}` : user?.id || '',
-          keyType: 'ed25519',
         },
       },
     });
 
-    if (response?.status === 'success' && response.publicKey) {
-      handleAddressFetched(response.publicKey.bytes);
+    if (response?.status === 'success' && response.signerStatus === 'ready') {
+      if (response.publicKeys.ed25519 == null) {
+        throw new Error('Failed to get ed25519 public key');
+      }
+      handleAddressFetched(response.publicKeys.ed25519.bytes);
     }
   };
 
@@ -315,17 +317,19 @@ export default function CrossmintSignerProvider({
           apiKey,
         },
         data: {
-          keyType: 'ed25519',
           onboardingAuthentication: {
             encryptedOtp,
           },
         },
       },
     });
-    if (!response || response.status === 'error' || !response.publicKey) {
+    if (!response || response.status === 'error' || response.signerStatus !== 'ready') {
       throw new Error('Failed to validate encrypted OTP');
     }
-    return response.publicKey.bytes;
+    if (response.publicKeys.ed25519 == null) {
+      throw new Error('Failed to validate encrypted OTP');
+    }
+    return response.publicKeys.ed25519.bytes;
   };
 
   const handleAddressFetched = (address: string) => {

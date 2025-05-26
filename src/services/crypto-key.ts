@@ -3,7 +3,8 @@ import type { Ed25519Service } from './ed25519';
 import type { Secp256k1Service } from './secp256k1';
 import { XMIFService } from './service';
 import bs58 from 'bs58';
-export type KeyType = 'ed25519' | 'secp256k1';
+import type { Encoding, KeyType } from '@crossmint/client-signers';
+
 export class CryptoKeyService extends XMIFService {
   name = 'Crypto Key Service';
   log_prefix = '[CryptoKeyService]';
@@ -12,6 +13,25 @@ export class CryptoKeyService extends XMIFService {
     private readonly secp256k1Service: Secp256k1Service
   ) {
     super();
+  }
+
+  async getAllPublicKeysFromSeed(seed: Uint8Array): Promise<
+    Record<
+      KeyType,
+      {
+        bytes: string;
+        encoding: Encoding;
+      }
+    >
+  > {
+    const [ed25519, secp256k1] = await Promise.all([
+      this.getPublicKeyFromSeed('ed25519', seed),
+      this.getPublicKeyFromSeed('secp256k1', seed),
+    ]);
+    return {
+      ed25519,
+      secp256k1,
+    };
   }
 
   async getPrivateKeyFromSeed(keyType: KeyType, seed: Uint8Array) {

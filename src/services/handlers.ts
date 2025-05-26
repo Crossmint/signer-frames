@@ -1,4 +1,6 @@
 import type {
+  KeyType,
+  Encoding,
   SignerIFrameEventName,
   SignerInputEvent,
   SignerOutputEvent,
@@ -9,9 +11,9 @@ import { measureFunctionTime } from './utils';
 import { XMIFCodedError } from './error';
 
 const DEFAULT_TIMEOUT_MS = 30_000;
-type SuccessfulOutputEvent<EventName extends SignerIFrameEventName> = Omit<
-  Extract<SignerOutputEvent<EventName>, { status: 'success' }>,
-  'status'
+type SuccessfulOutputEvent<EventName extends SignerIFrameEventName> = Extract<
+  SignerOutputEvent<EventName>,
+  { status: 'success' }
 >;
 
 export abstract class EventHandler<
@@ -29,10 +31,7 @@ export abstract class EventHandler<
       const result = await measureFunctionTime(`[${this.event} handler]`, async () =>
         this.handler(payload)
       );
-      return {
-        status: 'success' as const,
-        ...result,
-      };
+      return result;
     } catch (error: unknown) {
       const errorResponse = {
         status: 'error' as const,
@@ -54,15 +53,17 @@ export class StartOnboardingEventHandler extends EventHandler<'start-onboarding'
   event = 'request:start-onboarding' as const;
   responseEvent = 'response:start-onboarding' as const;
 
-  async handler(payload: SignerInputEvent<'start-onboarding'>) {
-    if (this.services.sharding.status() === 'ready') {
+  async handler(
+    payload: SignerInputEvent<'start-onboarding'>
+  ): Promise<SuccessfulOutputEvent<'start-onboarding'>> {
+    const signerStatus = this.services.sharding.status();
+    if (signerStatus === 'ready') {
       const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
-      const publicKey = await this.services.cryptoKey.getPublicKeyFromSeed(
-        payload.data.keyType,
-        masterSecret
-      );
+      const publicKeys = await this.services.cryptoKey.getAllPublicKeysFromSeed(masterSecret);
       return {
-        publicKey,
+        status: 'success' as const,
+        signerStatus,
+        publicKeys,
       };
     }
 
@@ -77,7 +78,10 @@ export class StartOnboardingEventHandler extends EventHandler<'start-onboarding'
       payload.authData
     );
 
-    return {};
+    return {
+      status: 'success' as const,
+      signerStatus,
+    };
   }
 }
 
@@ -85,9 +89,12 @@ export class GetAttestationEventHandler extends EventHandler<'get-attestation'> 
   event = 'request:get-attestation' as const;
   responseEvent = 'response:get-attestation' as const;
 
-  async handler(payload: SignerInputEvent<'get-attestation'>) {
+  async handler(
+    payload: SignerInputEvent<'get-attestation'>
+  ): Promise<SuccessfulOutputEvent<'get-attestation'>> {
     const attestationDocument = await this.services.attestation.getAttestationDocument();
     return {
+      status: 'success' as const,
       attestationDocument,
     };
   }
@@ -97,7 +104,9 @@ export class CompleteOnboardingEventHandler extends EventHandler<'complete-onboa
   event = 'request:complete-onboarding' as const;
   responseEvent = 'response:complete-onboarding' as const;
 
-  async handler(payload: SignerInputEvent<'complete-onboarding'>) {
+  async handler(
+    payload: SignerInputEvent<'complete-onboarding'>
+  ): Promise<SuccessfulOutputEvent<'complete-onboarding'>> {
     const deviceId = this.services.sharding.getDeviceId();
     const encryptedOtp = payload.data.onboardingAuthentication.encryptedOtp;
     console.log(
@@ -122,25 +131,9 @@ export class CompleteOnboardingEventHandler extends EventHandler<'complete-onboa
     this.services.sharding.storeDeviceShare(response.shares.device);
     const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
     return {
-      publicKey: await this.services.cryptoKey.getPublicKeyFromSeed(
-        payload.data.keyType,
-        masterSecret
-      ),
-    };
-  }
-}
-
-export class GetPublicKeyEventHandler extends EventHandler<'get-public-key'> {
-  event = 'request:get-public-key' as const;
-  responseEvent = 'response:get-public-key' as const;
-
-  async handler(payload: SignerInputEvent<'get-public-key'>) {
-    const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
-    return {
-      publicKey: await this.services.cryptoKey.getPublicKeyFromSeed(
-        payload.data.keyType,
-        masterSecret
-      ),
+      status: 'success' as const,
+      signerStatus: 'ready' as const,
+      publicKeys: await this.services.cryptoKey.getAllPublicKeysFromSeed(masterSecret),
     };
   }
 }
@@ -149,8 +142,26 @@ export class GetStatusEventHandler extends EventHandler<'get-status'> {
   event = 'request:get-status' as const;
   responseEvent = 'response:get-status' as const;
 
-  async handler(payload: SignerInputEvent<'get-status'>) {
-    return { signerStatus: this.services.sharding.status() };
+  async handler(
+    payload: SignerInputEvent<'get-status'>
+  ): Promise<SuccessfulOutputEvent<'get-status'>> {
+    const signerStatus = this.services.sharding.status();
+    switch (signerStatus) {
+      case 'ready': {
+        const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
+        return {
+          status: 'success',
+          signerStatus,
+          publicKeys: await this.services.cryptoKey.getAllPublicKeysFromSeed(masterSecret),
+        };
+      }
+      case 'new-device': {
+        return {
+          status: 'success' as const,
+          signerStatus,
+        };
+      }
+    }
   }
 }
 
@@ -158,7 +169,7 @@ export class SignEventHandler extends EventHandler<'sign'> {
   event = 'request:sign' as const;
   responseEvent = 'response:sign' as const;
 
-  async handler(payload: SignerInputEvent<'sign'>) {
+  async handler(payload: SignerInputEvent<'sign'>): Promise<SuccessfulOutputEvent<'sign'>> {
     const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
     const { keyType, bytes, encoding } = payload.data;
     const privateKey = await this.services.cryptoKey.getPrivateKeyFromSeed(keyType, masterSecret);
@@ -166,6 +177,7 @@ export class SignEventHandler extends EventHandler<'sign'> {
     const signature = await this.services.cryptoKey.sign(keyType, privateKey, message);
     const publicKey = await this.services.cryptoKey.getPublicKeyFromSeed(keyType, masterSecret);
     return {
+      status: 'success' as const,
       signature,
       publicKey,
     };
@@ -186,7 +198,6 @@ function decodeBytes(bytes: string, encoding: 'base64' | 'base58' | 'hex'): Uint
 export const initializeHandlers = (services: XMIFServices) => [
   new CompleteOnboardingEventHandler(services),
   new StartOnboardingEventHandler(services),
-  new GetPublicKeyEventHandler(services),
   new SignEventHandler(services),
   new GetStatusEventHandler(services),
   new GetAttestationEventHandler(services),
