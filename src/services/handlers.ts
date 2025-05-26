@@ -99,12 +99,13 @@ export class CompleteOnboardingEventHandler extends EventHandler<'complete-onboa
 
   async handler(payload: SignerInputEvent<'complete-onboarding'>) {
     const deviceId = this.services.sharding.getDeviceId();
+    const encryptedOtp = payload.data.onboardingAuthentication.encryptedOtp;
     console.log(
-      `[DEBUG, ${this.event} handler] Received encrypted OTP: ${payload.data.encryptedOtp}. Decrypting`
+      `[DEBUG, ${this.event} handler] Received encrypted OTP: ${encryptedOtp}. Decrypting`
     );
-    const decryptedOtp = (
-      await this.services.fpe.decrypt(payload.data.encryptedOtp.split('').map(Number))
-    ).join('');
+    const decryptedOtp = (await this.services.fpe.decrypt(encryptedOtp.split('').map(Number))).join(
+      ''
+    );
     const senderPublicKey = await this.services.encrypt.getPublicKey();
 
     const response = await this.services.api.sendOtp(
