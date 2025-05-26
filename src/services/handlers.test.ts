@@ -39,7 +39,7 @@ describe('EventHandlers', () => {
   describe('StartOnboardingEventHandler', () => {
     it('should skip API call if device share already exists', async () => {
       const handler = new StartOnboardingEventHandler(mockServices);
-      const testInput: SignerInputEvent<'create-signer'> = {
+      const testInput: SignerInputEvent<'start-onboarding'> = {
         authData: TEST_FIXTURES.authData,
         data: { authId: 'test-auth-id', keyType: 'ed25519' },
       };
@@ -61,11 +61,13 @@ describe('EventHandlers', () => {
   describe('CompleteOnboardingEventHandler', () => {
     it('should process OTP flow correctly and store key shards', async () => {
       const handler = new CompleteOnboardingEventHandler(mockServices);
-      const testInput: SignerInputEvent<'send-otp'> = {
+      const testInput: SignerInputEvent<'complete-onboarding'> = {
         authData: TEST_FIXTURES.authData,
         data: {
-          encryptedOtp: '123456',
           keyType: 'ed25519',
+          onboardingAuthentication: {
+            encryptedOtp: '123456',
+          },
         },
       };
 
