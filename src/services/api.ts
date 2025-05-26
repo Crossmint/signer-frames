@@ -82,16 +82,22 @@ export class CrossmintApiService extends XMIFService {
   async init() {}
 
   // Zod schemas
-  static createSignerInputSchema = z.object({
+  static startOnboardingInputSchema = z.object({
     authId: z.string(),
     encryptionContext: z.object({
       publicKey: z.string(),
     }),
   });
-  static createSignerOutputSchema = z.object({});
+  static startOnboardingOutputSchema = z.object({});
 
-  static sendOtpInputSchema = z.object({ otp: z.string(), publicKey: z.string() });
-  static sendOtpOutputSchema = z.object({
+  static completeOnboardingInputSchema = z.object({
+    publicKey: z.string(),
+    onboardingAuthentication: z.object({
+      otp: z.string(),
+    }),
+    deviceId: z.string(),
+  });
+  static completeOnboardingOutputSchema = z.object({
     shares: z.object({
       device: z.string(),
       auth: z.string(),
@@ -110,16 +116,16 @@ export class CrossmintApiService extends XMIFService {
     publicKey: z.string(),
   });
 
-  async createSigner(
+  async startOnboarding(
     deviceId: string,
-    input: z.infer<typeof CrossmintApiService.createSignerInputSchema>,
+    input: z.infer<typeof CrossmintApiService.startOnboardingInputSchema>,
     authData: AuthData
   ) {
-    CrossmintApiService.createSignerInputSchema.parse(input);
+    CrossmintApiService.startOnboardingInputSchema.parse(input);
     const request = new CrossmintRequest({
       name: 'createSigner',
-      inputSchema: CrossmintApiService.createSignerInputSchema,
-      outputSchema: CrossmintApiService.createSignerOutputSchema,
+      inputSchema: CrossmintApiService.startOnboardingInputSchema,
+      outputSchema: CrossmintApiService.startOnboardingOutputSchema,
       environment: parseApiKey(authData.apiKey).environment,
       authData,
       endpoint: _input => `/${deviceId}`,
@@ -131,17 +137,17 @@ export class CrossmintApiService extends XMIFService {
     return request.execute(input);
   }
 
-  async sendOtp(
+  async completeOnboarding(
     deviceId: string,
-    input: z.infer<typeof CrossmintApiService.sendOtpInputSchema>,
+    input: z.infer<typeof CrossmintApiService.completeOnboardingInputSchema>,
     authData: AuthData
-  ): Promise<z.infer<typeof CrossmintApiService.sendOtpOutputSchema>> {
-    CrossmintApiService.sendOtpInputSchema.parse(input);
+  ): Promise<z.infer<typeof CrossmintApiService.completeOnboardingOutputSchema>> {
+    CrossmintApiService.completeOnboardingInputSchema.parse(input);
     const request = new CrossmintRequest({
       name: 'sendOtp',
       authData,
-      inputSchema: CrossmintApiService.sendOtpInputSchema,
-      outputSchema: CrossmintApiService.sendOtpOutputSchema,
+      inputSchema: CrossmintApiService.completeOnboardingInputSchema,
+      outputSchema: CrossmintApiService.completeOnboardingOutputSchema,
       environment: parseApiKey(authData.apiKey).environment,
       endpoint: _input => `/${deviceId}/auth`,
       method: 'POST',

@@ -118,7 +118,7 @@ export default function CrossmintSignerProvider({
     if (iframe.current == null) {
       try {
         setIsInitializing(true);
-        const iframe = await createIFrame(iframeUrl.toString());
+        const iframe = await createIFrame(`${iframeUrl.toString()}?environment=development`);
         iframeWindow.current = await IFrameWindow.init(iframe, {
           targetOrigin: iframeUrl.origin,
           incomingEvents: signerOutboundEvents,
@@ -163,7 +163,7 @@ export default function CrossmintSignerProvider({
           if (!response || response.status === 'error' || !response.signature) {
             throw new Error('Failed to sign message');
           }
-          return bs58.decode(response.signature);
+          return bs58.decode(response.signature.bytes);
         } catch (error) {
           console.error('Failed to sign message:', error);
           throw error;
@@ -212,7 +212,7 @@ export default function CrossmintSignerProvider({
 
           // Add signature to transaction
           const signerPublicKey = new PublicKey(address);
-          const signature = bs58.decode(response.signature);
+          const signature = bs58.decode(response.signature.bytes);
           console.log('Adding signature to transaction');
           transaction.addSignature(signerPublicKey, signature);
 
@@ -282,8 +282,8 @@ export default function CrossmintSignerProvider({
       throw new Error('Failed to create signer. The component has not been initialized');
     }
     const response = await iframeWindow.current?.sendAction({
-      event: 'request:create-signer',
-      responseEvent: 'response:create-signer',
+      event: 'request:start-onboarding',
+      responseEvent: 'response:start-onboarding',
       data: {
         authData: {
           jwt: jwt as NonNullable<typeof jwt>,
@@ -291,13 +291,13 @@ export default function CrossmintSignerProvider({
         },
         data: {
           authId: user?.email ? `email:${user.email}` : user?.id || '',
-          chainLayer: 'solana',
+          keyType: 'ed25519',
         },
       },
     });
 
-    if (response?.status === 'success' && response.address) {
-      handleAddressFetched(response.address);
+    if (response?.status === 'success' && response.publicKey) {
+      handleAddressFetched(response.publicKey.bytes);
     }
   };
 
@@ -307,23 +307,25 @@ export default function CrossmintSignerProvider({
       throw new Error('Failed to create signer. The component has not been initialized');
     }
     const response = await iframeWindow.current.sendAction({
-      event: 'request:send-otp',
-      responseEvent: 'response:send-otp',
+      event: 'request:complete-onboarding',
+      responseEvent: 'response:complete-onboarding',
       data: {
         authData: {
           jwt,
           apiKey,
         },
         data: {
-          encryptedOtp,
-          chainLayer,
+          keyType: 'ed25519',
+          onboardingAuthentication: {
+            encryptedOtp,
+          },
         },
       },
     });
-    if (!response || response.status === 'error' || !response.address) {
+    if (!response || response.status === 'error' || !response.publicKey) {
       throw new Error('Failed to validate encrypted OTP');
     }
-    return response.address;
+    return response.publicKey.bytes;
   };
 
   const handleAddressFetched = (address: string) => {
