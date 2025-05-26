@@ -123,7 +123,7 @@ export class CrossmintApiService extends XMIFService {
   ) {
     CrossmintApiService.startOnboardingInputSchema.parse(input);
     const request = new CrossmintRequest({
-      name: 'createSigner',
+      name: 'startOnboarding',
       inputSchema: CrossmintApiService.startOnboardingInputSchema,
       outputSchema: CrossmintApiService.startOnboardingOutputSchema,
       environment: parseApiKey(authData.apiKey).environment,
@@ -144,7 +144,7 @@ export class CrossmintApiService extends XMIFService {
   ): Promise<z.infer<typeof CrossmintApiService.completeOnboardingOutputSchema>> {
     CrossmintApiService.completeOnboardingInputSchema.parse(input);
     const request = new CrossmintRequest({
-      name: 'sendOtp',
+      name: 'completeOnboarding',
       authData,
       inputSchema: CrossmintApiService.completeOnboardingInputSchema,
       outputSchema: CrossmintApiService.completeOnboardingOutputSchema,

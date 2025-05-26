@@ -96,7 +96,7 @@ export class CrossmintRequest<
       throw new Error('Error parsing body: input is null');
     }
     if (this.encrypted) {
-      this.log(`Encrypting request. Encrypting body... ${JSON.stringify(parsedInput, null, 2)}`);
+      this.log('Encrypting request. Encrypting body...');
       if (!this.encryptionService) throw new Error('EncryptionService not provided');
       const encryptedPayload = this.encryptedPayloadSchema.parse(
         await this.encryptionService.encryptBase64(parsedInput)
