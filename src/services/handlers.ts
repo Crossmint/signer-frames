@@ -66,7 +66,7 @@ export class StartOnboardingEventHandler extends EventHandler<'start-onboarding'
       };
     }
 
-    await this.services.api.createSigner(
+    await this.services.api.startOnboarding(
       this.services.sharding.getDeviceId(),
       {
         ...payload.data,
@@ -108,11 +108,14 @@ export class CompleteOnboardingEventHandler extends EventHandler<'complete-onboa
     );
     const senderPublicKey = await this.services.encrypt.getPublicKey();
 
-    const response = await this.services.api.sendOtp(
+    const response = await this.services.api.completeOnboarding(
       deviceId,
       {
-        otp: decryptedOtp,
         publicKey: senderPublicKey,
+        onboardingAuthentication: {
+          otp: decryptedOtp,
+        },
+        deviceId,
       },
       payload.authData
     );

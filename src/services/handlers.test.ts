@@ -54,7 +54,7 @@ describe('EventHandlers', () => {
 
       await handler.handler(testInput);
 
-      expect(mockServices.api.createSigner).not.toHaveBeenCalled();
+      expect(mockServices.api.startOnboarding).not.toHaveBeenCalled();
     });
   });
 
@@ -73,7 +73,7 @@ describe('EventHandlers', () => {
 
       mockServices.fpe.decrypt.mockResolvedValue([1, 2, 3, 4, 5, 6]);
 
-      mockServices.api.sendOtp.mockResolvedValue({
+      mockServices.api.completeOnboarding.mockResolvedValue({
         shares: TEST_FIXTURES.shares,
       });
 
@@ -90,9 +90,11 @@ describe('EventHandlers', () => {
 
       const result = await handler.handler(testInput);
 
-      expect(mockServices.api.sendOtp).toHaveBeenCalledWith(
+      expect(mockServices.api.completeOnboarding).toHaveBeenCalledWith(
         TEST_FIXTURES.deviceId,
-        expect.objectContaining({ otp: '123456' }),
+        expect.objectContaining({
+          onboardingAuthentication: { otp: '123456' },
+        }),
         testInput.authData
       );
 
