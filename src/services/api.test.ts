@@ -37,16 +37,18 @@ describe('CrossmintApiService', () => {
         encryptionContext: {
           publicKey: 'test-public-key',
         },
+        deviceId,
       };
       executeSpy.mockResolvedValueOnce({ success: true });
 
-      await apiService.startOnboarding(deviceId, data, authData);
+      await apiService.startOnboarding(data, authData);
 
       expect(executeSpy).toHaveBeenCalledWith({
         authId: 'test-auth-id',
         encryptionContext: {
           publicKey: 'test-public-key',
         },
+        deviceId,
       });
     });
 
@@ -59,7 +61,7 @@ describe('CrossmintApiService', () => {
       const mockResponse = { shares: { device: 'device-share', auth: 'auth-share' } };
       executeSpy.mockResolvedValueOnce(mockResponse);
 
-      const result = await apiService.completeOnboarding(deviceId, data, authData);
+      const result = await apiService.completeOnboarding(data, authData);
 
       expect(executeSpy).toHaveBeenCalledWith({
         publicKey: 'test-public-key',
