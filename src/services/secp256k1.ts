@@ -3,7 +3,10 @@ import { secp256k1 } from 'ethereum-cryptography/secp256k1.js';
 import { keccak256 } from 'ethereum-cryptography/keccak.js';
 import { sha256 } from 'ethereum-cryptography/sha256.js';
 import { toHex } from 'ethereum-cryptography/utils';
-const SECP256K1_DERIVATION_PATH = new Uint8Array([0x42]);
+const SECP256K1_DERIVATION_PATH = new Uint8Array([
+  0x73, 0x65, 0x63, 0x70, 0x32, 0x35, 0x36, 0x6b, 0x31, 0x2d, 0x64, 0x65, 0x72, 0x69, 0x76, 0x61,
+  0x74, 0x69, 0x6f, 0x6e, 0x2d, 0x70, 0x61, 0x74, 0x68,
+]);
 
 export type Hex = `0x${string}`;
 export type PrivKey = Uint8Array;
