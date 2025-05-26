@@ -50,11 +50,11 @@ export abstract class EventHandler<
   };
 }
 
-export class CreateSignerEventHandler extends EventHandler<'create-signer'> {
-  event = 'request:create-signer' as const;
-  responseEvent = 'response:create-signer' as const;
+export class StartOnboardingEventHandler extends EventHandler<'start-onboarding'> {
+  event = 'request:start-onboarding' as const;
+  responseEvent = 'response:start-onboarding' as const;
 
-  async handler(payload: SignerInputEvent<'create-signer'>) {
+  async handler(payload: SignerInputEvent<'start-onboarding'>) {
     if (this.services.sharding.status() === 'ready') {
       const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
       const publicKey = await this.services.cryptoKey.getPublicKeyFromSeed(
@@ -93,18 +93,19 @@ export class GetAttestationEventHandler extends EventHandler<'get-attestation'> 
   }
 }
 
-export class SendOtpEventHandler extends EventHandler<'send-otp'> {
-  event = 'request:send-otp' as const;
-  responseEvent = 'response:send-otp' as const;
+export class CompleteOnboardingEventHandler extends EventHandler<'complete-onboarding'> {
+  event = 'request:complete-onboarding' as const;
+  responseEvent = 'response:complete-onboarding' as const;
 
-  async handler(payload: SignerInputEvent<'send-otp'>) {
+  async handler(payload: SignerInputEvent<'complete-onboarding'>) {
     const deviceId = this.services.sharding.getDeviceId();
+    const encryptedOtp = payload.data.onboardingAuthentication.encryptedOtp;
     console.log(
-      `[DEBUG, ${this.event} handler] Received encrypted OTP: ${payload.data.encryptedOtp}. Decrypting`
+      `[DEBUG, ${this.event} handler] Received encrypted OTP: ${encryptedOtp}. Decrypting`
     );
-    const decryptedOtp = (
-      await this.services.fpe.decrypt(payload.data.encryptedOtp.split('').map(Number))
-    ).join('');
+    const decryptedOtp = (await this.services.fpe.decrypt(encryptedOtp.split('').map(Number))).join(
+      ''
+    );
     const senderPublicKey = await this.services.encrypt.getPublicKey();
 
     const response = await this.services.api.sendOtp(
@@ -181,8 +182,8 @@ function decodeBytes(bytes: string, encoding: 'base64' | 'base58' | 'hex'): Uint
 }
 
 export const initializeHandlers = (services: XMIFServices) => [
-  new SendOtpEventHandler(services),
-  new CreateSignerEventHandler(services),
+  new CompleteOnboardingEventHandler(services),
+  new StartOnboardingEventHandler(services),
   new GetPublicKeyEventHandler(services),
   new SignEventHandler(services),
   new GetStatusEventHandler(services),
