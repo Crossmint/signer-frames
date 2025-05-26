@@ -31,7 +31,7 @@ describe('CrossmintApiService', () => {
     const deviceId = 'test-device-id';
     const authData = { jwt: 'test-jwt', apiKey: 'sk_development_test' };
 
-    it('should properly call createSigner with correct parameters', async () => {
+    it('should properly call startOnboarding with correct parameters', async () => {
       const data = {
         authId: 'test-auth-id',
         encryptionContext: {
@@ -40,7 +40,7 @@ describe('CrossmintApiService', () => {
       };
       executeSpy.mockResolvedValueOnce({ success: true });
 
-      await apiService.createSigner(deviceId, data, authData);
+      await apiService.startOnboarding(deviceId, data, authData);
 
       expect(executeSpy).toHaveBeenCalledWith({
         authId: 'test-auth-id',
@@ -50,16 +50,21 @@ describe('CrossmintApiService', () => {
       });
     });
 
-    it('should properly call sendOtp with correct parameters and return shares', async () => {
-      const data = { otp: '123456', publicKey: 'test-public-key' };
+    it('should properly call completeOnboarding with correct parameters and return shares', async () => {
+      const data = {
+        publicKey: 'test-public-key',
+        deviceId,
+        onboardingAuthentication: { otp: '123456' },
+      };
       const mockResponse = { shares: { device: 'device-share', auth: 'auth-share' } };
       executeSpy.mockResolvedValueOnce(mockResponse);
 
-      const result = await apiService.sendOtp(deviceId, data, authData);
+      const result = await apiService.completeOnboarding(deviceId, data, authData);
 
       expect(executeSpy).toHaveBeenCalledWith({
-        otp: '123456',
         publicKey: 'test-public-key',
+        deviceId,
+        onboardingAuthentication: { otp: '123456' },
       });
       expect(result).toEqual(mockResponse);
     });
