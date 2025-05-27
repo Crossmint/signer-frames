@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+
+    <title>Crossmint Key Export</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="dist/bundle.min.js"></script>
+    <style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+    
+</head>
+<body>
+    <div class="container">
+        <header class="professional-header">
+            <div class="header-content">
+                <div class="header-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M6 10C6 7.79086 7.79086 6 10 6H14C16.2091 6 18 7.79086 18 10V14C18 16.2091 16.2091 18 14 18H10C7.79086 18 6 16.2091 6 14V10Z" stroke="currentColor" stroke-width="2"/>
+                        <path d="M12 8V16M8 12H16" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                </div>
+                <div class="header-text">
+                    <h1>Crossmint Key Exporter</h1>
+                    <p class="header-subtitle">Secure private key management and export</p>
+                </div>
+            </div>
+        </header>
+        
+        <main class="main-content">
+            <div class="export-card">
+                <div class="card-header">
+                    <h2>Private Key Export</h2>
+                    <p class="card-description">Export your cryptographic keys securely</p>
+                </div>
+                
+                <!-- Loading state -->
+                <div id="loading-state" class="loading-section">
+                    <div class="loading-content">
+                        <div class="loading-spinner"></div>
+                        <h3>Preparing Key Export</h3>
+                        <p>Establishing secure connection...</p>
+                    </div>
+                </div>
+                
+                <!-- Export interface (hidden initially) -->
+                <div id="export-interface" class="export-section" style="display: none;">
+                    <div class="form-section">
+                        <div class="form-group">
+                            <label for="key-type-select" class="form-label">Key Type</label>
+                            <select id="key-type-select" class="form-select" disabled>
+                                <option value="">Waiting for keys from parent...</option>
+                            </select>
+                        </div>
+                        
+                        <div class="key-display-grid">
+                            <div class="key-group">
+                                <label for="private-keys-display" class="form-label">
+                                    <span class="label-icon">🔐</span>
+                                    Private Key
+                                </label>
+                                <textarea 
+                                    id="private-keys-display" 
+                                    readonly 
+                                    placeholder="Private key will appear here after selection..."
+                                    class="key-textarea private-key"
+                                ></textarea>
+                            </div>
+                            
+                            <div class="key-group">
+                                <label for="public-keys-display" class="form-label">
+                                    <span class="label-icon">🔓</span>
+                                    Public Key
+                                </label>
+                                <textarea 
+                                    id="public-keys-display" 
+                                    readonly 
+                                    placeholder="Public key will appear here after selection..."
+                                    class="key-textarea public-key"
+                                ></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="button-group">
+                            <button id="copy-private-btn" class="btn btn-primary" disabled>
+                                <span class="btn-icon">📋</span>
+                                Copy Private Key
+                            </button>
+                            <button id="copy-public-btn" class="btn btn-secondary" disabled>
+                                <span class="btn-icon">📋</span>
+                                Copy Public Key
+                            </button>
+                            <button id="clear-btn" class="btn btn-outline">
+                                <span class="btn-icon">🗑️</span>
+                                Clear Display
+                            </button>
+                        </div>
+                        
+                        <div id="export-status" class="status-message" style="display: none;"></div>
+                        
+                        <div class="security-notice">
+                            <div class="notice-icon">⚠️</div>
+                            <div class="notice-content">
+                                <strong>Security Notice</strong>
+                                <p>Private keys are extremely sensitive. Only export keys in a secure environment and never share them publicly or store them in unsecured locations.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <footer class="professional-footer">
+        <div class="footer-content">
+            <p>Crossmint Key Export</p>
+            <p class="footer-description">Secure environment running in an isolated iframe for protected key operations</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const keyTypeSelect = document.getElementById('key-type-select');
+            const copyPrivateBtn = document.getElementById('copy-private-btn');
+            const copyPublicBtn = document.getElementById('copy-public-btn');
+            const clearBtn = document.getElementById('clear-btn');
+            const privateKeysDisplay = document.getElementById('private-keys-display');
+            const publicKeysDisplay = document.getElementById('public-keys-display');
+            const exportStatus = document.getElementById('export-status');
+            const loadingState = document.getElementById('loading-state');
+            const exportInterface = document.getElementById('export-interface');
+            
+            // Listen for keys received from ExportsService
+            window.addEventListener('xmif:keys-received', (event) => {
+                const { keyTypes } = event.detail;
+                
+                // Hide loading state and show export interface
+                loadingState.style.display = 'none';
+                exportInterface.style.display = 'block';
+                
+                populateKeyTypeSelect(keyTypes);
+                updateStatus('✅ Keys have been exported. Select a key type to display.', 'success');
+            });
+
+            // Listen for keys cleared from ExportsService
+            window.addEventListener('xmif:keys-cleared', () => {
+                // Show loading state and hide export interface
+                loadingState.style.display = 'block';
+                exportInterface.style.display = 'none';
+                
+                clearKeyTypeSelect();
+                updateStatus('Keys cleared', 'info');
+            });
+            
+            // Key type selection handler
+            keyTypeSelect.addEventListener('change', () => {
+                const selectedKeyType = keyTypeSelect.value;
+                if (selectedKeyType && window.XMIF?.services?.exports) {
+                    window.XMIF.services.exports.showKeyType(selectedKeyType);
+                }
+            });
+            
+            // Copy private key button handler
+            copyPrivateBtn.addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(privateKeysDisplay.value);
+                    showCopySuccess(copyPrivateBtn, 'Private key copied!');
+                } catch (error) {
+                    console.error('Failed to copy private key to clipboard:', error);
+                    // Fallback for older browsers
+                    privateKeysDisplay.select();
+                    document.execCommand('copy');
+                    showCopySuccess(copyPrivateBtn, 'Private key copied!');
+                }
+            });
+
+            // Copy public key button handler
+            copyPublicBtn.addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(publicKeysDisplay.value);
+                    showCopySuccess(copyPublicBtn, 'Public key copied!');
+                } catch (error) {
+                    console.error('Failed to copy public key to clipboard:', error);
+                    // Fallback for older browsers
+                    publicKeysDisplay.select();
+                    document.execCommand('copy');
+                    showCopySuccess(copyPublicBtn, 'Public key copied!');
+                }
+            });
+            
+            // Clear button handler
+            clearBtn.addEventListener('click', () => {
+                if (window.XMIF?.services?.exports) {
+                    window.XMIF.services.exports.clear();
+                }
+            });
+
+            function populateKeyTypeSelect(keyTypes) {
+                keyTypeSelect.innerHTML = '<option value="">Select a key type...</option>';
+                keyTypes.forEach(keyType => {
+                    const option = document.createElement('option');
+                    option.value = keyType;
+                    option.textContent = keyType.toUpperCase();
+                    keyTypeSelect.appendChild(option);
+                });
+                keyTypeSelect.disabled = false;
+            }
+
+            function clearKeyTypeSelect() {
+                keyTypeSelect.innerHTML = '<option value="">Waiting for keys from parent...</option>';
+                keyTypeSelect.disabled = true;
+            }
+
+            function updateStatus(message, type) {
+                if (exportStatus) {
+                    exportStatus.style.display = 'block';
+                    exportStatus.textContent = message;
+                    exportStatus.className = `status-message ${type}`;
+                }
+            }
+
+            function showCopySuccess(button, message = '✅ Copied!') {
+                const originalText = button.textContent;
+                button.textContent = message;
+                button.classList.add('copy-success');
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.classList.remove('copy-success');
+                }, 2000);
+            }
+
+          
+                
+            
+            // Initialize XMIF
+            if (window.XMIF) {
+                window.XMIF.init()
+                    .then(() => {
+                        console.log('XMIF framework initialized');
+                        document.getElementById('status').textContent = 'Ready. Waiting for keys...';
+                    })
+                    .catch(err => {
+                        console.error('Failed to initialize XMIF:', err);
+                        document.getElementById('status').textContent = `Error: ${typeof err === 'string' ? err : err.message}`;
+                    });
+            } else {
+                document.getElementById('status').textContent = 'Error: Crossmint Service not loaded';
+            }
+        });
+    </script>
+</body>
+</html> 

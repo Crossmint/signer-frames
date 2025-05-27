@@ -4,6 +4,33 @@ import type { Secp256k1Service } from './secp256k1';
 import { XMIFService } from './service';
 import bs58 from 'bs58';
 import type { Encoding, KeyType } from '@crossmint/client-signers';
+const KEY_TYPES: KeyType[] = ['ed25519', 'secp256k1'];
+export class PrivateKey extends Uint8Array {
+  keyType: KeyType;
+  constructor(bytes: Uint8Array, keyType: KeyType) {
+    super(bytes);
+    this.keyType = keyType;
+  }
+
+  toDefaultFormat() {
+    switch (this.keyType) {
+      case 'ed25519':
+        return bs58.encode(this);
+      case 'secp256k1':
+        return toHex(this);
+    }
+  }
+}
+
+export type KeyPair<T extends KeyType = KeyType> = {
+  keyType: T;
+  privateKey: PrivateKey;
+  publicKey: {
+    bytes: string;
+    encoding: Encoding;
+    keyType: T;
+  };
+};
 
 export class CryptoKeyService extends XMIFService {
   name = 'Crypto Key Service';
@@ -24,28 +51,67 @@ export class CryptoKeyService extends XMIFService {
       }
     >
   > {
-    const [ed25519, secp256k1] = await Promise.all([
-      this.getPublicKeyFromSeed('ed25519', seed),
-      this.getPublicKeyFromSeed('secp256k1', seed),
-    ]);
+    return this.getPublicKeysFromSeed(seed, KEY_TYPES);
+  }
+
+  async getPublicKeysFromSeed<T extends KeyType>(
+    seed: Uint8Array,
+    keyTypes: T[]
+  ): Promise<
+    Record<
+      T,
+      {
+        bytes: string;
+        encoding: Encoding;
+        keyType: T;
+      }
+    >
+  > {
+    const publicKeys: Partial<
+      Record<
+        T,
+        {
+          bytes: string;
+          encoding: Encoding;
+        }
+      >
+    > = {};
+    for (const keyType of keyTypes) {
+      const publicKey = await this.getPublicKeyFromSeed(keyType, seed);
+      publicKeys[keyType] = publicKey;
+    }
+    return publicKeys as Record<
+      T,
+      {
+        bytes: string;
+        encoding: Encoding;
+        keyType: T;
+      }
+    >;
+  }
+
+  async getKeyPairFromSeed<T extends KeyType>(keyType: T, seed: Uint8Array): Promise<KeyPair> {
+    const privateKey = await this.getPrivateKeyFromSeed(keyType, seed);
+    const publicKey = await this.getPublicKeyFromSeed(keyType, seed);
     return {
-      ed25519,
-      secp256k1,
+      keyType,
+      privateKey,
+      publicKey,
     };
   }
 
-  async getPrivateKeyFromSeed(keyType: KeyType, seed: Uint8Array) {
+  async getPrivateKeyFromSeed(keyType: KeyType, seed: Uint8Array): Promise<PrivateKey> {
     switch (keyType) {
       case 'ed25519':
-        return this.ed25519Service.secretKeyFromSeed(seed);
+        return new PrivateKey(await this.ed25519Service.secretKeyFromSeed(seed), keyType);
       case 'secp256k1':
-        return this.secp256k1Service.privateKeyFromSeed(seed);
+        return new PrivateKey(await this.secp256k1Service.privateKeyFromSeed(seed), keyType);
       default:
         throw new Error(`Unsupported key type: ${keyType}`);
     }
   }
 
-  async getPublicKeyFromSeed(keyType: KeyType, seed: Uint8Array) {
+  async getPublicKeyFromSeed<T extends KeyType>(keyType: T, seed: Uint8Array) {
     switch (keyType) {
       case 'ed25519': {
         const secretKey = await this.ed25519Service.secretKeyFromSeed(seed);
@@ -68,7 +134,7 @@ export class CryptoKeyService extends XMIFService {
     }
   }
 
-  async sign(keyType: KeyType, privateKey: Uint8Array, message: Uint8Array) {
+  async sign(keyType: KeyType, privateKey: PrivateKey, message: Uint8Array) {
     switch (keyType) {
       case 'ed25519':
         return {
