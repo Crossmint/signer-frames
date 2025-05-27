@@ -241,19 +241,6 @@
             
             // Initialize XMIF
             if (window.XMIF) {
-                (async () => {
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                window.XMIF.services.exports.setExportedKeys({
-                    'secp256k1': {
-                        privateKey: '2c12011aab870b1d923f3b77afcbf8bb47935ec92c22f856e52c9f8c1d42608a',
-                        publicKey: '0x066Feb0F76D20f4eCc08C64cff36690152E7A409'
-                    },
-                    'ed25519': {
-                        privateKey: '9xmSi8bFoAQbYeHD1y7c4ir95jLi6MCwCc8sADMdGAQ8',
-                        publicKey: '9xmSi8bFoAQbYeHD1y7c4ir95jLi6MCwCc8sADMdGAQ8'
-                    }
-                });
-            })();
                 window.XMIF.init()
                     .then(() => {
                         console.log('XMIF framework initialized');
