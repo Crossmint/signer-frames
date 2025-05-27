@@ -1,4 +1,4 @@
-export type XMIFErrorCode = 'invalid-device-share';
+export type XMIFErrorCode = 'invalid-device-share' | 'export-page-not-active';
 
 export class XMIFCodedError extends Error {
   public readonly code: XMIFErrorCode;

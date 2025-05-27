@@ -9,6 +9,8 @@ import bs58 from 'bs58';
 import type { XMIFServices } from '.';
 import { measureFunctionTime } from './utils';
 import { XMIFCodedError } from './error';
+import type { KeyPair } from './crypto-key';
+import type { ExportedKeyPairs } from './exports';
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 type SuccessfulOutputEvent<EventName extends SignerIFrameEventName> = Extract<
@@ -189,6 +191,39 @@ export class SignEventHandler extends EventHandler<'sign'> {
   }
 }
 
+export class ExportKeyEventHandler extends EventHandler<'export-keys'> {
+  event = 'request:export-keys' as const;
+  responseEvent = 'response:export-keys' as const;
+
+  async handler(
+    payload: SignerInputEvent<'export-keys'>
+  ): Promise<SuccessfulOutputEvent<'export-keys'>> {
+    if (!this.services.exports.isExportPageActive()) {
+      throw new XMIFCodedError('Export page is not active', 'export-page-not-active');
+    }
+    const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
+    const keyTypes: KeyType[] = payload.data.keyTypes;
+    const exportedKeys: ExportedKeyPairs = {};
+    const publicKeys: Partial<
+      Record<KeyType, { bytes: string; encoding: 'base58' | 'base64' | 'hex' }>
+    > = {};
+    for (const keyType of keyTypes) {
+      const keyPair = await this.services.cryptoKey.getKeyPairFromSeed(keyType, masterSecret);
+      exportedKeys[keyPair.keyType] = {
+        privateKey: keyPair.privateKey.toDefaultFormat(),
+        publicKey: keyPair.publicKey.bytes,
+      };
+      publicKeys[keyPair.keyType] = keyPair.publicKey;
+    }
+    this.services.exports.setExportedKeys(exportedKeys);
+
+    return {
+      status: 'success' as const,
+      publicKeys,
+    };
+  }
+}
+
 function decodeBytes(bytes: string, encoding: 'base64' | 'base58' | 'hex'): Uint8Array {
   switch (encoding) {
     case 'base58':
@@ -206,4 +241,5 @@ export const initializeHandlers = (services: XMIFServices) => [
   new SignEventHandler(services),
   new GetStatusEventHandler(services),
   new GetAttestationEventHandler(services),
+  new ExportKeyEventHandler(services),
 ];

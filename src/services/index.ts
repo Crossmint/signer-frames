@@ -8,6 +8,7 @@ import type { XMIFService } from './service';
 import { FPEService } from './fpe';
 import { Secp256k1Service } from './secp256k1';
 import { CryptoKeyService } from './crypto-key';
+import { ExportsService } from './exports';
 
 /**
  * Services index - Export all services
@@ -25,6 +26,7 @@ export type XMIFServices = {
   secp256k1: Secp256k1Service;
   fpe: FPEService;
   cryptoKey: CryptoKeyService;
+  exports: ExportsService;
 };
 
 export const createXMIFServices = () => {
@@ -37,6 +39,7 @@ export const createXMIFServices = () => {
   const shardingService = new ShardingService(crossmintApiService);
   const fpeService = new FPEService(encryptionService);
   const cryptoKeyService = new CryptoKeyService(ed25519Service, secp256k1Service);
+  const exportsService = new ExportsService();
 
   encryptionService.setAttestationService(attestationService);
 
@@ -50,6 +53,7 @@ export const createXMIFServices = () => {
     sharding: shardingService,
     fpe: fpeService,
     cryptoKey: cryptoKeyService,
+    exports: exportsService,
   } satisfies Record<string, XMIFService>;
   return services;
 };

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+
+    <title>🔑 Crossmint Key Export</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="dist/bundle.min.js"></script>
+    <style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+    
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔑 Crossmint Key Exporter</h1>
+        </header>
+        <!-- <div class="status-container">
+            <div class="status" id="status">Loaded. Waiting for parent handshake...</div>
+        </div> -->
+        
+        <div class="demo-section">
+            <h2>🔐 Private Key Export</h2>
+            
+            <!-- Loading state -->
+            <div id="loading-state">
+                <div class="loading-container" style="text-align: center; padding: 40px;">
+                    <div class="loading-spinner" style="display: inline-block; width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
+                    <p style="font-size: 18px; color: #666;">Exporting keys...</p>
+                    <p style="font-size: 14px; color: #999;">Waiting for keys from parent application</p>
+                </div>
+            </div>
+            
+            <!-- Export interface (hidden initially) -->
+            <div id="export-interface" style="display: none;">
+                <p>Select a key type to display the corresponding private key.</p>
+                
+                <div class="export-warning">
+                    <strong>Security Notice:</strong> Private keys are extremely sensitive. Only export keys in a secure environment and never share them publicly or store them in unsecured locations.
+                </div>
+                
+                <div class="form-group">
+                    <label for="key-type-select">Select Key Type:</label>
+                    <select id="key-type-select" class="architecture-select" disabled>
+                        <option value="">Waiting for keys from parent...</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="private-keys-display">Private Key:</label>
+                    <textarea 
+                        id="private-keys-display" 
+                        readonly 
+                        placeholder="Waiting for keys from parent application..."
+                        class="export-keys-textarea"
+                        style="min-height: 200px;"
+                    ></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="public-keys-display">Public Key:</label>
+                    <textarea 
+                        id="public-keys-display" 
+                        readonly 
+                        placeholder="Public key will be displayed here..."
+                        class="export-keys-textarea"
+                        style="min-height: 200px;"
+                    ></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <button id="copy-private-btn" class="action-button" disabled>📋 Copy Private Key</button>
+                    <button id="copy-public-btn" class="action-button" disabled>📋 Copy Public Key</button>
+                    <button id="clear-btn" class="action-button">🗑️ Clear Display</button>
+                </div>
+                
+                <div id="export-status" class="status" style="display: none; margin-top: 15px;"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="footer">
+        Crossmint Key Export
+        <p class="footer-note">This secure environment runs in an isolated iframe, providing a protected vault for your key export operations.</p>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const keyTypeSelect = document.getElementById('key-type-select');
+            const copyPrivateBtn = document.getElementById('copy-private-btn');
+            const copyPublicBtn = document.getElementById('copy-public-btn');
+            const clearBtn = document.getElementById('clear-btn');
+            const privateKeysDisplay = document.getElementById('private-keys-display');
+            const publicKeysDisplay = document.getElementById('public-keys-display');
+            const exportStatus = document.getElementById('export-status');
+            const loadingState = document.getElementById('loading-state');
+            const exportInterface = document.getElementById('export-interface');
+            
+            // Listen for keys received from ExportsService
+            window.addEventListener('xmif:keys-received', (event) => {
+                const { keyTypes } = event.detail;
+                
+                // Hide loading state and show export interface
+                loadingState.style.display = 'none';
+                exportInterface.style.display = 'block';
+                
+                populateKeyTypeSelect(keyTypes);
+                updateStatus('✅ Keys received from parent application. Select a key type to display.', 'success');
+            });
+
+            // Listen for keys cleared from ExportsService
+            window.addEventListener('xmif:keys-cleared', () => {
+                // Show loading state and hide export interface
+                loadingState.style.display = 'block';
+                exportInterface.style.display = 'none';
+                
+                clearKeyTypeSelect();
+                updateStatus('Keys cleared', 'info');
+            });
+            
+            // Key type selection handler
+            keyTypeSelect.addEventListener('change', () => {
+                const selectedKeyType = keyTypeSelect.value;
+                if (selectedKeyType && window.XMIF?.services?.exports) {
+                    window.XMIF.services.exports.showKeyType(selectedKeyType);
+                }
+            });
+            
+            // Copy private key button handler
+            copyPrivateBtn.addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(privateKeysDisplay.value);
+                    showCopySuccess(copyPrivateBtn, 'Private key copied!');
+                } catch (error) {
+                    console.error('Failed to copy private key to clipboard:', error);
+                    // Fallback for older browsers
+                    privateKeysDisplay.select();
+                    document.execCommand('copy');
+                    showCopySuccess(copyPrivateBtn, 'Private key copied!');
+                }
+            });
+
+            // Copy public key button handler
+            copyPublicBtn.addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(publicKeysDisplay.value);
+                    showCopySuccess(copyPublicBtn, 'Public key copied!');
+                } catch (error) {
+                    console.error('Failed to copy public key to clipboard:', error);
+                    // Fallback for older browsers
+                    publicKeysDisplay.select();
+                    document.execCommand('copy');
+                    showCopySuccess(copyPublicBtn, 'Public key copied!');
+                }
+            });
+            
+            // Clear button handler
+            clearBtn.addEventListener('click', () => {
+                if (window.XMIF?.services?.exports) {
+                    window.XMIF.services.exports.clear();
+                }
+            });
+
+            function populateKeyTypeSelect(keyTypes) {
+                keyTypeSelect.innerHTML = '<option value="">Select a key type...</option>';
+                keyTypes.forEach(keyType => {
+                    const option = document.createElement('option');
+                    option.value = keyType;
+                    option.textContent = keyType.toUpperCase();
+                    keyTypeSelect.appendChild(option);
+                });
+                keyTypeSelect.disabled = false;
+            }
+
+            function clearKeyTypeSelect() {
+                keyTypeSelect.innerHTML = '<option value="">Waiting for keys from parent...</option>';
+                keyTypeSelect.disabled = true;
+            }
+
+            function updateStatus(message, type) {
+                if (exportStatus) {
+                    exportStatus.style.display = 'block';
+                    exportStatus.textContent = message;
+                    exportStatus.className = `export-status ${type}`;
+                }
+            }
+
+            function showCopySuccess(button, message = '✅ Copied!') {
+                const originalText = button.textContent;
+                button.textContent = message;
+                button.classList.add('copy-success');
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.classList.remove('copy-success');
+                }, 2000);
+            }
+
+          
+                
+            
+            // Initialize XMIF
+            if (window.XMIF) {
+                (async () => {
+                await new Promise(resolve => setTimeout(resolve, 5000));
+                window.XMIF.services.exports.setExportedKeys({
+                    'secp256k1': {
+                        privateKey: '0x1234567890abcdefbutlonger',
+                        publicKey: '0x1234567890abcdef'
+                    },
+                    'ed25519': {
+                        privateKey: 'dfwftyftyhgvddcgshxhdfasghfjk',
+                        publicKey: 'dfwftyftyhgvd'
+                    }
+                });
+            })();
+                window.XMIF.init()
+                    .then(() => {
+                        console.log('XMIF framework initialized');
+                        document.getElementById('status').textContent = 'Ready. Waiting for keys from parent application...';
+                    })
+                    .catch(err => {
+                        console.error('Failed to initialize XMIF:', err);
+                        document.getElementById('status').textContent = `Error: ${typeof err === 'string' ? err : err.message}`;
+                    });
+            } else {
+                document.getElementById('status').textContent = 'Error: Crossmint Service not loaded';
+            }
+        });
+    </script>
+</body>
+</html> 

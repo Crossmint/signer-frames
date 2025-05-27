@@ -297,14 +297,16 @@ button:disabled {
 .action-button {
     margin-right: 5px;
     cursor: pointer;
-    background-color: #f2f2f2;
+    background-color: #3498db;
+    color: white;
     border: none;
-    padding: 3px 8px;
-    border-radius: 3px;
+    padding: 8px 15px;
+    border-radius: 4px;
+    transition: background-color 0.3s;
 }
 
 .action-button:hover {
-    background-color: #e0e0e0;
+    background-color: #2980b9;
 }
 
 .delete-button {
@@ -368,4 +370,94 @@ button:disabled {
 
 .storage-cleanup-btn:active {
     transform: scale(0.95);
+}
+
+/* Export Page Specific Styles */
+.export-keys-textarea {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 12px;
+    background-color: #f8f9fa;
+    border: 2px dashed #dee2e6;
+    resize: vertical;
+    transition: border-color 0.3s ease;
+}
+
+.export-keys-textarea:focus {
+    border-color: #3498db;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.export-keys-textarea.has-content {
+    border-style: solid;
+    border-color: #28a745;
+    background-color: #f8fff9;
+}
+
+.architecture-select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+    font-family: inherit;
+    background-color: white;
+    transition: border-color 0.3s ease;
+}
+
+.architecture-select:focus {
+    border-color: #3498db;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.export-status {
+    margin-top: 15px;
+    padding: 10px;
+    border-radius: 4px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.export-status.success {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.export-status.error {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.export-status.info {
+    background-color: #d1ecf1;
+    border: 1px solid #bee5eb;
+    color: #0c5460;
+}
+
+.copy-success {
+    animation: copySuccess 0.3s ease;
+}
+
+@keyframes copySuccess {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.export-warning {
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    color: #856404;
+    padding: 12px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    font-size: 0.9em;
+}
+
+.export-warning::before {
+    content: "⚠️ ";
+    font-weight: bold;
 } 

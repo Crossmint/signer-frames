@@ -1,4 +1,11 @@
 {
+  "cleanUrls": false,
+  "rewrites": [
+    {
+      "source": "/export",
+      "destination": "/export.html"
+    }
+  ],
   "headers": [
     {
       "source": "**/*",

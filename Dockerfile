@@ -18,6 +18,7 @@ FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html/dist
 COPY --from=builder /app/css /usr/share/nginx/html/css
 COPY --from=builder /app/index.html /usr/share/nginx/html/
+COPY --from=builder /app/export.html /usr/share/nginx/html/
 COPY --from=builder /app/favicon.ico /usr/share/nginx/html/
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
