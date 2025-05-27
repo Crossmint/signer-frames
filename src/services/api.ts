@@ -115,6 +115,7 @@ export class CrossmintApiService extends XMIFService {
   static getAttestationInputSchema = z.undefined();
   static getAttestationOutputSchema = z.object({
     publicKey: z.string(),
+    quote: z.string(),
   });
 
   async startOnboarding(
