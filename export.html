@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
 
-    <title>🔑 Crossmint Key Export</title>
+    <title>Crossmint Key Export</title>
     <link rel="stylesheet" href="css/styles.css">
     <script src="dist/bundle.min.js"></script>
     <style>
@@ -19,77 +19,111 @@
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>🔑 Crossmint Key Exporter</h1>
+        <header class="professional-header">
+            <div class="header-content">
+                <div class="header-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M6 10C6 7.79086 7.79086 6 10 6H14C16.2091 6 18 7.79086 18 10V14C18 16.2091 16.2091 18 14 18H10C7.79086 18 6 16.2091 6 14V10Z" stroke="currentColor" stroke-width="2"/>
+                        <path d="M12 8V16M8 12H16" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                </div>
+                <div class="header-text">
+                    <h1>Crossmint Key Exporter</h1>
+                    <p class="header-subtitle">Secure private key management and export</p>
+                </div>
+            </div>
         </header>
-        <!-- <div class="status-container">
-            <div class="status" id="status">Loaded. Waiting for parent handshake...</div>
-        </div> -->
         
-        <div class="demo-section">
-            <h2>🔐 Private Key Export</h2>
-            
-            <!-- Loading state -->
-            <div id="loading-state">
-                <div class="loading-container" style="text-align: center; padding: 40px;">
-                    <div class="loading-spinner" style="display: inline-block; width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
-                    <p style="font-size: 18px; color: #666;">Exporting keys...</p>
-                    <p style="font-size: 14px; color: #999;">Waiting for keys from parent application</p>
+        <main class="main-content">
+            <div class="export-card">
+                <div class="card-header">
+                    <h2>Private Key Export</h2>
+                    <p class="card-description">Export your cryptographic keys securely</p>
+                </div>
+                
+                <!-- Loading state -->
+                <div id="loading-state" class="loading-section">
+                    <div class="loading-content">
+                        <div class="loading-spinner"></div>
+                        <h3>Preparing Key Export</h3>
+                        <p>Establishing secure connection...</p>
+                    </div>
+                </div>
+                
+                <!-- Export interface (hidden initially) -->
+                <div id="export-interface" class="export-section" style="display: none;">
+                    <div class="form-section">
+                        <div class="form-group">
+                            <label for="key-type-select" class="form-label">Key Type</label>
+                            <select id="key-type-select" class="form-select" disabled>
+                                <option value="">Waiting for keys from parent...</option>
+                            </select>
+                        </div>
+                        
+                        <div class="key-display-grid">
+                            <div class="key-group">
+                                <label for="private-keys-display" class="form-label">
+                                    <span class="label-icon">🔐</span>
+                                    Private Key
+                                </label>
+                                <textarea 
+                                    id="private-keys-display" 
+                                    readonly 
+                                    placeholder="Private key will appear here after selection..."
+                                    class="key-textarea private-key"
+                                ></textarea>
+                            </div>
+                            
+                            <div class="key-group">
+                                <label for="public-keys-display" class="form-label">
+                                    <span class="label-icon">🔓</span>
+                                    Public Key
+                                </label>
+                                <textarea 
+                                    id="public-keys-display" 
+                                    readonly 
+                                    placeholder="Public key will appear here after selection..."
+                                    class="key-textarea public-key"
+                                ></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="button-group">
+                            <button id="copy-private-btn" class="btn btn-primary" disabled>
+                                <span class="btn-icon">📋</span>
+                                Copy Private Key
+                            </button>
+                            <button id="copy-public-btn" class="btn btn-secondary" disabled>
+                                <span class="btn-icon">📋</span>
+                                Copy Public Key
+                            </button>
+                            <button id="clear-btn" class="btn btn-outline">
+                                <span class="btn-icon">🗑️</span>
+                                Clear Display
+                            </button>
+                        </div>
+                        
+                        <div id="export-status" class="status-message" style="display: none;"></div>
+                        
+                        <div class="security-notice">
+                            <div class="notice-icon">⚠️</div>
+                            <div class="notice-content">
+                                <strong>Security Notice</strong>
+                                <p>Private keys are extremely sensitive. Only export keys in a secure environment and never share them publicly or store them in unsecured locations.</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            
-            <!-- Export interface (hidden initially) -->
-            <div id="export-interface" style="display: none;">
-                <p>Select a key type to display the corresponding private key.</p>
-                
-                <div class="export-warning">
-                    <strong>Security Notice:</strong> Private keys are extremely sensitive. Only export keys in a secure environment and never share them publicly or store them in unsecured locations.
-                </div>
-                
-                <div class="form-group">
-                    <label for="key-type-select">Select Key Type:</label>
-                    <select id="key-type-select" class="architecture-select" disabled>
-                        <option value="">Waiting for keys from parent...</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="private-keys-display">Private Key:</label>
-                    <textarea 
-                        id="private-keys-display" 
-                        readonly 
-                        placeholder="Waiting for keys from parent application..."
-                        class="export-keys-textarea"
-                        style="min-height: 200px;"
-                    ></textarea>
-                </div>
-                
-                <div class="form-group">
-                    <label for="public-keys-display">Public Key:</label>
-                    <textarea 
-                        id="public-keys-display" 
-                        readonly 
-                        placeholder="Public key will be displayed here..."
-                        class="export-keys-textarea"
-                        style="min-height: 200px;"
-                    ></textarea>
-                </div>
-                
-                <div class="form-group">
-                    <button id="copy-private-btn" class="action-button" disabled>📋 Copy Private Key</button>
-                    <button id="copy-public-btn" class="action-button" disabled>📋 Copy Public Key</button>
-                    <button id="clear-btn" class="action-button">🗑️ Clear Display</button>
-                </div>
-                
-                <div id="export-status" class="status" style="display: none; margin-top: 15px;"></div>
-            </div>
-        </div>
+        </main>
     </div>
     
-    <div class="footer">
-        Crossmint Key Export
-        <p class="footer-note">This secure environment runs in an isolated iframe, providing a protected vault for your key export operations.</p>
-    </div>
+    <footer class="professional-footer">
+        <div class="footer-content">
+            <p>Crossmint Key Export</p>
+            <p class="footer-description">Secure environment running in an isolated iframe for protected key operations</p>
+        </div>
+    </footer>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -112,7 +146,7 @@
                 exportInterface.style.display = 'block';
                 
                 populateKeyTypeSelect(keyTypes);
-                updateStatus('✅ Keys received from parent application. Select a key type to display.', 'success');
+                updateStatus('✅ Keys have been exported. Select a key type to display.', 'success');
             });
 
             // Listen for keys cleared from ExportsService
@@ -188,7 +222,7 @@
                 if (exportStatus) {
                     exportStatus.style.display = 'block';
                     exportStatus.textContent = message;
-                    exportStatus.className = `export-status ${type}`;
+                    exportStatus.className = `status-message ${type}`;
                 }
             }
 
@@ -208,22 +242,22 @@
             // Initialize XMIF
             if (window.XMIF) {
                 (async () => {
-                await new Promise(resolve => setTimeout(resolve, 5000));
+                await new Promise(resolve => setTimeout(resolve, 2000));
                 window.XMIF.services.exports.setExportedKeys({
                     'secp256k1': {
-                        privateKey: '0x1234567890abcdefbutlonger',
-                        publicKey: '0x1234567890abcdef'
+                        privateKey: '2c12011aab870b1d923f3b77afcbf8bb47935ec92c22f856e52c9f8c1d42608a',
+                        publicKey: '0x066Feb0F76D20f4eCc08C64cff36690152E7A409'
                     },
                     'ed25519': {
-                        privateKey: 'dfwftyftyhgvddcgshxhdfasghfjk',
-                        publicKey: 'dfwftyftyhgvd'
+                        privateKey: '9xmSi8bFoAQbYeHD1y7c4ir95jLi6MCwCc8sADMdGAQ8',
+                        publicKey: '9xmSi8bFoAQbYeHD1y7c4ir95jLi6MCwCc8sADMdGAQ8'
                     }
                 });
             })();
                 window.XMIF.init()
                     .then(() => {
                         console.log('XMIF framework initialized');
-                        document.getElementById('status').textContent = 'Ready. Waiting for keys from parent application...';
+                        document.getElementById('status').textContent = 'Ready. Waiting for keys...';
                     })
                     .catch(err => {
                         console.error('Failed to initialize XMIF:', err);

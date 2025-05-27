@@ -70,29 +70,22 @@ export class ExportsService extends XMIFService {
   }
 
   private formatPrivateKeyForDisplay(keyType: KeyType, privateKey: string): string {
-    let output = '# Private Key Export\n\n';
-    output += `# ${keyType.toUpperCase()} Private Key\n`;
-    output += `# Key type: ${keyType}\n\n`;
+    let output = `# ${keyType.toUpperCase()} Private Key\n\n`;
 
     const prefix = keyType === 'secp256k1' ? '0x' : '';
     output += `${prefix}${privateKey}\n\n`;
 
-    output += '# WARNING: Keep this key secure and never share it publicly!\n';
-    output += '# This key provides full access to associated wallets and assets.';
+    output += '# Warning: This key provides full access to associated wallets and assets.';
 
     return output;
   }
 
   private formatPublicKeyForDisplay(keyType: KeyType, publicKey: string): string {
-    let output = '# Public Key Information\n\n';
-    output += `# ${keyType.toUpperCase()} Public Key\n`;
-    output += `# Key type: ${keyType}\n\n`;
+    let output = `# ${keyType.toUpperCase()} Public Key\n\n`;
 
-    const prefix = keyType === 'secp256k1' ? '0x' : '';
-    output += `${prefix}${publicKey}\n\n`;
+    output += `${publicKey}\n\n`;
 
     output += '# This is the public key corresponding to your private key.\n';
-    output += '# Public keys can be safely shared and are used for verification.';
 
     return output;
   }
