@@ -37,6 +37,103 @@ describe('AttestationService', () => {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   }
 
+  describe('init and attestation verification', () => {
+    it('should successfully initialize with valid attestation (happy path)', async () => {
+      const testPublicKey = 'SGVsbG8gV29ybGQ='; // base64 "Hello World"
+      const expectedReportData = await calculateExpectedHash('Hello World');
+
+      // Mock API response
+      vi.mocked(mockApiService.getAttestation).mockResolvedValue({
+        quote: 'abcdef123456', // hex encoded quote
+        publicKey: testPublicKey,
+      });
+
+      // Mock js_verify to return valid attestation with correct report data
+      const { js_verify } = await import('@phala/dcap-qvl-web');
+      vi.mocked(js_verify).mockResolvedValue({
+        status: 'UpToDate',
+        report: {
+          TD10: {
+            report_data: expectedReportData,
+          },
+        },
+      });
+
+      const result = await attestationService.verifyAttestationAndParseKey();
+      expect(result).toBe(testPublicKey);
+    });
+
+    it('should throw error when TEE attestation status is invalid', async () => {
+      const testPublicKey = 'SGVsbG8gV29ybGQ=';
+
+      vi.mocked(mockApiService.getAttestation).mockResolvedValue({
+        quote: 'abcdef123456',
+        publicKey: testPublicKey,
+      });
+
+      // Mock js_verify to return invalid status
+      const { js_verify } = await import('@phala/dcap-qvl-web');
+      vi.mocked(js_verify).mockResolvedValue({
+        status: 'OutOfDate', // Invalid status
+        report: {
+          TD10: {
+            report_data: 'some_hash',
+          },
+        },
+      });
+
+      await expect(attestationService.verifyAttestationAndParseKey()).rejects.toThrow(
+        'TEE attestation is invalid'
+      );
+    });
+
+    it('should throw error when public key hash does not match report data', async () => {
+      const testPublicKey = 'SGVsbG8gV29ybGQ='; // base64 "Hello World"
+      const wrongReportData = '0'.repeat(128); // Wrong hash but correct length
+
+      vi.mocked(mockApiService.getAttestation).mockResolvedValue({
+        quote: 'abcdef123456',
+        publicKey: testPublicKey,
+      });
+
+      // Mock js_verify to return valid status but wrong report data
+      const { js_verify } = await import('@phala/dcap-qvl-web');
+      vi.mocked(js_verify).mockResolvedValue({
+        status: 'UpToDate',
+        report: {
+          TD10: {
+            report_data: wrongReportData, // This won't match the public key hash
+          },
+        },
+      });
+
+      await expect(attestationService.verifyAttestationAndParseKey()).rejects.toThrow(
+        'TEE reported public key does not match attestation report'
+      );
+    });
+
+    it('should throw error when attestation report has invalid structure', async () => {
+      const testPublicKey = 'SGVsbG8gV29ybGQ=';
+
+      vi.mocked(mockApiService.getAttestation).mockResolvedValue({
+        quote: 'abcdef123456',
+        publicKey: testPublicKey,
+      });
+
+      // Mock js_verify to return malformed report structure
+      const { js_verify } = await import('@phala/dcap-qvl-web');
+      vi.mocked(js_verify).mockResolvedValue({
+        status: 'UpToDate',
+        // Missing required report.TD10 structure
+        report: {
+          malformed: 'data',
+        },
+      });
+
+      await expect(attestationService.verifyAttestationAndParseKey()).rejects.toThrow();
+    });
+  });
+
   describe('reportAttestsPublicKey', () => {
     it('should return true when the public key hash matches the report data', async () => {
       const publicKey = 'SGVsbG8gV29ybGQ='; // base64 encoded "Hello World"
