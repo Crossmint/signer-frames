@@ -6,9 +6,6 @@ export const isEnvironment = (env: unknown): env is Environment => {
 };
 
 export function getEnvironment(): Environment {
-  console.log("here's the hostname");
-  console.log(window.location.hostname);
-
   if (window.location.hostname === 'localhost') {
     return 'development';
   }

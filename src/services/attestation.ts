@@ -6,6 +6,7 @@ import { decodeBytes } from './utils';
 import { isDevelopment } from './environment';
 
 const PCCS_URL = 'https://pccs.phala.network/tdx/certification/v4';
+const ATTESTATION_VERIFIED_STATUS = 'UpToDate';
 
 export class AttestationService extends XMIFService {
   name = 'Attestation Service';
@@ -53,7 +54,7 @@ export class AttestationService extends XMIFService {
     const currentTime = BigInt(Math.floor(Date.now() / 1000));
     const { status } = await js_verify(decodedQuote, collateral, currentTime);
 
-    if (status !== 'UpToDate') {
+    if (status !== ATTESTATION_VERIFIED_STATUS) {
       throw new Error('TEE Attestation is invalid');
     }
 
