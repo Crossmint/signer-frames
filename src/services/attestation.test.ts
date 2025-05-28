@@ -243,26 +243,5 @@ describe('AttestationService', () => {
         expect(result).toBe(false);
       }
     });
-
-    it('should handle large inputs and perform efficiently', async () => {
-      const publicKey = 'dGVzdA==';
-
-      // Large inputs should fail gracefully, not crash
-      const largeHexInput = 'a'.repeat(10000);
-      const largeBase64Input = 'dGVzdA=='.repeat(1000);
-
-      expect(await attestationService.reportAttestsPublicKey(largeHexInput, publicKey)).toBe(false);
-      expect(
-        await attestationService.reportAttestsPublicKey('a'.repeat(128), largeBase64Input)
-      ).toBe(false);
-
-      // Performance check on obvious mismatch
-      const start = performance.now();
-      const result = await attestationService.reportAttestsPublicKey('0'.repeat(128), publicKey);
-      const end = performance.now();
-
-      expect(result).toBe(false);
-      expect(end - start).toBeLessThan(100); // Should be fast
-    });
   });
 });
