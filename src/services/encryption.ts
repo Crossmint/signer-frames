@@ -197,7 +197,7 @@ export class EncryptionService extends XMIFService {
 
       if (validateTeeSender) {
         const attestationService = this.assertAttestationService();
-        const attestationPublicKey = await attestationService.getPublicKeyFromAttestation();
+        const attestationPublicKey = await attestationService.getAttestedPublicKey();
         const senderPublicKey = await this.suite.kem.deserializePublicKey(
           this.base64ToBuffer(attestationPublicKey)
         );
@@ -231,7 +231,7 @@ export class EncryptionService extends XMIFService {
     };
     const attestationService = this.assertAttestationService();
     const recipientPublicKeyBuffer = await attestationService
-      .getPublicKeyFromAttestation()
+      .getAttestedPublicKey()
       .then(this.base64ToBuffer);
     const recipientPublicKey = await this.suite.kem.deserializePublicKey(recipientPublicKeyBuffer);
     return this.cryptoApi.deriveKey(
@@ -255,7 +255,7 @@ export class EncryptionService extends XMIFService {
 
   private async getTeePublicKey() {
     const attestationService = this.assertAttestationService();
-    const recipientPublicKeyString = await attestationService.getPublicKeyFromAttestation();
+    const recipientPublicKeyString = await attestationService.getAttestedPublicKey();
     return await this.suite.kem.deserializePublicKey(this.base64ToBuffer(recipientPublicKeyString));
   }
 

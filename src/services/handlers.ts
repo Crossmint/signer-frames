@@ -1,13 +1,10 @@
 import type {
-  KeyType,
-  Encoding,
   SignerIFrameEventName,
   SignerInputEvent,
   SignerOutputEvent,
 } from '@crossmint/client-signers';
-import bs58 from 'bs58';
 import type { XMIFServices } from '.';
-import { measureFunctionTime } from './utils';
+import { decodeBytes, measureFunctionTime } from './utils';
 import { XMIFCodedError } from './error';
 
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -82,21 +79,6 @@ export class StartOnboardingEventHandler extends EventHandler<'start-onboarding'
     return {
       status: 'success' as const,
       signerStatus,
-    };
-  }
-}
-
-export class GetAttestationEventHandler extends EventHandler<'get-attestation'> {
-  event = 'request:get-attestation' as const;
-  responseEvent = 'response:get-attestation' as const;
-
-  async handler(
-    payload: SignerInputEvent<'get-attestation'>
-  ): Promise<SuccessfulOutputEvent<'get-attestation'>> {
-    const attestationDocument = await this.services.attestation.getAttestationDocument();
-    return {
-      status: 'success' as const,
-      attestationDocument,
     };
   }
 }
@@ -189,21 +171,9 @@ export class SignEventHandler extends EventHandler<'sign'> {
   }
 }
 
-function decodeBytes(bytes: string, encoding: 'base64' | 'base58' | 'hex'): Uint8Array {
-  switch (encoding) {
-    case 'base58':
-      return bs58.decode(bytes);
-    case 'hex':
-      return Buffer.from(bytes.replace('0x', ''), 'hex');
-    default:
-      throw new Error(`Unsupported encoding: ${encoding}`);
-  }
-}
-
 export const initializeHandlers = (services: XMIFServices) => [
   new CompleteOnboardingEventHandler(services),
   new StartOnboardingEventHandler(services),
   new SignEventHandler(services),
   new GetStatusEventHandler(services),
-  new GetAttestationEventHandler(services),
 ];

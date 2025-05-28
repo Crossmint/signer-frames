@@ -4,9 +4,9 @@
   "description": "Cryptographic utilities for Solana and EVM chains",
   "scripts": {
     "build": "pnpm run build:ts",
-    "build:js": "esbuild src/index.js --bundle --minify --sourcemap --outfile=dist/bundle.min.js --format=iife --external:react-native",
-    "build:ts": "tsc && esbuild src/index.ts --bundle --minify --sourcemap --outfile=dist/bundle.min.js --format=iife --external:react-native",
-    "build:dev": "tsc && esbuild src/index.ts --bundle --sourcemap --outfile=dist/bundle.js --format=iife --external:react-native",
+    "build:js": "esbuild src/index.js --bundle --minify --sourcemap --outfile=dist/bundle.min.js --loader:.wasm=file --format=iife --external:react-native --public-path=/dist/",
+    "build:ts": "tsc && esbuild src/index.ts --bundle --minify --sourcemap --outfile=dist/bundle.min.js --loader:.wasm=file --format=iife --external:react-native --public-path=/dist/",
+    "build:dev": "tsc && esbuild src/index.ts --loader:.wasm=file --bundle --sourcemap --outfile=dist/bundle.js --format=iife --external:react-native --public-path=/dist/",
     "build:prod": "pnpm run build:dev && pnpm run build:ts",
     "dev": "pnpm build:prod && pnpm serve:static",
     "serve": "pnpm build:prod && serve -s .",
@@ -57,11 +57,12 @@
     "vitest-mock-extended": "^3.1.0"
   },
   "dependencies": {
-    "@crossmint/client-signers": "0.0.15",
     "@crossmint/client-sdk-rn-window": "0.2.1",
     "@crossmint/client-sdk-window": "1.0.0",
+    "@crossmint/client-signers": "0.0.15",
     "@hpke/core": "^1.7.2",
     "@noble/ciphers": "^1.3.0",
+    "@phala/dcap-qvl-web": "^0.2.7",
     "bs58": "^6.0.0",
     "ethereum-cryptography": "^3.2.0",
     "shamir-secret-sharing": "^0.0.4",
