@@ -3,20 +3,9 @@ import { XMIFService } from './service';
 import init, { js_get_collateral, js_verify } from '@phala/dcap-qvl-web';
 import wasm from '@phala/dcap-qvl-web/dcap-qvl-web_bg.wasm';
 import { decodeBytes } from './utils';
+import { isDevelopment } from './environment';
 
 const PCCS_URL = 'https://pccs.phala.network/tdx/certification/v4';
-type AttestationDocument = { publicKey: string; quote: string };
-type SuccessfullyValidatedAttestationDocument = {
-  validated: true;
-  publicKey: string;
-};
-type FailedToValidateAttestationDocument = {
-  validated: false;
-};
-
-export type ValidateAttestationDocumentResult =
-  | FailedToValidateAttestationDocument
-  | SuccessfullyValidatedAttestationDocument;
 
 export class AttestationService extends XMIFService {
   name = 'Attestation Service';
@@ -27,68 +16,53 @@ export class AttestationService extends XMIFService {
   }
 
   // This being not null implicitly assumes validation
-  private attestationDoc: AttestationDocument | null = null;
+  private publicKey: string | null = null;
 
   async init() {
     try {
-      const attestationDoc = await this.fetchAttestationDoc();
-
-      this.log('TEE attestation document fetched', JSON.stringify(attestationDoc, null, 2));
-      const validationResult = await this.validateAttestationDoc(attestationDoc);
-      if (!validationResult.validated) {
-        const msg = 'Error validating TEE Attestation';
-        this.logError(msg);
-        throw new Error(msg);
+      if (isDevelopment()) {
+        this.publicKey = await this.getPublicKeyDevMode();
+        return;
       }
 
-      this.log('TEE attestation document validated! Continuing...');
-      this.attestationDoc = attestationDoc;
+      this.publicKey = await this.verifyAttestationAndParseKey();
     } catch (e: unknown) {
       this.logError('Failed to validate attestation document! This error is not recoverable');
-      this.attestationDoc = null;
+      this.publicKey = null;
       throw e;
     }
   }
 
-  async getAttestationDocument(): Promise<AttestationDocument> {
-    const doc = this.assertInitialized();
-    return doc;
+  async getAttestedPublicKey(): Promise<string> {
+    if (!this.publicKey) {
+      throw new Error('Attestation service has not been initialized!');
+    }
+
+    return this.publicKey;
   }
 
-  async getPublicKeyFromAttestation(): Promise<string> {
-    const doc = this.assertInitialized();
-    return doc.publicKey;
-  }
+  async verifyAttestationAndParseKey(): Promise<string> {
+    const attestation = await this.api.getAttestation();
+    this.log('TEE attestation document fetched', JSON.stringify(attestation, null, 2));
 
-  private async validateAttestationDoc(
-    attestationDoc: AttestationDocument
-  ): Promise<ValidateAttestationDocumentResult> {
     await init(wasm);
 
-    const decodedQuote = decodeBytes(attestationDoc.quote, 'hex');
+    const decodedQuote = decodeBytes(attestation.quote, 'hex');
     const collateral = await js_get_collateral(PCCS_URL, decodedQuote);
 
     const currentTime = BigInt(Math.floor(Date.now() / 1000));
     const { status } = await js_verify(decodedQuote, collateral, currentTime);
 
-    if (status === 'UpToDate') {
-      return {
-        validated: true,
-        publicKey: attestationDoc.publicKey,
-      };
+    if (status !== 'UpToDate') {
+      throw new Error('TEE Attestation is invalid');
     }
 
-    return { validated: false };
+    this.log('TEE attestation document validated! Continuing...');
+    return attestation.publicKey; // TODO parse key from attestation "report_data".
   }
 
-  private async fetchAttestationDoc(): Promise<AttestationDocument> {
-    return this.api.getAttestation();
-  }
-
-  private assertInitialized(): NonNullable<typeof this.attestationDoc> {
-    if (!this.attestationDoc) {
-      throw new Error('Attestation service has not been initialized!');
-    }
-    return this.attestationDoc;
+  async getPublicKeyDevMode(): Promise<string> {
+    const response = await this.api.getPublicKey();
+    return response.publicKey;
   }
 }

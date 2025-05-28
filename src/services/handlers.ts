@@ -83,21 +83,6 @@ export class StartOnboardingEventHandler extends EventHandler<'start-onboarding'
   }
 }
 
-export class GetAttestationEventHandler extends EventHandler<'get-attestation'> {
-  event = 'request:get-attestation' as const;
-  responseEvent = 'response:get-attestation' as const;
-
-  async handler(
-    payload: SignerInputEvent<'get-attestation'>
-  ): Promise<SuccessfulOutputEvent<'get-attestation'>> {
-    const attestationDocument = await this.services.attestation.getAttestationDocument();
-    return {
-      status: 'success' as const,
-      attestationDocument,
-    };
-  }
-}
-
 export class CompleteOnboardingEventHandler extends EventHandler<'complete-onboarding'> {
   event = 'request:complete-onboarding' as const;
   responseEvent = 'response:complete-onboarding' as const;
@@ -191,5 +176,4 @@ export const initializeHandlers = (services: XMIFServices) => [
   new StartOnboardingEventHandler(services),
   new SignEventHandler(services),
   new GetStatusEventHandler(services),
-  new GetAttestationEventHandler(services),
 ];

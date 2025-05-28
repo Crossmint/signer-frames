@@ -8,12 +8,7 @@ import type { RetryConfig } from './backoff';
 import { z } from 'zod';
 import type { EncryptionService } from './encryption';
 import { type AuthData, CrossmintRequest } from './request';
-
-export type Environment = 'development' | 'staging' | 'production';
-const DEFAULT_ENVIRONMENT: Environment = 'staging';
-const isEnvironment = (env: unknown): env is Environment => {
-  return ['development', 'staging', 'production'].includes(env as Environment);
-};
+import { type Environment, getEnvironment } from './environment';
 
 function getHeaders(authData?: AuthData) {
   return {
@@ -62,21 +57,10 @@ export class CrossmintApiService extends XMIFService {
   name = 'Crossmint API Service';
   log_prefix = '[CrossmintApiService]';
   private retryConfig: RetryConfig;
-  private readonly environment: Environment;
 
   constructor(private readonly encryptionService: EncryptionService) {
     super();
     this.retryConfig = defaultRetryConfig;
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const envParam = urlParams.get('environment');
-    if (isEnvironment(envParam)) {
-      this.log(`Environment: ${envParam}`);
-      this.environment = envParam;
-    } else {
-      this.log(`Using default environment: ${DEFAULT_ENVIRONMENT}`);
-      this.environment = DEFAULT_ENVIRONMENT;
-    }
   }
 
   async init() {}
@@ -116,6 +100,11 @@ export class CrossmintApiService extends XMIFService {
   static getAttestationOutputSchema = z.object({
     publicKey: z.string(),
     quote: z.string(),
+  });
+
+  static getPublicKeyInputSchema = z.undefined();
+  static getPublicKeyOutputSchema = z.object({
+    publicKey: z.string(),
   });
 
   async startOnboarding(
@@ -165,8 +154,23 @@ export class CrossmintApiService extends XMIFService {
       name: 'getAttestation',
       inputSchema: CrossmintApiService.getAttestationInputSchema,
       outputSchema: CrossmintApiService.getAttestationOutputSchema,
-      environment: this.environment,
+      environment: getEnvironment(),
       endpoint: () => '/attestation',
+      method: 'GET',
+      encrypted: false,
+      encryptionService: this.encryptionService,
+      getHeaders,
+    });
+    return request.execute(undefined);
+  }
+
+  async getPublicKey(): Promise<z.infer<typeof CrossmintApiService.getPublicKeyOutputSchema>> {
+    const request = new CrossmintRequest({
+      name: 'getPublicKey',
+      inputSchema: CrossmintApiService.getPublicKeyInputSchema,
+      outputSchema: CrossmintApiService.getPublicKeyOutputSchema,
+      environment: getEnvironment(),
+      endpoint: () => '/attestation/public-key',
       method: 'GET',
       encrypted: false,
       encryptionService: this.encryptionService,

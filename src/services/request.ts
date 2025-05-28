@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { ZodSchema } from 'zod';
 import type { EncryptionService } from './encryption';
-import type { Environment } from './api';
+import type { Environment } from './environment';
 
 export type AuthData = {
   apiKey: string;
