@@ -11,30 +11,15 @@ const ATTESTATION_VERIFIED_STATUS = 'UpToDate';
 const TEE_REPORT_DATA_PREFIX = 'app-data:';
 const TEE_REPORT_DATA_HASH = 'SHA-512' as const;
 
-// Minimal TEE report validation schema
 const AttestationReportSchema = z.object({
   status: z.string(),
-  advisory_ids: z.array(z.string()),
   report: z.object({
     TD10: z.object({
-      tee_tcb_svn: z.string(),
-      mr_seam: z.string(),
-      mr_signer_seam: z.string(),
-      seam_attributes: z.string(),
-      td_attributes: z.string(),
-      xfam: z.string(),
-      mr_td: z.string(),
-      mr_config_id: z.string(),
-      mr_owner: z.string(),
-      mr_owner_config: z.string(),
-      rt_mr0: z.string(),
-      rt_mr1: z.string(),
-      rt_mr2: z.string(),
-      rt_mr3: z.string(),
       report_data: z.string(),
     }),
   }),
 });
+
 export class AttestationService extends XMIFService {
   name = 'Attestation Service';
   log_prefix = '[AttestationService]';
@@ -99,22 +84,29 @@ export class AttestationService extends XMIFService {
     return attestation.publicKey;
   }
 
-  private async getPublicKeyDevMode(): Promise<string> {
+  async getPublicKeyDevMode(): Promise<string> {
     const response = await this.api.getPublicKey();
     return response.publicKey;
   }
 
-  private async reportAttestsPublicKey(reportData: string, publicKey: string): Promise<boolean> {
-    const ReportDataHash = decodeBytes(reportData, 'hex');
+  async reportAttestsPublicKey(reportData: string, publicKey: string): Promise<boolean> {
+    try {
+      const ReportDataHash = decodeBytes(reportData, 'hex');
+      if (ReportDataHash.length !== 64) {
+        return false;
+      }
 
-    const prefixBytes = new TextEncoder().encode(TEE_REPORT_DATA_PREFIX);
-    const publicKeyBytes = decodeBytes(publicKey, 'base64');
-    const reconstructedReportData = new Uint8Array(prefixBytes.length + publicKeyBytes.length);
-    reconstructedReportData.set(prefixBytes, 0);
-    reconstructedReportData.set(publicKeyBytes, prefixBytes.length);
+      const prefixBytes = new TextEncoder().encode(TEE_REPORT_DATA_PREFIX);
+      const publicKeyBytes = decodeBytes(publicKey, 'base64');
+      const reconstructedReportData = new Uint8Array(prefixBytes.length + publicKeyBytes.length);
+      reconstructedReportData.set(prefixBytes, 0);
+      reconstructedReportData.set(publicKeyBytes, prefixBytes.length);
 
-    const hash = await crypto.subtle.digest(TEE_REPORT_DATA_HASH, reconstructedReportData);
-    const hashView = new Uint8Array(hash);
-    return hashView.every((byte, i) => byte === ReportDataHash[i]);
+      const hash = await crypto.subtle.digest(TEE_REPORT_DATA_HASH, reconstructedReportData);
+      const hashView = new Uint8Array(hash);
+      return hashView.every((byte, i) => byte === ReportDataHash[i]);
+    } catch (error) {
+      return false;
+    }
   }
 }
