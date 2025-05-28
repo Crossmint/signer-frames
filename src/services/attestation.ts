@@ -54,7 +54,7 @@ export class AttestationService extends XMIFService {
     return this.publicKey;
   }
 
-  private async verifyAttestationAndParseKey(): Promise<string> {
+  async verifyAttestationAndParseKey(): Promise<string> {
     const attestation = await this.api.getAttestation();
     this.log('TEE attestation document fetched', JSON.stringify(attestation, null, 2));
 
