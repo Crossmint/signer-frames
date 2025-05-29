@@ -14,6 +14,8 @@ export function decodeBytes(bytes: string, encoding: 'base64' | 'base58' | 'hex'
       return bs58.decode(bytes);
     case 'hex':
       return new Uint8Array(bytes.match(/.{1,2}/g)?.map(byte => Number.parseInt(byte, 16)) || []);
+    case 'base64':
+      return Uint8Array.from(atob(bytes), c => c.charCodeAt(0));
     default:
       throw new Error(`Unsupported encoding: ${encoding}`);
   }
