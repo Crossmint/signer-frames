@@ -30,14 +30,11 @@ export class AttestationService extends XMIFService {
   name = 'Attestation Service';
   log_prefix = '[AttestationService]';
 
-  private acceptedRtmr3Values: string[];
-
   constructor(
     private readonly api: CrossmintApiService,
-    acceptedRtmr3Values: string[] = ACCEPTED_RTMR3
+    private readonly acceptedRtmr3Values: string[] = ACCEPTED_RTMR3
   ) {
     super();
-    this.acceptedRtmr3Values = acceptedRtmr3Values;
   }
 
   // This being not null implicitly assumes validation
