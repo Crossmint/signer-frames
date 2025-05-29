@@ -19,9 +19,15 @@ describe('AttestationService', () => {
   let attestationService: AttestationService;
   let mockApiService: CrossmintApiService;
 
+  // Mock RTMR3 values for testing
+  const mockAcceptedRtmr3Values = [
+    'mock_accepted_rtmr3_value_1_for_testing',
+    'mock_accepted_rtmr3_value_2_for_testing',
+  ];
+
   beforeEach(() => {
     mockApiService = mock<CrossmintApiService>();
-    attestationService = new AttestationService(mockApiService);
+    attestationService = new AttestationService(mockApiService, mockAcceptedRtmr3Values);
   });
 
   // Helper function to calculate expected hash for a given input
@@ -38,99 +44,172 @@ describe('AttestationService', () => {
   }
 
   describe('init and attestation verification', () => {
-    it('should successfully initialize with valid attestation (happy path)', async () => {
-      const testPublicKey = 'SGVsbG8gV29ybGQ='; // base64 "Hello World"
-      const expectedReportData = await calculateExpectedHash('Hello World');
+    describe('happy path', () => {
+      it('should successfully initialize with valid attestation', async () => {
+        const testPublicKey = 'SGVsbG8gV29ybGQ='; // base64 "Hello World"
+        const expectedReportData = await calculateExpectedHash('Hello World');
+        // Use the first mock accepted RTMR3 value
+        const acceptedRtmr3 = mockAcceptedRtmr3Values[0];
 
-      // Mock API response
-      vi.mocked(mockApiService.getAttestation).mockResolvedValue({
-        quote: 'abcdef123456', // hex encoded quote
-        publicKey: testPublicKey,
-      });
+        // Mock API response
+        vi.mocked(mockApiService.getAttestation).mockResolvedValue({
+          quote: 'abcdef123456', // hex encoded quote
+          publicKey: testPublicKey,
+        });
 
-      // Mock js_verify to return valid attestation with correct report data
-      const { js_verify } = await import('@phala/dcap-qvl-web');
-      vi.mocked(js_verify).mockResolvedValue({
-        status: 'UpToDate',
-        report: {
-          TD10: {
-            report_data: expectedReportData,
+        // Mock js_verify to return valid attestation with correct report data
+        const { js_verify } = await import('@phala/dcap-qvl-web');
+        vi.mocked(js_verify).mockResolvedValue({
+          status: 'UpToDate',
+          report: {
+            TD10: {
+              report_data: expectedReportData,
+              rt_mr3: acceptedRtmr3,
+            },
           },
-        },
-      });
+        });
 
-      const result = await attestationService.verifyAttestationAndParseKey();
-      expect(result).toBe(testPublicKey);
+        const result = await attestationService.verifyAttestationAndParseKey();
+        expect(result).toBe(testPublicKey);
+      });
     });
 
-    it('should throw error when TEE attestation status is invalid', async () => {
-      const testPublicKey = 'SGVsbG8gV29ybGQ=';
+    describe('TEE status validation', () => {
+      it('should throw error when TEE attestation status is invalid', async () => {
+        const testPublicKey = 'SGVsbG8gV29ybGQ=';
 
-      vi.mocked(mockApiService.getAttestation).mockResolvedValue({
-        quote: 'abcdef123456',
-        publicKey: testPublicKey,
-      });
+        vi.mocked(mockApiService.getAttestation).mockResolvedValue({
+          quote: 'abcdef123456',
+          publicKey: testPublicKey,
+        });
 
-      // Mock js_verify to return invalid status
-      const { js_verify } = await import('@phala/dcap-qvl-web');
-      vi.mocked(js_verify).mockResolvedValue({
-        status: 'OutOfDate', // Invalid status
-        report: {
-          TD10: {
-            report_data: 'some_hash',
+        // Mock js_verify to return invalid status
+        const { js_verify } = await import('@phala/dcap-qvl-web');
+        vi.mocked(js_verify).mockResolvedValue({
+          status: 'OutOfDate', // Invalid status
+          report: {
+            TD10: {
+              report_data: 'some_hash',
+              rt_mr3: mockAcceptedRtmr3Values[0], // Valid RTMR3 but status is bad
+            },
           },
-        },
-      });
+        });
 
-      await expect(attestationService.verifyAttestationAndParseKey()).rejects.toThrow(
-        'TEE attestation is invalid'
-      );
+        await expect(attestationService.verifyAttestationAndParseKey()).rejects.toThrow(
+          'TEE attestation is invalid'
+        );
+      });
     });
 
-    it('should throw error when public key hash does not match report data', async () => {
-      const testPublicKey = 'SGVsbG8gV29ybGQ='; // base64 "Hello World"
-      const wrongReportData = '0'.repeat(128); // Wrong hash but correct length
+    describe('RTMR3 validation', () => {
+      it('should throw error when RTMR3 value is not in accepted list', async () => {
+        const testPublicKey = 'SGVsbG8gV29ybGQ=';
+        const expectedReportData = await calculateExpectedHash('Hello World');
+        const unauthorizedRtmr3 = 'definitely_not_in_mock_accepted_list';
 
-      vi.mocked(mockApiService.getAttestation).mockResolvedValue({
-        quote: 'abcdef123456',
-        publicKey: testPublicKey,
-      });
+        vi.mocked(mockApiService.getAttestation).mockResolvedValue({
+          quote: 'abcdef123456',
+          publicKey: testPublicKey,
+        });
 
-      // Mock js_verify to return valid status but wrong report data
-      const { js_verify } = await import('@phala/dcap-qvl-web');
-      vi.mocked(js_verify).mockResolvedValue({
-        status: 'UpToDate',
-        report: {
-          TD10: {
-            report_data: wrongReportData, // This won't match the public key hash
+        // Mock js_verify to return valid status but unauthorized RTMR3
+        const { js_verify } = await import('@phala/dcap-qvl-web');
+        vi.mocked(js_verify).mockResolvedValue({
+          status: 'UpToDate',
+          report: {
+            TD10: {
+              report_data: expectedReportData,
+              rt_mr3: unauthorizedRtmr3, // This should be rejected
+            },
           },
-        },
+        });
+
+        await expect(attestationService.verifyAttestationAndParseKey()).rejects.toThrow(
+          'TEE is running an unexpected application'
+        );
       });
 
-      await expect(attestationService.verifyAttestationAndParseKey()).rejects.toThrow(
-        'TEE reported public key does not match attestation report'
-      );
+      it('should accept all different valid RTMR3 values from the accepted list', async () => {
+        const testPublicKey = 'SGVsbG8gV29ybGQ=';
+        const expectedReportData = await calculateExpectedHash('Hello World');
+
+        vi.mocked(mockApiService.getAttestation).mockResolvedValue({
+          quote: 'abcdef123456',
+          publicKey: testPublicKey,
+        });
+
+        const { js_verify } = await import('@phala/dcap-qvl-web');
+
+        // Test each accepted RTMR3 value
+        for (let i = 0; i < mockAcceptedRtmr3Values.length; i++) {
+          const acceptedRtmr3 = mockAcceptedRtmr3Values[i];
+
+          vi.mocked(js_verify).mockResolvedValue({
+            status: 'UpToDate',
+            report: {
+              TD10: {
+                report_data: expectedReportData,
+                rt_mr3: acceptedRtmr3,
+              },
+            },
+          });
+
+          const result = await attestationService.verifyAttestationAndParseKey();
+          expect(result).toBe(testPublicKey);
+        }
+      });
     });
 
-    it('should throw error when attestation report has invalid structure', async () => {
-      const testPublicKey = 'SGVsbG8gV29ybGQ=';
+    describe('public key validation', () => {
+      it('should throw error when RTMR3 is valid but public key hash does not match', async () => {
+        const testPublicKey = 'SGVsbG8gV29ybGQ='; // base64 "Hello World"
+        const wrongReportData = '0'.repeat(128); // Wrong hash but correct length
+        const acceptedRtmr3 = mockAcceptedRtmr3Values[1]; // Use second mock value
 
-      vi.mocked(mockApiService.getAttestation).mockResolvedValue({
-        quote: 'abcdef123456',
-        publicKey: testPublicKey,
+        vi.mocked(mockApiService.getAttestation).mockResolvedValue({
+          quote: 'abcdef123456',
+          publicKey: testPublicKey,
+        });
+
+        // Mock js_verify to return valid status and valid RTMR3 but wrong report data
+        const { js_verify } = await import('@phala/dcap-qvl-web');
+        vi.mocked(js_verify).mockResolvedValue({
+          status: 'UpToDate',
+          report: {
+            TD10: {
+              report_data: wrongReportData, // This won't match the public key hash
+              rt_mr3: acceptedRtmr3, // This is valid
+            },
+          },
+        });
+
+        await expect(attestationService.verifyAttestationAndParseKey()).rejects.toThrow(
+          'TEE reported public key does not match attestation report'
+        );
       });
+    });
 
-      // Mock js_verify to return malformed report structure
-      const { js_verify } = await import('@phala/dcap-qvl-web');
-      vi.mocked(js_verify).mockResolvedValue({
-        status: 'UpToDate',
-        // Missing required report.TD10 structure
-        report: {
-          malformed: 'data',
-        },
+    describe('report structure validation', () => {
+      it('should throw error when attestation report has invalid structure', async () => {
+        const testPublicKey = 'SGVsbG8gV29ybGQ=';
+
+        vi.mocked(mockApiService.getAttestation).mockResolvedValue({
+          quote: 'abcdef123456',
+          publicKey: testPublicKey,
+        });
+
+        // Mock js_verify to return malformed report structure
+        const { js_verify } = await import('@phala/dcap-qvl-web');
+        vi.mocked(js_verify).mockResolvedValue({
+          status: 'UpToDate',
+          // Missing required report.TD10 structure
+          report: {
+            malformed: 'data',
+          },
+        });
+
+        await expect(attestationService.verifyAttestationAndParseKey()).rejects.toThrow();
       });
-
-      await expect(attestationService.verifyAttestationAndParseKey()).rejects.toThrow();
     });
   });
 
