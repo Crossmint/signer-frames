@@ -6,6 +6,11 @@ import { decodeBytes } from './utils';
 import { z } from 'zod';
 import { isDevelopment } from './environment';
 
+// https://docs.phala.network/phala-cloud/tees-attestation-and-zero-trust-security/attestation#rtmr3-event-chain-how-application-components-are-measured
+const ACCEPTED_RTMR3 = [
+  '4f61ee77ba71d1bdcef7cf38e8fb0b3d3713e66889519fa6c6333a562f13fe3b751e2c8ed2ccf86baa897cf777b2f650',
+];
+
 const PCCS_URL = 'https://pccs.phala.network/tdx/certification/v4';
 const ATTESTATION_VERIFIED_STATUS = 'UpToDate';
 const TEE_REPORT_DATA_PREFIX = 'app-data:';
@@ -16,6 +21,7 @@ const AttestationReportSchema = z.object({
   report: z.object({
     TD10: z.object({
       report_data: z.string(),
+      rt_mr3: z.string(),
     }),
   }),
 });
@@ -24,8 +30,14 @@ export class AttestationService extends XMIFService {
   name = 'Attestation Service';
   log_prefix = '[AttestationService]';
 
-  constructor(private readonly api: CrossmintApiService) {
+  private acceptedRtmr3Values: string[];
+
+  constructor(
+    private readonly api: CrossmintApiService,
+    acceptedRtmr3Values: string[] = ACCEPTED_RTMR3
+  ) {
     super();
+    this.acceptedRtmr3Values = acceptedRtmr3Values;
   }
 
   // This being not null implicitly assumes validation
@@ -69,6 +81,10 @@ export class AttestationService extends XMIFService {
 
     if (validatedReport.status !== ATTESTATION_VERIFIED_STATUS) {
       throw new Error('TEE attestation is invalid');
+    }
+
+    if (!this.acceptedRtmr3Values.includes(validatedReport.report.TD10.rt_mr3)) {
+      throw new Error('TEE is running an unexpected application');
     }
 
     const publicKeyIsAttested = await this.reportAttestsPublicKey(
