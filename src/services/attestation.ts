@@ -104,8 +104,8 @@ export class AttestationService extends XMIFService {
 
   async reportAttestsPublicKey(reportData: string, publicKey: string): Promise<boolean> {
     try {
-      const ReportDataHash = decodeBytes(reportData, 'hex');
-      if (ReportDataHash.length !== 64) {
+      const reportDataHash = decodeBytes(reportData, 'hex');
+      if (reportDataHash.length !== 64) {
         return false;
       }
 
@@ -117,7 +117,7 @@ export class AttestationService extends XMIFService {
 
       const hash = await crypto.subtle.digest(TEE_REPORT_DATA_HASH, reconstructedReportData);
       const hashView = new Uint8Array(hash);
-      return hashView.every((byte, i) => byte === ReportDataHash[i]);
+      return hashView.every((byte, i) => byte === reportDataHash[i]);
     } catch (error) {
       return false;
     }
