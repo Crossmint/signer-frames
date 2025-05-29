@@ -2,15 +2,27 @@ import { combine } from 'shamir-secret-sharing';
 import { XMIFService } from './service';
 import type { CrossmintApiService } from './api';
 import { XMIFCodedError } from './error';
+import { decodeBytes, encodeBytes } from './utils';
+import { CrossmintHttpError } from './request';
 
 const DEVICE_SHARE_KEY = 'device-share';
 const DEVICE_ID_KEY = 'device-id';
 const HASH_ALGO = 'SHA-256';
 
+interface AuthShardCacheEntry {
+  authKeyShare: string;
+  deviceKeyShareHash: string;
+  signerId: string;
+  timestamp: number;
+}
+
 // Chain agnostic secret sharding service
 export class ShardingService extends XMIFService {
   name = 'Sharding Service';
   log_prefix = '[ShardingService]';
+
+  private authShardCache = new Map<string, AuthShardCacheEntry>();
+  private readonly CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
   constructor(private readonly api: CrossmintApiService) {
     super();
@@ -35,32 +47,34 @@ export class ShardingService extends XMIFService {
   }
 
   public async reconstructMasterSecret(authData: { jwt: string; apiKey: string }) {
-    const deviceShare = localStorage.getItem(DEVICE_SHARE_KEY);
-    if (deviceShare == null) {
-      throw new Error('Device share not found');
+    const authShardData = await this.getAuthShard(authData);
+    if (authShardData == null) {
+      return null;
     }
 
-    const deviceShareBytes = this.base64ToBytes(deviceShare);
+    const { authKeyShare, deviceKeyShareHash, signerId } = authShardData;
 
-    const { keyShare: authShare, deviceKeyShareHash: expectedDeviceHashBase64 } =
-      await this.api.getAuthShard(this.getDeviceId(), undefined, authData);
+    const deviceShare = localStorage.getItem(this.deviceShareStorageKey(signerId));
+    if (deviceShare == null) {
+      return null;
+    }
 
+    const deviceShareBytes = decodeBytes(deviceShare, 'base64');
     const hashBuffer = await crypto.subtle.digest(HASH_ALGO, deviceShareBytes);
-    const currentHashBase64 = this.bytesToBase64(new Uint8Array(hashBuffer));
+    const reconstructedDeviceHashBase64 = encodeBytes(new Uint8Array(hashBuffer), 'base64');
 
-    if (currentHashBase64 !== expectedDeviceHashBase64) {
-      localStorage.removeItem(DEVICE_SHARE_KEY);
-      localStorage.removeItem(DEVICE_ID_KEY);
+    if (reconstructedDeviceHashBase64 !== deviceKeyShareHash) {
+      this.clear(signerId);
       throw new XMIFCodedError(
-        `Key share stored on this device does not match Crossmint held authentication share.\n` +
-          `Actual hash of local device share: ${currentHashBase64}\n` +
-          `Expected hash from Crossmint: ${expectedDeviceHashBase64}`,
+        `Key share stored on this device does not match Crossmint held authentication share.
+Actual hash of local device share: ${reconstructedDeviceHashBase64}
+Expected hash from Crossmint: ${deviceKeyShareHash}`,
         'invalid-device-share'
       );
     }
 
     try {
-      const authShareBytes = this.base64ToBytes(authShare);
+      const authShareBytes = decodeBytes(authKeyShare, 'base64');
       return await combine([deviceShareBytes, authShareBytes]);
     } catch (error) {
       throw new Error(
@@ -69,23 +83,59 @@ export class ShardingService extends XMIFService {
     }
   }
 
-  public storeDeviceShare(share: string): void {
-    localStorage.setItem(DEVICE_SHARE_KEY, share);
-  }
+  private async getAuthShard(authData: { jwt: string; apiKey: string }): Promise<{
+    authKeyShare: string;
+    deviceKeyShareHash: string;
+    signerId: string;
+  } | null> {
+    const deviceId = this.getDeviceId();
+    const cacheKey = `${deviceId}-${authData.apiKey}-${authData.jwt}`;
 
-  public status(): 'ready' | 'new-device' {
-    if (localStorage.getItem(DEVICE_SHARE_KEY) == null) {
-      return 'new-device';
+    const cached = this.authShardCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL_MS) {
+      this.log('Using cached auth shard');
+      return {
+        authKeyShare: cached.authKeyShare,
+        deviceKeyShareHash: cached.deviceKeyShareHash,
+        signerId: cached.signerId,
+      };
     }
 
-    return 'ready';
+    try {
+      this.log('Fetching auth shard from API');
+      const result = await this.api.getAuthShard(deviceId, undefined, authData);
+      this.authShardCache.set(cacheKey, {
+        authKeyShare: result.authKeyShare,
+        deviceKeyShareHash: result.deviceKeyShareHash,
+        signerId: result.signerId,
+        timestamp: Date.now(),
+      });
+
+      return {
+        authKeyShare: result.authKeyShare,
+        deviceKeyShareHash: result.deviceKeyShareHash,
+        signerId: result.signerId,
+      };
+    } catch (e) {
+      if (e instanceof CrossmintHttpError && e.status === 404) {
+        return null;
+      }
+
+      throw e;
+    }
   }
 
-  private base64ToBytes(base64: string): Uint8Array {
-    return Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+  public storeDeviceShare(signerId: string, share: string): void {
+    localStorage.setItem(this.deviceShareStorageKey(signerId), share);
   }
 
-  private bytesToBase64(bytes: Uint8Array): string {
-    return btoa(String.fromCharCode.apply(null, Array.from(bytes)));
+  private deviceShareStorageKey(signerId: string): string {
+    return `${DEVICE_SHARE_KEY}-${signerId}`;
+  }
+
+  private clear(signerId: string) {
+    localStorage.removeItem(this.deviceShareStorageKey(signerId));
+    localStorage.removeItem(DEVICE_ID_KEY);
+    this.authShardCache.clear();
   }
 }

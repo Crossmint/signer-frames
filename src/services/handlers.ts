@@ -53,15 +53,13 @@ export class StartOnboardingEventHandler extends EventHandler<'start-onboarding'
   async handler(
     payload: SignerInputEvent<'start-onboarding'>
   ): Promise<SuccessfulOutputEvent<'start-onboarding'>> {
-    const signerStatus = this.services.sharding.status();
-    if (signerStatus === 'ready') {
-      const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
-      const publicKeys = await this.services.cryptoKey.getAllPublicKeysFromSeed(masterSecret);
-      console.log(`[DEBUG, ${this.event} handler] Public keys: ${JSON.stringify(publicKeys)}`);
+    const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
+
+    if (masterSecret != null) {
       return {
-        status: 'success' as const,
-        signerStatus,
-        publicKeys,
+        status: 'success',
+        signerStatus: 'ready',
+        publicKeys: await this.services.cryptoKey.getAllPublicKeysFromSeed(masterSecret),
       };
     }
 
@@ -77,8 +75,8 @@ export class StartOnboardingEventHandler extends EventHandler<'start-onboarding'
     );
 
     return {
-      status: 'success' as const,
-      signerStatus,
+      status: 'success',
+      signerStatus: 'new-device',
     };
   }
 }
@@ -100,7 +98,7 @@ export class CompleteOnboardingEventHandler extends EventHandler<'complete-onboa
     );
     const senderPublicKey = await this.services.encrypt.getPublicKey();
 
-    const response = await this.services.api.completeOnboarding(
+    const { deviceKeyShare, signerId } = await this.services.api.completeOnboarding(
       {
         publicKey: senderPublicKey,
         onboardingAuthentication: {
@@ -111,14 +109,16 @@ export class CompleteOnboardingEventHandler extends EventHandler<'complete-onboa
       payload.authData
     );
 
-    this.services.sharding.storeDeviceShare(response.shares.device);
+    this.services.sharding.storeDeviceShare(signerId, deviceKeyShare);
     const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
-    const publicKeys = await this.services.cryptoKey.getAllPublicKeysFromSeed(masterSecret);
-    console.log(`[DEBUG, ${this.event} handler] Public keys: ${JSON.stringify(publicKeys)}`);
+    if (masterSecret == null) {
+      throw new Error('Device share not found');
+    }
+
     return {
-      status: 'success' as const,
-      signerStatus: 'ready' as const,
-      publicKeys,
+      status: 'success',
+      signerStatus: 'ready',
+      publicKeys: await this.services.cryptoKey.getAllPublicKeysFromSeed(masterSecret),
     };
   }
 }
@@ -130,25 +130,20 @@ export class GetStatusEventHandler extends EventHandler<'get-status'> {
   async handler(
     payload: SignerInputEvent<'get-status'>
   ): Promise<SuccessfulOutputEvent<'get-status'>> {
-    const signerStatus = this.services.sharding.status();
-    switch (signerStatus) {
-      case 'ready': {
-        const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
-        const publicKeys = await this.services.cryptoKey.getAllPublicKeysFromSeed(masterSecret);
-        console.log(`[DEBUG, ${this.event} handler] Public keys: ${JSON.stringify(publicKeys)}`);
-        return {
-          status: 'success',
-          signerStatus,
-          publicKeys,
-        };
-      }
-      case 'new-device': {
-        return {
-          status: 'success' as const,
-          signerStatus,
-        };
-      }
+    const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
+
+    if (masterSecret == null) {
+      return {
+        status: 'success',
+        signerStatus: 'new-device',
+      };
     }
+
+    return {
+      status: 'success',
+      signerStatus: 'ready',
+      publicKeys: await this.services.cryptoKey.getAllPublicKeysFromSeed(masterSecret),
+    };
   }
 }
 
@@ -158,15 +153,18 @@ export class SignEventHandler extends EventHandler<'sign'> {
 
   async handler(payload: SignerInputEvent<'sign'>): Promise<SuccessfulOutputEvent<'sign'>> {
     const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
+    if (masterSecret == null) {
+      throw new Error('Device share not found');
+    }
+
     const { keyType, bytes, encoding } = payload.data;
     const privateKey = await this.services.cryptoKey.getPrivateKeyFromSeed(keyType, masterSecret);
     const message = decodeBytes(bytes, encoding);
-    const signature = await this.services.cryptoKey.sign(keyType, privateKey, message);
-    const publicKey = await this.services.cryptoKey.getPublicKeyFromSeed(keyType, masterSecret);
+
     return {
-      status: 'success' as const,
-      signature,
-      publicKey,
+      status: 'success',
+      signature: await this.services.cryptoKey.sign(keyType, privateKey, message),
+      publicKey: await this.services.cryptoKey.getPublicKeyFromSeed(keyType, masterSecret),
     };
   }
 }
