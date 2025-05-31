@@ -8,6 +8,7 @@ import type { XMIFService } from './service';
 import { FPEService } from './fpe';
 import { Secp256k1Service } from './secp256k1';
 import { CryptoKeyService } from './crypto-key';
+import { AuthShareCache } from './auth-share-cache';
 
 /**
  * Services index - Export all services
@@ -34,7 +35,7 @@ export const createXMIFServices = () => {
   const secp256k1Service = new Secp256k1Service();
   const crossmintApiService = new CrossmintApiService(encryptionService);
   const attestationService = new AttestationService(crossmintApiService);
-  const shardingService = new ShardingService(crossmintApiService);
+  const shardingService = new ShardingService(new AuthShareCache(crossmintApiService));
   const fpeService = new FPEService(encryptionService);
   const cryptoKeyService = new CryptoKeyService(ed25519Service, secp256k1Service);
 
