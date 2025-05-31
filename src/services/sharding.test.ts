@@ -26,7 +26,6 @@ const TEST_AUTH_DATA = { jwt: 'test-jwt', apiKey: 'test-api-key' };
 
 // Storage keys from the service
 const DEVICE_SHARE_KEY = 'device-share';
-const DEVICE_ID_KEY = 'device-id';
 
 // Mock Shamir secret sharing
 vi.mock('shamir-secret-sharing', () => ({
@@ -34,11 +33,13 @@ vi.mock('shamir-secret-sharing', () => ({
 }));
 
 import * as shamir from 'shamir-secret-sharing';
+import type { DeviceService } from './device';
 const mockCombine = shamir.combine as ReturnType<typeof vi.fn>;
 
 describe('ShardingService - Security Critical Tests', () => {
   let service: ShardingService;
   let mockAuthShareCache: MockProxy<AuthShareCache>;
+  let mockDeviceService: MockProxy<DeviceService>;
   let mockLocalStorage: {
     getItem: ReturnType<typeof vi.fn>;
     setItem: ReturnType<typeof vi.fn>;
@@ -81,35 +82,14 @@ describe('ShardingService - Security Critical Tests', () => {
 
     // Mock dependencies
     mockAuthShareCache = mock<AuthShareCache>();
-    service = new ShardingService(mockAuthShareCache);
+    mockDeviceService = mock<import('./device').DeviceService>();
+    mockDeviceService.getId.mockReturnValue(TEST_DEVICE_ID);
+
+    service = new ShardingService(mockAuthShareCache, mockDeviceService);
 
     // Suppress console output in tests
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'debug').mockImplementation(() => {});
-  });
-
-  describe('Device ID Management - Isolation Foundation', () => {
-    it('SECURITY: Should generate cryptographically random device ID when none exists', () => {
-      // SECURITY PROPERTY: Each device gets a unique, unpredictable identifier
-      mockLocalStorage.getItem.mockReturnValueOnce(null);
-
-      const result = service.getDeviceId();
-
-      expect(crypto.randomUUID).toHaveBeenCalled();
-      expect(mockLocalStorage.setItem).toHaveBeenCalledWith(DEVICE_ID_KEY, TEST_DEVICE_ID);
-      expect(result).toBe(TEST_DEVICE_ID);
-    });
-
-    it('SECURITY: Should reuse existing device ID to maintain device identity', () => {
-      // SECURITY PROPERTY: Device identity persists across sessions
-      mockLocalStorage.getItem.mockReturnValueOnce(TEST_DEVICE_ID);
-
-      const result = service.getDeviceId();
-
-      expect(crypto.randomUUID).not.toHaveBeenCalled();
-      expect(mockLocalStorage.setItem).not.toHaveBeenCalled();
-      expect(result).toBe(TEST_DEVICE_ID);
-    });
   });
 
   describe('Master Secret Reconstruction - Core Security Function', () => {
@@ -117,7 +97,6 @@ describe('ShardingService - Security Critical Tests', () => {
       // Default setup: valid device share exists
       mockLocalStorage.getItem.mockImplementation(key => {
         if (key === `${DEVICE_SHARE_KEY}-${TEST_SIGNER_ID}`) return TEST_DEVICE_SHARE;
-        if (key === DEVICE_ID_KEY) return TEST_DEVICE_ID;
         return null;
       });
     });
@@ -158,7 +137,6 @@ describe('ShardingService - Security Critical Tests', () => {
       });
 
       mockLocalStorage.getItem.mockImplementation(key => {
-        if (key === DEVICE_ID_KEY) return TEST_DEVICE_ID;
         return null; // No device share
       });
 
@@ -194,7 +172,6 @@ describe('ShardingService - Security Critical Tests', () => {
 
       mockLocalStorage.getItem.mockImplementation(key => {
         if (key === `${DEVICE_SHARE_KEY}-${TEST_SIGNER_ID}`) return TEST_DEVICE_SHARE;
-        if (key === DEVICE_ID_KEY) return TEST_DEVICE_ID;
         return null;
       });
 
@@ -210,7 +187,7 @@ describe('ShardingService - Security Critical Tests', () => {
       expect(mockLocalStorage.removeItem).toHaveBeenCalledWith(
         `${DEVICE_SHARE_KEY}-${TEST_SIGNER_ID}`
       );
-      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith(DEVICE_ID_KEY);
+      expect(mockDeviceService.clearId).toHaveBeenCalled();
       expect(mockAuthShareCache.clearCache).toHaveBeenCalled();
     });
   });
@@ -254,7 +231,6 @@ describe('ShardingService - Security Critical Tests', () => {
     beforeEach(() => {
       // Setup isolated storage for each signer
       mockLocalStorage.getItem.mockImplementation(key => {
-        if (key === DEVICE_ID_KEY) return TEST_DEVICE_ID;
         if (key === `${DEVICE_SHARE_KEY}-${SIGNER_SCENARIOS.signer1.signerId}`)
           return SIGNER_SCENARIOS.signer1.deviceShare;
         if (key === `${DEVICE_SHARE_KEY}-${SIGNER_SCENARIOS.signer2.signerId}`)
@@ -353,7 +329,6 @@ describe('ShardingService - Security Critical Tests', () => {
     it('SECURITY: Should handle missing device share for one signer without affecting others', async () => {
       // SECURITY PROPERTY: Missing shares are isolated per signer
       mockLocalStorage.getItem.mockImplementation(key => {
-        if (key === DEVICE_ID_KEY) return TEST_DEVICE_ID;
         if (key === `${DEVICE_SHARE_KEY}-${SIGNER_SCENARIOS.signer1.signerId}`) return null; // Missing
         if (key === `${DEVICE_SHARE_KEY}-${SIGNER_SCENARIOS.signer2.signerId}`)
           return SIGNER_SCENARIOS.signer2.deviceShare;
@@ -398,12 +373,11 @@ describe('ShardingService - Security Critical Tests', () => {
       expect(mockLocalStorage.removeItem).toHaveBeenCalledWith(
         `${DEVICE_SHARE_KEY}-${SIGNER_SCENARIOS.signer1.signerId}`
       );
-      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith(DEVICE_ID_KEY);
+      expect(mockDeviceService.clearId).toHaveBeenCalled();
       expect(mockAuthShareCache.clearCache).toHaveBeenCalled();
 
       // Signer 2 should still work after device ID regeneration
       mockLocalStorage.getItem.mockImplementation(key => {
-        if (key === DEVICE_ID_KEY) return TEST_DEVICE_ID;
         if (key === `${DEVICE_SHARE_KEY}-${SIGNER_SCENARIOS.signer2.signerId}`)
           return SIGNER_SCENARIOS.signer2.deviceShare;
         return null;

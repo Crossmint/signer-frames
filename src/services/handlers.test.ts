@@ -29,7 +29,7 @@ describe('EventHandlers', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockServices.sharding.getDeviceId.mockReturnValue(TEST_FIXTURES.deviceId);
+    mockServices.device.getId.mockReturnValue(TEST_FIXTURES.deviceId);
     mockServices.attestation.getAttestedPublicKey.mockResolvedValue('mock-attestation-public-key');
   });
 

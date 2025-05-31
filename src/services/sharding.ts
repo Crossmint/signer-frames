@@ -3,16 +3,19 @@ import { XMIFService } from './service';
 import { XMIFCodedError } from './error';
 import { decodeBytes, encodeBytes } from './utils';
 import type { AuthShareCache } from './auth-share-cache';
+import type { DeviceService } from './device';
 
 const DEVICE_SHARE_KEY = 'device-share';
-const DEVICE_ID_KEY = 'device-id';
 const HASH_ALGO = 'SHA-256';
 
 export class ShardingService extends XMIFService {
   name = 'Sharding Service';
   log_prefix = '[ShardingService]';
 
-  constructor(private readonly authShareCache: AuthShareCache) {
+  constructor(
+    private readonly authShareCache: AuthShareCache,
+    private readonly deviceService: DeviceService
+  ) {
     super();
   }
 
@@ -20,24 +23,8 @@ export class ShardingService extends XMIFService {
     await this.authShareCache.init();
   }
 
-  public getDeviceId(): string {
-    this.log('Attempting to get device ID from storage');
-
-    const existing = localStorage.getItem(DEVICE_ID_KEY);
-    if (existing != null) {
-      this.log(`Found existing device ID: ${existing.substring(0, 8)}...`);
-      return existing;
-    }
-
-    this.log('No existing device ID found, generating new one');
-    const deviceId = crypto.randomUUID();
-    localStorage.setItem(DEVICE_ID_KEY, deviceId);
-    this.log(`Successfully stored new device ID: ${deviceId.substring(0, 8)}...`);
-    return deviceId;
-  }
-
   public async reconstructMasterSecret(authData: { jwt: string; apiKey: string }) {
-    const deviceId = this.getDeviceId();
+    const deviceId = this.deviceService.getId();
     const authShardData = await this.authShareCache.getAuthShare(deviceId, authData);
     if (authShardData == null) {
       return null;
@@ -92,7 +79,7 @@ Expected hash from Crossmint: ${expectedDeviceKeyShareHash}`,
 
   private clear(signerId: string) {
     localStorage.removeItem(this.deviceShareStorageKey(signerId));
-    localStorage.removeItem(DEVICE_ID_KEY);
+    this.deviceService.clearId();
     this.authShareCache.clearCache();
   }
 }

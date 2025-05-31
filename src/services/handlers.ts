@@ -69,7 +69,7 @@ export class StartOnboardingEventHandler extends EventHandler<'start-onboarding'
         encryptionContext: {
           publicKey: await this.services.encrypt.getPublicKey(),
         },
-        deviceId: this.services.sharding.getDeviceId(),
+        deviceId: this.services.device.getId(),
       },
       payload.authData
     );
@@ -88,7 +88,7 @@ export class CompleteOnboardingEventHandler extends EventHandler<'complete-onboa
   async handler(
     payload: SignerInputEvent<'complete-onboarding'>
   ): Promise<SuccessfulOutputEvent<'complete-onboarding'>> {
-    const deviceId = this.services.sharding.getDeviceId();
+    const deviceId = this.services.device.getId();
     const encryptedOtp = payload.data.onboardingAuthentication.encryptedOtp;
     console.log(
       `[DEBUG, ${this.event} handler] Received encrypted OTP: ${encryptedOtp}. Decrypting`
