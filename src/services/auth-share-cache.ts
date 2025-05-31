@@ -124,7 +124,7 @@ export class AuthShareCache extends XMIFService {
     return `${deviceId}-${authData.apiKey}-${authData.jwt}`;
   }
 
-  private isCacheEntryValid(cached: AuthShardCacheEntry): cached is AuthShardCacheEntry {
+  private isCacheEntryValid(cached: AuthShardCacheEntry): boolean {
     return Date.now() - cached.timestamp < this.CACHE_TTL_MS;
   }
 }
