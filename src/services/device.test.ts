@@ -1,17 +1,6 @@
-/**
- * SECURITY CRITICAL: DeviceService Test Suite
- *
- * This service manages device ID generation and storage.
- * Security properties tested:
- * 1. Device ID uniqueness and unpredictability
- * 2. Device identity persistence across sessions
- * 3. Secure cleanup when needed
- */
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DeviceService } from './device';
 
-// Test constants
 const TEST_DEVICE_ID = '123e4567-e89b-12d3-a456-426614174000';
 const DEVICE_ID_KEY = 'device-id';
 
@@ -53,8 +42,7 @@ describe('DeviceService - Security Critical Tests', () => {
   });
 
   describe('Device ID Generation - Isolation Foundation', () => {
-    it('SECURITY: Should generate cryptographically random device ID when none exists', () => {
-      // SECURITY PROPERTY: Each device gets a unique, unpredictable identifier
+    it('Should generate cryptographically random device ID when none exists', () => {
       mockLocalStorage.getItem.mockReturnValueOnce(null);
 
       const result = service.getId();
@@ -64,8 +52,7 @@ describe('DeviceService - Security Critical Tests', () => {
       expect(result).toBe(TEST_DEVICE_ID);
     });
 
-    it('SECURITY: Should reuse existing device ID to maintain device identity', () => {
-      // SECURITY PROPERTY: Device identity persists across sessions
+    it('Should reuse existing device ID to maintain device identity', () => {
       mockLocalStorage.getItem.mockReturnValueOnce(TEST_DEVICE_ID);
 
       const result = service.getId();
@@ -76,7 +63,6 @@ describe('DeviceService - Security Critical Tests', () => {
     });
 
     it('SECURITY: Should generate new device ID each time when none exists in storage', () => {
-      // SECURITY PROPERTY: Multiple calls without existing storage create unique IDs
       const firstDeviceId = '123e4567-e89b-12d3-a456-426614174001';
       const secondDeviceId = '123e4567-e89b-12d3-a456-426614174002';
 
@@ -95,14 +81,13 @@ describe('DeviceService - Security Critical Tests', () => {
   });
 
   describe('Device ID Cleanup - Security Operations', () => {
-    it('SECURITY: Should clear device ID from storage for security cleanup', () => {
-      // SECURITY PROPERTY: Device ID can be securely removed when needed
+    it('Should clear device ID from storage for security cleanup', () => {
       service.clearId();
 
       expect(mockLocalStorage.removeItem).toHaveBeenCalledWith(DEVICE_ID_KEY);
     });
 
-    it('SECURITY: Should handle multiple clear operations safely', () => {
+    it('Should handle multiple clear operations safely', () => {
       // SECURITY PROPERTY: Multiple clears don't cause errors
       service.clearId();
       service.clearId();
@@ -114,7 +99,6 @@ describe('DeviceService - Security Critical Tests', () => {
 
   describe('Device ID Persistence', () => {
     it('Should maintain device identity across service instances', () => {
-      // SECURITY PROPERTY: Device identity is consistent across service recreations
       mockLocalStorage.getItem.mockReturnValue(TEST_DEVICE_ID);
 
       const service1 = new DeviceService();

@@ -50,27 +50,27 @@ export class ShardingService extends XMIFService {
     }
   }
 
+  public storeDeviceShare(signerId: string, share: string): void {
+    localStorage.setItem(this.deviceShareStorageKey(signerId), share);
+  }
+
   private async validateDeviceShareConsistency(
     deviceShareBytes: Uint8Array,
-    expectedDeviceKeyShareHash: string,
+    expectedHashBase64: string,
     signerId: string
   ): Promise<void> {
     const hashBuffer = await crypto.subtle.digest(HASH_ALGO, deviceShareBytes);
     const reconstructedDeviceHashBase64 = encodeBytes(new Uint8Array(hashBuffer), 'base64');
 
-    if (reconstructedDeviceHashBase64 !== expectedDeviceKeyShareHash) {
+    if (reconstructedDeviceHashBase64 !== expectedHashBase64) {
       this.clear(signerId);
       throw new XMIFCodedError(
         `Key share stored on this device does not match Crossmint held authentication share.
 Actual hash of local device share: ${reconstructedDeviceHashBase64}
-Expected hash from Crossmint: ${expectedDeviceKeyShareHash}`,
+Expected hash from Crossmint: ${expectedHashBase64}`,
         'invalid-device-share'
       );
     }
-  }
-
-  public storeDeviceShare(signerId: string, share: string): void {
-    localStorage.setItem(this.deviceShareStorageKey(signerId), share);
   }
 
   private deviceShareStorageKey(signerId: string): string {

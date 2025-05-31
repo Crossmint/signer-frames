@@ -2,7 +2,7 @@
  * SECURITY CRITICAL: AuthShareCache Test Suite
  *
  * This service manages cached authentication shares for Shamir Secret Sharing.
- * Security properties tested:
+ * Properties tested:
  * 1. Credential isolation - different auth contexts get separate caches
  * 2. Cache TTL enforcement - prevents stale auth share access
  * 3. Error handling - 404s return null, other errors propagate
@@ -42,9 +42,7 @@ describe('AuthShareCache - Security Critical Tests', () => {
       });
     });
 
-    it('SECURITY: Should cache auth share to reduce API calls and improve performance', async () => {
-      // SECURITY PROPERTY: Caching reduces attack surface by minimizing API requests
-
+    it('Should cache auth share to reduce API calls and improve performance', async () => {
       // First call should hit API
       const result1 = await service.getAuthShare(TEST_DEVICE_ID, BASE_AUTH_DATA);
       expect(mockServices.api.getAuthShard).toHaveBeenCalledTimes(1);
@@ -60,8 +58,7 @@ describe('AuthShareCache - Security Critical Tests', () => {
       expect(result2).toEqual(result1);
     });
 
-    it('SECURITY: Should enforce cache TTL to prevent stale auth share access', async () => {
-      // SECURITY PROPERTY: TTL prevents using outdated authentication shares
+    it('Should enforce cache TTL to prevent stale auth share access', async () => {
       const originalDateNow = Date.now;
       let currentTime = 1000000;
       vi.spyOn(Date, 'now').mockImplementation(() => currentTime);
@@ -84,8 +81,7 @@ describe('AuthShareCache - Security Critical Tests', () => {
   });
 
   describe('Error Handling - Security Boundaries', () => {
-    it('SECURITY: Should safely handle missing auth shares (404) without exposing errors', async () => {
-      // SECURITY PROPERTY: Missing shares return null (fail-safe) rather than throwing
+    it('Should safely handle missing auth shares (404) without exposing errors', async () => {
       const notFoundError = new CrossmintHttpError(
         404,
         'Not Found',
@@ -99,8 +95,7 @@ describe('AuthShareCache - Security Critical Tests', () => {
       expect(mockServices.api.getAuthShard).toHaveBeenCalledTimes(1);
     });
 
-    it('SECURITY: Should propagate non-404 errors for proper error handling', async () => {
-      // SECURITY PROPERTY: Real errors (server issues, auth failures) should bubble up
+    it('Should propagate non-404 errors for proper error handling', async () => {
       const serverError = new CrossmintHttpError(
         500,
         'Internal Server Error',
