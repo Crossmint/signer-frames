@@ -7,6 +7,22 @@ import type { DeviceService } from './device';
 
 const HASH_ALGO = 'SHA-256';
 
+/**
+ * Shamir Secret Sharing service for cryptographic key reconstruction.
+ *
+ * This service implements a secure two-factor authentication system using Shamir Secret Sharing,
+ * where cryptographic keys are split into two shares:
+ * - **Device Share**: Stored locally in browser localStorage, tied to the device
+ * - **Auth Share**: Retrieved from Crossmint servers using JWT/API key authentication
+ *
+ * Both shares are required to reconstruct the master secret. This design ensures that:
+ * - Compromising the device alone cannot access the key (needs valid authentication)
+ * - Compromising authentication alone cannot access the key (needs the device)
+ * - Each signer maintains isolated key shares with tamper detection
+ *
+ * The service includes integrity validation through cryptographic hashing to detect
+ * tampering of device shares and provides secure cleanup on security violations.
+ */
 export class ShardingService extends XMIFService {
   name = 'Sharding Service';
   log_prefix = '[ShardingService]';
@@ -22,10 +38,38 @@ export class ShardingService extends XMIFService {
     await this.authShareCache.init();
   }
 
+  /**
+   * Stores a device share in browser localStorage for a specific signer.
+   *
+   * Device shares are stored per-signer to maintain isolation between different
+   * signing contexts. The share is stored as a base64-encoded string.
+   *
+   * @param signerId - Unique identifier for the signer
+   * @param share - Base64-encoded device share data to store
+   */
   public storeDeviceShare(signerId: string, share: string): void {
     localStorage.setItem(this.deviceShareStorageKey(signerId), share);
   }
 
+  /**
+   * Reconstructs the master secret by combining device and authentication shares.
+   *
+   * This method performs the core Shamir Secret Sharing reconstruction:
+   * 1. Retrieves the authentication share using provided credentials
+   * 2. Loads the device share from localStorage for the authenticated signer
+   * 3. Validates device share integrity through cryptographic hash verification
+   * 4. Combines both shares to reconstruct the original master secret
+   *
+   * Returns null if either share is unavailable, ensuring graceful failure modes.
+   * Throws errors for security violations (tampering) or cryptographic failures.
+   *
+   * @param authData - Authentication credentials containing JWT and API key
+   * @param authData.jwt - JSON Web Token for user authentication
+   * @param authData.apiKey - API key for application authentication
+   * @returns Promise resolving to reconstructed master secret bytes, or null if shares unavailable
+   * @throws {XMIFCodedError} When device share tampering is detected
+   * @throws {Error} When cryptographic reconstruction fails
+   */
   public async reconstructMasterSecret(authData: { jwt: string; apiKey: string }) {
     const deviceId = this.deviceService.getId();
     const authShardData = await this.authShareCache.getAuthShare(deviceId, authData);
