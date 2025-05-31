@@ -81,7 +81,7 @@ describe('ShardingService - Security Critical Tests', () => {
 
     // Mock dependencies
     mockAuthShareCache = mock<AuthShareCache>();
-    mockDeviceService = mock<import('./device').DeviceService>();
+    mockDeviceService = mock<DeviceService>();
     mockDeviceService.getId.mockReturnValue(TEST_DEVICE_ID);
 
     service = new ShardingService(mockAuthShareCache, mockDeviceService);
@@ -116,7 +116,7 @@ describe('ShardingService - Security Critical Tests', () => {
       expect(result).toEqual(MOCK_MASTER_SECRET);
     });
 
-    it('SECURITY: Should fail safely when auth share is unavailable', async () => {
+    it('SECURITY: Should return null when auth share is unavailable', async () => {
       mockAuthShareCache.get.mockResolvedValueOnce(null);
 
       const result = await service.reconstructMasterSecret(TEST_AUTH_DATA);
