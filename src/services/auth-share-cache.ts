@@ -83,7 +83,7 @@ export class AuthShareCache extends XMIFService {
     const cacheKey = this.buildCacheKey(deviceId, authData);
 
     const cached = this.authShardCache.get(cacheKey);
-    if (this.isCacheEntryValid(cached)) {
+    if (cached != null && this.isCacheEntryValid(cached)) {
       this.log('Using cached auth share');
       return {
         authKeyShare: cached.authKeyShare,
@@ -124,9 +124,7 @@ export class AuthShareCache extends XMIFService {
     return `${deviceId}-${authData.apiKey}-${authData.jwt}`;
   }
 
-  private isCacheEntryValid(
-    cached: AuthShardCacheEntry | undefined
-  ): cached is AuthShardCacheEntry {
-    return cached !== undefined && Date.now() - cached.timestamp < this.CACHE_TTL_MS;
+  private isCacheEntryValid(cached: AuthShardCacheEntry): cached is AuthShardCacheEntry {
+    return Date.now() - cached.timestamp < this.CACHE_TTL_MS;
   }
 }
