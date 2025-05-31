@@ -3,11 +3,10 @@
  *
  * This service handles Shamir Secret Sharing for cryptographic keys.
  * Security properties tested:
- * 1. Device ID isolation and generation
- * 2. Master secret reconstruction from auth + device shares
- * 3. Device share integrity validation via hash consistency
- * 4. Multi-signer isolation (no cross-contamination between signers)
- * 5. Secure cleanup on integrity failures
+ * 1. Master secret reconstruction from auth + device shares
+ * 2. Device share integrity validation via hash consistency
+ * 3. Multi-signer isolation (no cross-contamination between signers)
+ * 4. Secure cleanup on integrity failures
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -102,7 +101,6 @@ describe('ShardingService - Security Critical Tests', () => {
     });
 
     it('SECURITY: Should successfully reconstruct master secret from valid shares', async () => {
-      // SECURITY PROPERTY: Valid auth + device shares = master secret
       mockAuthShareCache.getAuthShare.mockResolvedValueOnce({
         authKeyShare: 'test-auth-share',
         deviceKeyShareHash: 'h(xyz)', // Matches our btoa mock
@@ -119,7 +117,6 @@ describe('ShardingService - Security Critical Tests', () => {
     });
 
     it('SECURITY: Should fail safely when auth share is unavailable', async () => {
-      // SECURITY PROPERTY: Missing auth share = no secret reconstruction
       mockAuthShareCache.getAuthShare.mockResolvedValueOnce(null);
 
       const result = await service.reconstructMasterSecret(TEST_AUTH_DATA);
@@ -129,7 +126,6 @@ describe('ShardingService - Security Critical Tests', () => {
     });
 
     it('SECURITY: Should fail safely when device share is missing', async () => {
-      // SECURITY PROPERTY: Missing device share = no secret reconstruction
       mockAuthShareCache.getAuthShare.mockResolvedValueOnce({
         authKeyShare: 'test-auth-share',
         deviceKeyShareHash: 'h(xyz)',
@@ -147,7 +143,6 @@ describe('ShardingService - Security Critical Tests', () => {
     });
 
     it('SECURITY: Should handle cryptographic failures gracefully', async () => {
-      // SECURITY PROPERTY: Shamir reconstruction errors are properly handled
       mockAuthShareCache.getAuthShare.mockResolvedValueOnce({
         authKeyShare: 'test-auth-share',
         deviceKeyShareHash: 'h(xyz)',
@@ -164,7 +159,6 @@ describe('ShardingService - Security Critical Tests', () => {
 
   describe('Device Share Integrity Validation - Tampering Detection', () => {
     it('SECURITY: Should detect and respond to device share tampering', async () => {
-      // SECURITY PROPERTY: Hash mismatch = potential tampering = secure cleanup
       vi.stubGlobal(
         'btoa',
         vi.fn(() => 'tampered-hash')
@@ -183,7 +177,6 @@ describe('ShardingService - Security Critical Tests', () => {
 
       await expect(service.reconstructMasterSecret(TEST_AUTH_DATA)).rejects.toThrow(XMIFCodedError);
 
-      // SECURITY CRITICAL: Verify complete cleanup on tampering detection
       expect(mockLocalStorage.removeItem).toHaveBeenCalledWith(
         `${DEVICE_SHARE_KEY}-${TEST_SIGNER_ID}`
       );
@@ -259,49 +252,71 @@ describe('ShardingService - Security Critical Tests', () => {
     });
 
     it('SECURITY: Should maintain complete isolation between multiple signers', async () => {
-      // SECURITY PROPERTY: Each signer can only access their own data
+      // Clear all mocks to start fresh
+      vi.clearAllMocks();
 
-      // Test all signers can reconstruct independently
-      const results = await Promise.all([
-        service.reconstructMasterSecret(SIGNER_SCENARIOS.signer1.authData),
-        service.reconstructMasterSecret(SIGNER_SCENARIOS.signer2.authData),
-        service.reconstructMasterSecret(SIGNER_SCENARIOS.signer3.authData),
-      ]);
+      // === Test Signer 1 ===
+      const result1 = await service.reconstructMasterSecret(SIGNER_SCENARIOS.signer1.authData);
+      expect(result1).toEqual(MOCK_MASTER_SECRET);
 
-      // All should succeed with same result (in real use, would be different keys)
-      for (const result of results) {
-        expect(result).toEqual(MOCK_MASTER_SECRET);
-      }
+      // Verify only signer 1's device share was accessed
+      expect(mockLocalStorage.getItem).toHaveBeenCalledTimes(1);
+      expect(mockLocalStorage.getItem).toHaveBeenCalledWith(
+        `${DEVICE_SHARE_KEY}-${SIGNER_SCENARIOS.signer1.signerId}`
+      );
 
-      // Verify correct isolation: each signer's auth data called exactly once
-      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledTimes(3);
+      // Verify only signer 1's auth share was accessed
+      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledTimes(1);
       expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledWith(
         TEST_DEVICE_ID,
         SIGNER_SCENARIOS.signer1.authData
       );
+
+      // Clear mocks for next signer
+      vi.clearAllMocks();
+
+      // === Test Signer 2 ===
+      const result2 = await service.reconstructMasterSecret(SIGNER_SCENARIOS.signer2.authData);
+      expect(result2).toEqual(MOCK_MASTER_SECRET);
+
+      // Verify only signer 2's device share was accessed
+      expect(mockLocalStorage.getItem).toHaveBeenCalledTimes(1);
+      expect(mockLocalStorage.getItem).toHaveBeenCalledWith(
+        `${DEVICE_SHARE_KEY}-${SIGNER_SCENARIOS.signer2.signerId}`
+      );
+
+      // Verify only signer 2's auth share was accessed
+      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledTimes(1);
       expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledWith(
         TEST_DEVICE_ID,
         SIGNER_SCENARIOS.signer2.authData
       );
+
+      // Clear mocks for next signer
+      vi.clearAllMocks();
+
+      // === Test Signer 3 ===
+      const result3 = await service.reconstructMasterSecret(SIGNER_SCENARIOS.signer3.authData);
+      expect(result3).toEqual(MOCK_MASTER_SECRET);
+
+      // Verify only signer 3's device share was accessed
+      expect(mockLocalStorage.getItem).toHaveBeenCalledTimes(1);
+      expect(mockLocalStorage.getItem).toHaveBeenCalledWith(
+        `${DEVICE_SHARE_KEY}-${SIGNER_SCENARIOS.signer3.signerId}`
+      );
+
+      // Verify only signer 3's auth share was accessed
+      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledTimes(1);
       expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledWith(
         TEST_DEVICE_ID,
         SIGNER_SCENARIOS.signer3.authData
       );
-
-      // Verify correct device share isolation
-      expect(mockLocalStorage.getItem).toHaveBeenCalledWith(
-        `${DEVICE_SHARE_KEY}-${SIGNER_SCENARIOS.signer1.signerId}`
-      );
-      expect(mockLocalStorage.getItem).toHaveBeenCalledWith(
-        `${DEVICE_SHARE_KEY}-${SIGNER_SCENARIOS.signer2.signerId}`
-      );
-      expect(mockLocalStorage.getItem).toHaveBeenCalledWith(
-        `${DEVICE_SHARE_KEY}-${SIGNER_SCENARIOS.signer3.signerId}`
-      );
     });
 
     it('SECURITY: Should isolate errors - one signer failure cannot affect others', async () => {
-      // SECURITY PROPERTY: Signer errors are isolated
+      // Clear all mocks to start fresh
+      vi.clearAllMocks();
+
       mockAuthShareCache.getAuthShare.mockImplementation(async (deviceId, authData) => {
         if (authData.jwt === SIGNER_SCENARIOS.signer1.authData.jwt) {
           throw new Error('Signer 1 auth error');
@@ -316,17 +331,45 @@ describe('ShardingService - Security Critical Tests', () => {
         throw new Error('Unexpected auth data');
       });
 
-      // Signer 1 should fail
+      // === Test Signer 1 Failure ===
       await expect(
         service.reconstructMasterSecret(SIGNER_SCENARIOS.signer1.authData)
       ).rejects.toThrow('Signer 1 auth error');
 
-      // Signer 2 should still work
+      // Verify signer 1's auth share was attempted
+      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledTimes(1);
+      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledWith(
+        TEST_DEVICE_ID,
+        SIGNER_SCENARIOS.signer1.authData
+      );
+
+      // Verify device share access was not attempted due to auth failure
+      expect(mockLocalStorage.getItem).not.toHaveBeenCalled();
+
+      // Clear mocks to isolate signer 2 test
+      vi.clearAllMocks();
+
+      // === Test Signer 2 Success ===
       const result2 = await service.reconstructMasterSecret(SIGNER_SCENARIOS.signer2.authData);
       expect(result2).toEqual(MOCK_MASTER_SECRET);
+
+      // Verify only signer 2's resources were accessed
+      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledTimes(1);
+      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledWith(
+        TEST_DEVICE_ID,
+        SIGNER_SCENARIOS.signer2.authData
+      );
+
+      expect(mockLocalStorage.getItem).toHaveBeenCalledTimes(1);
+      expect(mockLocalStorage.getItem).toHaveBeenCalledWith(
+        `${DEVICE_SHARE_KEY}-${SIGNER_SCENARIOS.signer2.signerId}`
+      );
     });
 
     it('SECURITY: Should handle missing device share for one signer without affecting others', async () => {
+      // Clear all mocks to start fresh
+      vi.clearAllMocks();
+
       // SECURITY PROPERTY: Missing shares are isolated per signer
       mockLocalStorage.getItem.mockImplementation(key => {
         if (key === `${DEVICE_SHARE_KEY}-${SIGNER_SCENARIOS.signer1.signerId}`) return null; // Missing
@@ -335,17 +378,47 @@ describe('ShardingService - Security Critical Tests', () => {
         return null;
       });
 
-      // Signer 1 should return null (missing device share)
+      // === Test Signer 1 with Missing Device Share ===
       const result1 = await service.reconstructMasterSecret(SIGNER_SCENARIOS.signer1.authData);
       expect(result1).toBeNull();
 
-      // Signer 2 should still work normally
+      // Verify signer 1's auth share was accessed
+      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledTimes(1);
+      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledWith(
+        TEST_DEVICE_ID,
+        SIGNER_SCENARIOS.signer1.authData
+      );
+
+      // Verify signer 1's device share lookup was attempted
+      expect(mockLocalStorage.getItem).toHaveBeenCalledTimes(1);
+      expect(mockLocalStorage.getItem).toHaveBeenCalledWith(
+        `${DEVICE_SHARE_KEY}-${SIGNER_SCENARIOS.signer1.signerId}`
+      );
+
+      // Clear mocks to isolate signer 2 test
+      vi.clearAllMocks();
+
+      // === Test Signer 2 Success ===
       const result2 = await service.reconstructMasterSecret(SIGNER_SCENARIOS.signer2.authData);
       expect(result2).toEqual(MOCK_MASTER_SECRET);
+
+      // Verify only signer 2's resources were accessed
+      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledTimes(1);
+      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledWith(
+        TEST_DEVICE_ID,
+        SIGNER_SCENARIOS.signer2.authData
+      );
+
+      expect(mockLocalStorage.getItem).toHaveBeenCalledTimes(1);
+      expect(mockLocalStorage.getItem).toHaveBeenCalledWith(
+        `${DEVICE_SHARE_KEY}-${SIGNER_SCENARIOS.signer2.signerId}`
+      );
     });
 
     it('SECURITY: Should isolate tampering cleanup to affected signer only', async () => {
-      // SECURITY PROPERTY: Tampering detection cleanup is signer-specific
+      // Clear all mocks to start fresh
+      vi.clearAllMocks();
+
       mockAuthShareCache.getAuthShare.mockImplementation(async (deviceId, authData) => {
         if (authData.jwt === SIGNER_SCENARIOS.signer1.authData.jwt) {
           return {
@@ -364,27 +437,61 @@ describe('ShardingService - Security Critical Tests', () => {
         throw new Error('Unexpected auth data');
       });
 
-      // Signer 1 should fail with tampering error
+      // === Test Signer 1 Tampering Detection ===
       await expect(
         service.reconstructMasterSecret(SIGNER_SCENARIOS.signer1.authData)
       ).rejects.toThrow(/Key share stored on this device does not match/);
 
-      // Verify cleanup occurred
+      // Verify the correct sequence of operations for signer 1
+      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledTimes(1);
+      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledWith(
+        TEST_DEVICE_ID,
+        SIGNER_SCENARIOS.signer1.authData
+      );
+
+      expect(mockLocalStorage.getItem).toHaveBeenCalledTimes(1);
+      expect(mockLocalStorage.getItem).toHaveBeenCalledWith(
+        `${DEVICE_SHARE_KEY}-${SIGNER_SCENARIOS.signer1.signerId}`
+      );
+
+      // Verify cleanup operations occurred in correct sequence
+      expect(mockLocalStorage.removeItem).toHaveBeenCalledTimes(1);
       expect(mockLocalStorage.removeItem).toHaveBeenCalledWith(
         `${DEVICE_SHARE_KEY}-${SIGNER_SCENARIOS.signer1.signerId}`
       );
-      expect(mockDeviceService.clearId).toHaveBeenCalled();
-      expect(mockAuthShareCache.clearCache).toHaveBeenCalled();
+      expect(mockDeviceService.clearId).toHaveBeenCalledTimes(1);
+      expect(mockAuthShareCache.clearCache).toHaveBeenCalledTimes(1);
 
-      // Signer 2 should still work after device ID regeneration
+      // Clear mocks to isolate signer 2 test
+      vi.clearAllMocks();
+
+      // Setup clean environment for signer 2 after device ID regeneration
       mockLocalStorage.getItem.mockImplementation(key => {
         if (key === `${DEVICE_SHARE_KEY}-${SIGNER_SCENARIOS.signer2.signerId}`)
           return SIGNER_SCENARIOS.signer2.deviceShare;
         return null;
       });
 
+      // === Test Signer 2 Success After Cleanup ===
       const result2 = await service.reconstructMasterSecret(SIGNER_SCENARIOS.signer2.authData);
       expect(result2).toEqual(MOCK_MASTER_SECRET);
+
+      // Verify only signer 2's resources were accessed
+      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledTimes(1);
+      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledWith(
+        TEST_DEVICE_ID,
+        SIGNER_SCENARIOS.signer2.authData
+      );
+
+      expect(mockLocalStorage.getItem).toHaveBeenCalledTimes(1);
+      expect(mockLocalStorage.getItem).toHaveBeenCalledWith(
+        `${DEVICE_SHARE_KEY}-${SIGNER_SCENARIOS.signer2.signerId}`
+      );
+
+      // Verify no additional cleanup operations occurred
+      expect(mockLocalStorage.removeItem).not.toHaveBeenCalled();
+      expect(mockDeviceService.clearId).not.toHaveBeenCalled();
+      expect(mockAuthShareCache.clearCache).not.toHaveBeenCalled();
     });
   });
 });

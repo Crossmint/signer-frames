@@ -5,7 +5,6 @@ import { decodeBytes, encodeBytes } from './utils';
 import type { AuthShareCache } from './auth-share-cache';
 import type { DeviceService } from './device';
 
-const DEVICE_SHARE_KEY = 'device-share';
 const HASH_ALGO = 'SHA-256';
 
 export class ShardingService extends XMIFService {
@@ -21,6 +20,10 @@ export class ShardingService extends XMIFService {
 
   async init() {
     await this.authShareCache.init();
+  }
+
+  public storeDeviceShare(signerId: string, share: string): void {
+    localStorage.setItem(this.deviceShareStorageKey(signerId), share);
   }
 
   public async reconstructMasterSecret(authData: { jwt: string; apiKey: string }) {
@@ -50,10 +53,6 @@ export class ShardingService extends XMIFService {
     }
   }
 
-  public storeDeviceShare(signerId: string, share: string): void {
-    localStorage.setItem(this.deviceShareStorageKey(signerId), share);
-  }
-
   private async validateDeviceShareConsistency(
     deviceShareBytes: Uint8Array,
     expectedHashBase64: string,
@@ -74,7 +73,7 @@ Expected hash from Crossmint: ${expectedHashBase64}`,
   }
 
   private deviceShareStorageKey(signerId: string): string {
-    return `${DEVICE_SHARE_KEY}-${signerId}`;
+    return `device-share-${signerId}`;
   }
 
   private clear(signerId: string) {
