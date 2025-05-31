@@ -52,7 +52,31 @@ export class AuthShareCache extends XMIFService {
 
   async init() {}
 
-  public async getAuthShare(
+  /**
+   * Retrieves an authentication share with intelligent caching for performance optimization.
+   *
+   * This method implements a cache-first strategy to minimize API calls while maintaining security:
+   * 1. **Cache Check**: First checks if a valid cached entry exists for the credential combination
+   * 2. **TTL Validation**: Ensures cached entries haven't exceeded the 5-minute time-to-live
+   * 3. **API Fallback**: Fetches from Crossmint API if cache miss or expired entry
+   * 4. **Automatic Caching**: Stores successful API responses for future requests
+   *
+   * Cache isolation is maintained through a composite key that includes device ID, API key,
+   * and JWT, ensuring that different users, applications, or authentication contexts cannot
+   * access each other's cached authentication shares.
+   *
+   * The method gracefully handles missing authentication shares by returning null (e.g., when
+   * a user hasn't been properly enrolled), while propagating other API errors for proper
+   * error handling by the calling code.
+   *
+   * @param deviceId - Unique device identifier for cache isolation
+   * @param authData - Authentication credentials for API access
+   * @param authData.jwt - JSON Web Token for user authentication
+   * @param authData.apiKey - API key for application authentication
+   * @returns Promise resolving to auth share data if available, null if not found (404)
+   * @throws {Error} For API errors other than 404 (network issues, invalid credentials, etc.)
+   */
+  public async get(
     deviceId: string,
     authData: { jwt: string; apiKey: string }
   ): Promise<AuthShardData | null> {

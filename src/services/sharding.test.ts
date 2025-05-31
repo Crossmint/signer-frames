@@ -101,7 +101,7 @@ describe('ShardingService - Security Critical Tests', () => {
     });
 
     it('SECURITY: Should successfully reconstruct master secret from valid shares', async () => {
-      mockAuthShareCache.getAuthShare.mockResolvedValueOnce({
+      mockAuthShareCache.get.mockResolvedValueOnce({
         authKeyShare: 'test-auth-share',
         deviceKeyShareHash: 'h(xyz)', // Matches our btoa mock
         signerId: TEST_SIGNER_ID,
@@ -109,7 +109,7 @@ describe('ShardingService - Security Critical Tests', () => {
 
       const result = await service.reconstructMasterSecret(TEST_AUTH_DATA);
 
-      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledWith(TEST_DEVICE_ID, TEST_AUTH_DATA);
+      expect(mockAuthShareCache.get).toHaveBeenCalledWith(TEST_DEVICE_ID, TEST_AUTH_DATA);
       expect(mockCombine).toHaveBeenCalledWith(
         expect.arrayContaining([expect.anything(), expect.anything()])
       );
@@ -117,7 +117,7 @@ describe('ShardingService - Security Critical Tests', () => {
     });
 
     it('SECURITY: Should fail safely when auth share is unavailable', async () => {
-      mockAuthShareCache.getAuthShare.mockResolvedValueOnce(null);
+      mockAuthShareCache.get.mockResolvedValueOnce(null);
 
       const result = await service.reconstructMasterSecret(TEST_AUTH_DATA);
 
@@ -126,7 +126,7 @@ describe('ShardingService - Security Critical Tests', () => {
     });
 
     it('SECURITY: Should fail safely when device share is missing', async () => {
-      mockAuthShareCache.getAuthShare.mockResolvedValueOnce({
+      mockAuthShareCache.get.mockResolvedValueOnce({
         authKeyShare: 'test-auth-share',
         deviceKeyShareHash: 'h(xyz)',
         signerId: TEST_SIGNER_ID,
@@ -143,7 +143,7 @@ describe('ShardingService - Security Critical Tests', () => {
     });
 
     it('SECURITY: Should handle cryptographic failures gracefully', async () => {
-      mockAuthShareCache.getAuthShare.mockResolvedValueOnce({
+      mockAuthShareCache.get.mockResolvedValueOnce({
         authKeyShare: 'test-auth-share',
         deviceKeyShareHash: 'h(xyz)',
         signerId: TEST_SIGNER_ID,
@@ -169,7 +169,7 @@ describe('ShardingService - Security Critical Tests', () => {
         return null;
       });
 
-      mockAuthShareCache.getAuthShare.mockResolvedValueOnce({
+      mockAuthShareCache.get.mockResolvedValueOnce({
         authKeyShare: 'test-auth-share',
         deviceKeyShareHash: 'expected-hash', // Different from tampered-hash
         signerId: TEST_SIGNER_ID,
@@ -234,7 +234,7 @@ describe('ShardingService - Security Critical Tests', () => {
       });
 
       // Setup isolated auth share responses
-      mockAuthShareCache.getAuthShare.mockImplementation(async (deviceId, authData) => {
+      mockAuthShareCache.get.mockImplementation(async (deviceId, authData) => {
         const scenario = Object.values(SIGNER_SCENARIOS).find(
           s => s.authData.jwt === authData.jwt && s.authData.apiKey === authData.apiKey
         );
@@ -266,8 +266,8 @@ describe('ShardingService - Security Critical Tests', () => {
       );
 
       // Verify only signer 1's auth share was accessed
-      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledTimes(1);
-      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledWith(
+      expect(mockAuthShareCache.get).toHaveBeenCalledTimes(1);
+      expect(mockAuthShareCache.get).toHaveBeenCalledWith(
         TEST_DEVICE_ID,
         SIGNER_SCENARIOS.signer1.authData
       );
@@ -286,8 +286,8 @@ describe('ShardingService - Security Critical Tests', () => {
       );
 
       // Verify only signer 2's auth share was accessed
-      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledTimes(1);
-      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledWith(
+      expect(mockAuthShareCache.get).toHaveBeenCalledTimes(1);
+      expect(mockAuthShareCache.get).toHaveBeenCalledWith(
         TEST_DEVICE_ID,
         SIGNER_SCENARIOS.signer2.authData
       );
@@ -306,8 +306,8 @@ describe('ShardingService - Security Critical Tests', () => {
       );
 
       // Verify only signer 3's auth share was accessed
-      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledTimes(1);
-      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledWith(
+      expect(mockAuthShareCache.get).toHaveBeenCalledTimes(1);
+      expect(mockAuthShareCache.get).toHaveBeenCalledWith(
         TEST_DEVICE_ID,
         SIGNER_SCENARIOS.signer3.authData
       );
@@ -317,7 +317,7 @@ describe('ShardingService - Security Critical Tests', () => {
       // Clear all mocks to start fresh
       vi.clearAllMocks();
 
-      mockAuthShareCache.getAuthShare.mockImplementation(async (deviceId, authData) => {
+      mockAuthShareCache.get.mockImplementation(async (deviceId, authData) => {
         if (authData.jwt === SIGNER_SCENARIOS.signer1.authData.jwt) {
           throw new Error('Signer 1 auth error');
         }
@@ -337,8 +337,8 @@ describe('ShardingService - Security Critical Tests', () => {
       ).rejects.toThrow('Signer 1 auth error');
 
       // Verify signer 1's auth share was attempted
-      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledTimes(1);
-      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledWith(
+      expect(mockAuthShareCache.get).toHaveBeenCalledTimes(1);
+      expect(mockAuthShareCache.get).toHaveBeenCalledWith(
         TEST_DEVICE_ID,
         SIGNER_SCENARIOS.signer1.authData
       );
@@ -354,8 +354,8 @@ describe('ShardingService - Security Critical Tests', () => {
       expect(result2).toEqual(MOCK_MASTER_SECRET);
 
       // Verify only signer 2's resources were accessed
-      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledTimes(1);
-      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledWith(
+      expect(mockAuthShareCache.get).toHaveBeenCalledTimes(1);
+      expect(mockAuthShareCache.get).toHaveBeenCalledWith(
         TEST_DEVICE_ID,
         SIGNER_SCENARIOS.signer2.authData
       );
@@ -383,8 +383,8 @@ describe('ShardingService - Security Critical Tests', () => {
       expect(result1).toBeNull();
 
       // Verify signer 1's auth share was accessed
-      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledTimes(1);
-      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledWith(
+      expect(mockAuthShareCache.get).toHaveBeenCalledTimes(1);
+      expect(mockAuthShareCache.get).toHaveBeenCalledWith(
         TEST_DEVICE_ID,
         SIGNER_SCENARIOS.signer1.authData
       );
@@ -403,8 +403,8 @@ describe('ShardingService - Security Critical Tests', () => {
       expect(result2).toEqual(MOCK_MASTER_SECRET);
 
       // Verify only signer 2's resources were accessed
-      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledTimes(1);
-      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledWith(
+      expect(mockAuthShareCache.get).toHaveBeenCalledTimes(1);
+      expect(mockAuthShareCache.get).toHaveBeenCalledWith(
         TEST_DEVICE_ID,
         SIGNER_SCENARIOS.signer2.authData
       );
@@ -419,7 +419,7 @@ describe('ShardingService - Security Critical Tests', () => {
       // Clear all mocks to start fresh
       vi.clearAllMocks();
 
-      mockAuthShareCache.getAuthShare.mockImplementation(async (deviceId, authData) => {
+      mockAuthShareCache.get.mockImplementation(async (deviceId, authData) => {
         if (authData.jwt === SIGNER_SCENARIOS.signer1.authData.jwt) {
           return {
             authKeyShare: SIGNER_SCENARIOS.signer1.authShare,
@@ -443,8 +443,8 @@ describe('ShardingService - Security Critical Tests', () => {
       ).rejects.toThrow(/Key share stored on this device does not match/);
 
       // Verify the correct sequence of operations for signer 1
-      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledTimes(1);
-      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledWith(
+      expect(mockAuthShareCache.get).toHaveBeenCalledTimes(1);
+      expect(mockAuthShareCache.get).toHaveBeenCalledWith(
         TEST_DEVICE_ID,
         SIGNER_SCENARIOS.signer1.authData
       );
@@ -477,8 +477,8 @@ describe('ShardingService - Security Critical Tests', () => {
       expect(result2).toEqual(MOCK_MASTER_SECRET);
 
       // Verify only signer 2's resources were accessed
-      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledTimes(1);
-      expect(mockAuthShareCache.getAuthShare).toHaveBeenCalledWith(
+      expect(mockAuthShareCache.get).toHaveBeenCalledTimes(1);
+      expect(mockAuthShareCache.get).toHaveBeenCalledWith(
         TEST_DEVICE_ID,
         SIGNER_SCENARIOS.signer2.authData
       );

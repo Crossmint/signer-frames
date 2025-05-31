@@ -72,7 +72,7 @@ export class ShardingService extends XMIFService {
    */
   public async reconstructMasterSecret(authData: { jwt: string; apiKey: string }) {
     const deviceId = this.deviceService.getId();
-    const authShardData = await this.authShareCache.getAuthShare(deviceId, authData);
+    const authShardData = await this.authShareCache.get(deviceId, authData);
     if (authShardData == null) {
       return null;
     }
