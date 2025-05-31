@@ -44,7 +44,7 @@ describe('AuthShareCache - Security Critical Tests', () => {
 
     it('Should cache auth share to reduce API calls and improve performance', async () => {
       // First call should hit API
-      const result1 = await service.getAuthShare(TEST_DEVICE_ID, BASE_AUTH_DATA);
+      const result1 = await service.get(TEST_DEVICE_ID, BASE_AUTH_DATA);
       expect(mockServices.api.getAuthShard).toHaveBeenCalledTimes(1);
       expect(result1).toEqual({
         authKeyShare: 'test-auth-share',
@@ -53,7 +53,7 @@ describe('AuthShareCache - Security Critical Tests', () => {
       });
 
       // Second call should use cache (no additional API call)
-      const result2 = await service.getAuthShare(TEST_DEVICE_ID, BASE_AUTH_DATA);
+      const result2 = await service.get(TEST_DEVICE_ID, BASE_AUTH_DATA);
       expect(mockServices.api.getAuthShard).toHaveBeenCalledTimes(1);
       expect(result2).toEqual(result1);
     });
@@ -65,14 +65,14 @@ describe('AuthShareCache - Security Critical Tests', () => {
 
       try {
         // First call - should cache
-        await service.getAuthShare(TEST_DEVICE_ID, BASE_AUTH_DATA);
+        await service.get(TEST_DEVICE_ID, BASE_AUTH_DATA);
         expect(mockServices.api.getAuthShard).toHaveBeenCalledTimes(1);
 
         // Advance time beyond cache TTL (5 minutes = 300,000ms)
         currentTime += 300001;
 
         // Second call should fetch fresh data due to TTL expiration
-        await service.getAuthShare(TEST_DEVICE_ID, BASE_AUTH_DATA);
+        await service.get(TEST_DEVICE_ID, BASE_AUTH_DATA);
         expect(mockServices.api.getAuthShard).toHaveBeenCalledTimes(2);
       } finally {
         Date.now = originalDateNow;
@@ -89,7 +89,7 @@ describe('AuthShareCache - Security Critical Tests', () => {
       );
       mockServices.api.getAuthShard.mockRejectedValueOnce(notFoundError);
 
-      const result = await service.getAuthShare(TEST_DEVICE_ID, BASE_AUTH_DATA);
+      const result = await service.get(TEST_DEVICE_ID, BASE_AUTH_DATA);
 
       expect(result).toBeNull();
       expect(mockServices.api.getAuthShard).toHaveBeenCalledTimes(1);
@@ -103,9 +103,7 @@ describe('AuthShareCache - Security Critical Tests', () => {
       );
       mockServices.api.getAuthShard.mockRejectedValueOnce(serverError);
 
-      await expect(service.getAuthShare(TEST_DEVICE_ID, BASE_AUTH_DATA)).rejects.toThrow(
-        CrossmintHttpError
-      );
+      await expect(service.get(TEST_DEVICE_ID, BASE_AUTH_DATA)).rejects.toThrow(CrossmintHttpError);
       expect(mockServices.api.getAuthShard).toHaveBeenCalledTimes(1);
     });
   });
@@ -158,15 +156,15 @@ describe('AuthShareCache - Security Critical Tests', () => {
       // SECURITY PROPERTY: Different JWTs = different users = separate caches
 
       // Original user caches their auth share
-      await service.getAuthShare(TEST_DEVICE_ID, CREDENTIAL_SCENARIOS.originalUser.authData);
+      await service.get(TEST_DEVICE_ID, CREDENTIAL_SCENARIOS.originalUser.authData);
       expect(mockServices.api.getAuthShard).toHaveBeenCalledTimes(1);
 
       // Different user should trigger new API call (cache miss due to different JWT)
-      await service.getAuthShare(TEST_DEVICE_ID, CREDENTIAL_SCENARIOS.differentUser.authData);
+      await service.get(TEST_DEVICE_ID, CREDENTIAL_SCENARIOS.differentUser.authData);
       expect(mockServices.api.getAuthShard).toHaveBeenCalledTimes(2);
 
       // Original user's subsequent call should still use cache
-      await service.getAuthShare(TEST_DEVICE_ID, CREDENTIAL_SCENARIOS.originalUser.authData);
+      await service.get(TEST_DEVICE_ID, CREDENTIAL_SCENARIOS.originalUser.authData);
       expect(mockServices.api.getAuthShard).toHaveBeenCalledTimes(2);
     });
 
@@ -174,15 +172,15 @@ describe('AuthShareCache - Security Critical Tests', () => {
       // SECURITY PROPERTY: Different API keys = different apps = separate caches
 
       // Original app caches auth share
-      await service.getAuthShare(TEST_DEVICE_ID, CREDENTIAL_SCENARIOS.originalUser.authData);
+      await service.get(TEST_DEVICE_ID, CREDENTIAL_SCENARIOS.originalUser.authData);
       expect(mockServices.api.getAuthShard).toHaveBeenCalledTimes(1);
 
       // Different app should trigger new API call (cache miss due to different API key)
-      await service.getAuthShare(TEST_DEVICE_ID, CREDENTIAL_SCENARIOS.differentApp.authData);
+      await service.get(TEST_DEVICE_ID, CREDENTIAL_SCENARIOS.differentApp.authData);
       expect(mockServices.api.getAuthShard).toHaveBeenCalledTimes(2);
 
       // Original app's subsequent call should still use cache
-      await service.getAuthShare(TEST_DEVICE_ID, CREDENTIAL_SCENARIOS.originalUser.authData);
+      await service.get(TEST_DEVICE_ID, CREDENTIAL_SCENARIOS.originalUser.authData);
       expect(mockServices.api.getAuthShard).toHaveBeenCalledTimes(2);
     });
 
@@ -190,15 +188,15 @@ describe('AuthShareCache - Security Critical Tests', () => {
       // SECURITY PROPERTY: Complete credential change = complete isolation
 
       // Original credentials cache auth share
-      await service.getAuthShare(TEST_DEVICE_ID, CREDENTIAL_SCENARIOS.originalUser.authData);
+      await service.get(TEST_DEVICE_ID, CREDENTIAL_SCENARIOS.originalUser.authData);
       expect(mockServices.api.getAuthShard).toHaveBeenCalledTimes(1);
 
       // Completely different credentials should trigger new API call
-      await service.getAuthShare(TEST_DEVICE_ID, CREDENTIAL_SCENARIOS.completelyDifferent.authData);
+      await service.get(TEST_DEVICE_ID, CREDENTIAL_SCENARIOS.completelyDifferent.authData);
       expect(mockServices.api.getAuthShard).toHaveBeenCalledTimes(2);
 
       // Original credentials should still use cache
-      await service.getAuthShare(TEST_DEVICE_ID, CREDENTIAL_SCENARIOS.originalUser.authData);
+      await service.get(TEST_DEVICE_ID, CREDENTIAL_SCENARIOS.originalUser.authData);
       expect(mockServices.api.getAuthShard).toHaveBeenCalledTimes(2);
     });
 
@@ -208,13 +206,13 @@ describe('AuthShareCache - Security Critical Tests', () => {
       // Call with all different credential combinations - each should hit API
       const scenarios = Object.values(CREDENTIAL_SCENARIOS);
       for (const scenario of scenarios) {
-        await service.getAuthShare(TEST_DEVICE_ID, scenario.authData);
+        await service.get(TEST_DEVICE_ID, scenario.authData);
       }
       expect(mockServices.api.getAuthShard).toHaveBeenCalledTimes(4);
 
       // Repeat all calls - each should use its respective cache (no additional API calls)
       for (const scenario of scenarios) {
-        await service.getAuthShare(TEST_DEVICE_ID, scenario.authData);
+        await service.get(TEST_DEVICE_ID, scenario.authData);
       }
       expect(mockServices.api.getAuthShard).toHaveBeenCalledTimes(4);
     });
@@ -243,11 +241,11 @@ describe('AuthShareCache - Security Critical Tests', () => {
       });
 
       // Cache with expired JWT
-      await service.getAuthShare(TEST_DEVICE_ID, expiredJwtAuthData);
+      await service.get(TEST_DEVICE_ID, expiredJwtAuthData);
       expect(mockServices.api.getAuthShard).toHaveBeenCalledTimes(1);
 
       // After JWT refresh, new token should not access old cache
-      await service.getAuthShare(TEST_DEVICE_ID, refreshedJwtAuthData);
+      await service.get(TEST_DEVICE_ID, refreshedJwtAuthData);
       expect(mockServices.api.getAuthShard).toHaveBeenCalledTimes(2);
 
       // Verify correct credential isolation
@@ -280,16 +278,16 @@ describe('AuthShareCache - Security Critical Tests', () => {
       });
 
       // Populate cache with multiple entries
-      await service.getAuthShare(TEST_DEVICE_ID, { jwt: 'test-jwt-1', apiKey: 'api-key-1' });
-      await service.getAuthShare(TEST_DEVICE_ID, { jwt: 'test-jwt-2', apiKey: 'api-key-2' });
+      await service.get(TEST_DEVICE_ID, { jwt: 'test-jwt-1', apiKey: 'api-key-1' });
+      await service.get(TEST_DEVICE_ID, { jwt: 'test-jwt-2', apiKey: 'api-key-2' });
       expect(mockServices.api.getAuthShard).toHaveBeenCalledTimes(2);
 
       // Clear cache (security cleanup)
       service.clearCache();
 
       // Subsequent calls should hit API again (cache was cleared)
-      await service.getAuthShare(TEST_DEVICE_ID, { jwt: 'test-jwt-1', apiKey: 'api-key-1' });
-      await service.getAuthShare(TEST_DEVICE_ID, { jwt: 'test-jwt-2', apiKey: 'api-key-2' });
+      await service.get(TEST_DEVICE_ID, { jwt: 'test-jwt-1', apiKey: 'api-key-1' });
+      await service.get(TEST_DEVICE_ID, { jwt: 'test-jwt-2', apiKey: 'api-key-2' });
       expect(mockServices.api.getAuthShard).toHaveBeenCalledTimes(4);
     });
   });
