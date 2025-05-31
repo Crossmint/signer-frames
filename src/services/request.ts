@@ -8,6 +8,18 @@ export type AuthData = {
   jwt: string;
 };
 
+export class CrossmintHttpError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly statusText: string,
+    public readonly url: string,
+    public readonly responseBody?: unknown
+  ) {
+    super(`HTTP ${status}: ${statusText} at ${url}`);
+    this.name = 'CrossmintHttpError';
+  }
+}
+
 export interface CrossmintRequestOptions<I, O> {
   name?: string;
   inputSchema: ZodSchema<I>;
@@ -80,12 +92,31 @@ export class CrossmintRequest<
       this.getUrlFromEnvironment(this.environment)
     );
 
-    const json = await this.fetchImpl(url.toString(), {
+    const response = await this.fetchImpl(url.toString(), {
       method: this.method,
       body,
       headers,
-    }).then(response => response.json());
+    });
 
+    // Check if the response is successful (2xx status codes)
+    if (!response.ok) {
+      let responseBody: unknown;
+      try {
+        responseBody = await response.json();
+      } catch {
+        // If response body is not JSON, ignore it
+        responseBody = undefined;
+      }
+
+      throw new CrossmintHttpError(
+        response.status,
+        response.statusText,
+        url.toString(),
+        responseBody
+      );
+    }
+
+    const json = await response.json();
     return this.constructResponse(json);
   }
 
@@ -120,8 +151,7 @@ export class CrossmintRequest<
       const parsedResponseData = this.encryptedPayloadSchema.parse(apiResponse);
       response = await this.encryptionService.decrypt(
         parsedResponseData.ciphertext,
-        parsedResponseData.encapsulatedKey,
-        { validateTeeSender: true }
+        parsedResponseData.encapsulatedKey
       );
       this.log('Decryption successful!');
       this.log(`[TRACE] Decrypted response: ${JSON.stringify(response, null, 2)}`);

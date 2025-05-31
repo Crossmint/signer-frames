@@ -1,66 +1,94 @@
 import { combine } from 'shamir-secret-sharing';
 import { XMIFService } from './service';
-import type { CrossmintApiService } from './api';
 import { XMIFCodedError } from './error';
+import { decodeBytes, encodeBytes } from './utils';
+import type { AuthShareCache } from './auth-share-cache';
+import type { DeviceService } from './device';
 
-const DEVICE_SHARE_KEY = 'device-share';
-const DEVICE_ID_KEY = 'device-id';
 const HASH_ALGO = 'SHA-256';
 
-// Chain agnostic secret sharding service
+/**
+ * Shamir Secret Sharing service for cryptographic key reconstruction.
+ *
+ * This service implements a secure two-factor authentication system using Shamir Secret Sharing,
+ * where cryptographic keys are split into two shares:
+ * - **Device Share**: Stored locally in browser localStorage, tied to the device
+ * - **Auth Share**: Retrieved from Crossmint servers using JWT/API key authentication
+ *
+ * Both shares are required to reconstruct the master secret. This design ensures that:
+ * - Compromising the device alone cannot access the key (needs valid authentication)
+ * - Compromising authentication alone cannot access the key (needs the device)
+ * - Each signer maintains isolated key shares with tamper detection
+ *
+ * The service includes integrity validation through cryptographic hashing to detect
+ * tampering of device shares and provides secure cleanup on security violations.
+ */
 export class ShardingService extends XMIFService {
   name = 'Sharding Service';
   log_prefix = '[ShardingService]';
 
-  constructor(private readonly api: CrossmintApiService) {
+  constructor(
+    private readonly authShareCache: AuthShareCache,
+    private readonly deviceService: DeviceService
+  ) {
     super();
   }
 
-  async init() {}
-
-  public getDeviceId(): string {
-    this.log('Attempting to get device ID from storage');
-
-    const existing = localStorage.getItem(DEVICE_ID_KEY);
-    if (existing != null) {
-      this.log(`Found existing device ID: ${existing.substring(0, 8)}...`);
-      return existing;
-    }
-
-    this.log('No existing device ID found, generating new one');
-    const deviceId = crypto.randomUUID();
-    localStorage.setItem(DEVICE_ID_KEY, deviceId);
-    this.log(`Successfully stored new device ID: ${deviceId.substring(0, 8)}...`);
-    return deviceId;
+  async init() {
+    await this.authShareCache.init();
   }
 
+  /**
+   * Stores a device share in browser localStorage for a specific signer.
+   *
+   * Device shares are stored per-signer to maintain isolation between different
+   * signing contexts. The share is stored as a base64-encoded string.
+   *
+   * @param signerId - Unique identifier for the signer
+   * @param share - Base64-encoded device share data to store
+   */
+  public storeDeviceShare(signerId: string, share: string): void {
+    localStorage.setItem(this.deviceShareStorageKey(signerId), share);
+  }
+
+  /**
+   * Reconstructs the master secret by combining device and authentication shares.
+   *
+   * This method performs the core Shamir Secret Sharing reconstruction:
+   * 1. Retrieves the authentication share using provided credentials
+   * 2. Loads the device share from localStorage for the authenticated signer
+   * 3. Validates device share integrity through cryptographic hash verification
+   * 4. Combines both shares to reconstruct the original master secret
+   *
+   * Returns null if either share is unavailable, ensuring graceful failure modes.
+   * Throws errors for security violations (tampering) or cryptographic failures.
+   *
+   * @param authData - Authentication credentials containing JWT and API key
+   * @param authData.jwt - JSON Web Token for user authentication
+   * @param authData.apiKey - API key for application authentication
+   * @returns Promise resolving to reconstructed master secret bytes, or null if shares unavailable
+   * @throws {XMIFCodedError} When device share tampering is detected
+   * @throws {Error} When cryptographic reconstruction fails
+   */
   public async reconstructMasterSecret(authData: { jwt: string; apiKey: string }) {
-    const deviceShare = localStorage.getItem(DEVICE_SHARE_KEY);
+    const deviceId = this.deviceService.getId();
+    const authShardData = await this.authShareCache.get(deviceId, authData);
+    if (authShardData == null) {
+      return null;
+    }
+
+    const { authKeyShare, deviceKeyShareHash, signerId } = authShardData;
+
+    const deviceShare = localStorage.getItem(this.deviceShareStorageKey(signerId));
     if (deviceShare == null) {
-      throw new Error('Device share not found');
+      return null;
     }
 
-    const deviceShareBytes = this.base64ToBytes(deviceShare);
-
-    const { keyShare: authShare, deviceKeyShareHash: expectedDeviceHashBase64 } =
-      await this.api.getAuthShard(this.getDeviceId(), undefined, authData);
-
-    const hashBuffer = await crypto.subtle.digest(HASH_ALGO, deviceShareBytes);
-    const currentHashBase64 = this.bytesToBase64(new Uint8Array(hashBuffer));
-
-    if (currentHashBase64 !== expectedDeviceHashBase64) {
-      localStorage.removeItem(DEVICE_SHARE_KEY);
-      localStorage.removeItem(DEVICE_ID_KEY);
-      throw new XMIFCodedError(
-        `Key share stored on this device does not match Crossmint held authentication share.\n` +
-          `Actual hash of local device share: ${currentHashBase64}\n` +
-          `Expected hash from Crossmint: ${expectedDeviceHashBase64}`,
-        'invalid-device-share'
-      );
-    }
+    const deviceShareBytes = decodeBytes(deviceShare, 'base64');
+    await this.validateDeviceShareConsistency(deviceShareBytes, deviceKeyShareHash, signerId);
 
     try {
-      const authShareBytes = this.base64ToBytes(authShare);
+      const authShareBytes = decodeBytes(authKeyShare, 'base64');
       return await combine([deviceShareBytes, authShareBytes]);
     } catch (error) {
       throw new Error(
@@ -69,23 +97,32 @@ export class ShardingService extends XMIFService {
     }
   }
 
-  public storeDeviceShare(share: string): void {
-    localStorage.setItem(DEVICE_SHARE_KEY, share);
-  }
+  private async validateDeviceShareConsistency(
+    deviceShareBytes: Uint8Array,
+    expectedHashBase64: string,
+    signerId: string
+  ): Promise<void> {
+    const hashBuffer = await crypto.subtle.digest(HASH_ALGO, deviceShareBytes);
+    const reconstructedDeviceHashBase64 = encodeBytes(new Uint8Array(hashBuffer), 'base64');
 
-  public status(): 'ready' | 'new-device' {
-    if (localStorage.getItem(DEVICE_SHARE_KEY) == null) {
-      return 'new-device';
+    if (reconstructedDeviceHashBase64 !== expectedHashBase64) {
+      this.clear(signerId);
+      throw new XMIFCodedError(
+        `Key share stored on this device does not match Crossmint held authentication share.
+Actual hash of local device share: ${reconstructedDeviceHashBase64}
+Expected hash from Crossmint: ${expectedHashBase64}`,
+        'invalid-device-share'
+      );
     }
-
-    return 'ready';
   }
 
-  private base64ToBytes(base64: string): Uint8Array {
-    return Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+  private deviceShareStorageKey(signerId: string): string {
+    return `device-share-${signerId}`;
   }
 
-  private bytesToBase64(bytes: Uint8Array): string {
-    return btoa(String.fromCharCode.apply(null, Array.from(bytes)));
+  private clear(signerId: string) {
+    localStorage.removeItem(this.deviceShareStorageKey(signerId));
+    this.deviceService.clearId();
+    this.authShareCache.clearCache();
   }
 }

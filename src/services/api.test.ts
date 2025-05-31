@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { CrossmintApiService, parseApiKey } from './api';
+import { CrossmintHttpError, CrossmintRequest } from './request';
 import { mock } from 'vitest-mock-extended';
 import type { EncryptionService } from './encryption';
-import { CrossmintRequest } from './request';
+import { z } from 'zod';
 
 const executeSpy = vi.fn().mockResolvedValue({ success: true });
 
@@ -94,5 +95,46 @@ describe('CrossmintApiService', () => {
       // Invalid keys
       expect(() => parseApiKey('invalid123')).toThrow('Invalid API key');
     });
+  });
+});
+
+describe('CrossmintHttpError e2e', () => {
+  let mockEncryptionService: EncryptionService;
+
+  beforeEach(() => {
+    mockEncryptionService = mock<EncryptionService>();
+  });
+
+  it('should throw CrossmintHttpError when request.execute() encounters non-2xx response', async () => {
+    const responseBody = { error: 'Resource not found', code: 'NOT_FOUND' };
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      statusText: 'Not Found',
+      json: vi.fn().mockResolvedValue(responseBody),
+    });
+
+    const request = new CrossmintRequest({
+      inputSchema: z.undefined(),
+      outputSchema: z.object({ success: z.boolean() }),
+      environment: 'development',
+      endpoint: () => '/test-endpoint',
+      method: 'GET',
+      encryptionService: mockEncryptionService,
+      getHeaders: () => ({}),
+      fetchImpl: mockFetch,
+    });
+
+    try {
+      await request.execute(undefined);
+      expect.fail('Expected request to throw');
+    } catch (error) {
+      expect(error).toBeInstanceOf(CrossmintHttpError);
+      expect(error.status).toBe(404);
+      expect(error.statusText).toBe('Not Found');
+      expect(error.url).toBe('http://localhost:3000/api/v1/signers/test-endpoint');
+      expect(error.responseBody).toEqual(responseBody);
+      expect(error.name).toBe('CrossmintHttpError');
+    }
   });
 });

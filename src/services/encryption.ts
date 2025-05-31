@@ -178,8 +178,7 @@ export class EncryptionService extends XMIFService {
 
   async decrypt<T extends Record<string, unknown>, U extends string | ArrayBuffer>(
     ciphertextInput: U,
-    encapsulatedKeyInput: U,
-    { validateTeeSender = true }: Partial<DecryptOptions> = {}
+    encapsulatedKeyInput: U
   ): Promise<T> {
     this.assertInitialized();
     const { ephemeralKeyPair } = {
@@ -195,26 +194,19 @@ export class EncryptionService extends XMIFService {
         enc: encapsulatedKey,
       } as const;
 
-      if (validateTeeSender) {
-        const attestationService = this.assertAttestationService();
-        const attestationPublicKey = await attestationService.getAttestedPublicKey();
-        const senderPublicKey = await this.suite.kem.deserializePublicKey(
-          this.base64ToBuffer(attestationPublicKey)
-        );
+      const attestationService = this.assertAttestationService();
+      const attestationPublicKey = await attestationService.getAttestedPublicKey();
+      const senderPublicKey = await this.suite.kem.deserializePublicKey(
+        this.base64ToBuffer(attestationPublicKey)
+      );
 
-        const recipientConfigWithSender = {
-          ...recipientConfig,
-          senderPublicKey,
-        };
+      const recipientConfigWithSender = {
+        ...recipientConfig,
+        senderPublicKey,
+      };
 
-        const recipient = await this.suite.createRecipientContext(recipientConfigWithSender);
-        const plaintext = await recipient.open(ciphertext);
-        return this.deserialize<{ data: T }>(plaintext).data;
-      }
-
-      const recipient = await this.suite.createRecipientContext(recipientConfig);
+      const recipient = await this.suite.createRecipientContext(recipientConfigWithSender);
       const plaintext = await recipient.open(ciphertext);
-
       return this.deserialize<{ data: T }>(plaintext).data;
     } catch (error) {
       this.logError(`Decryption failed: ${error}`);

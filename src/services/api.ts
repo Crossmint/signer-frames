@@ -83,16 +83,14 @@ export class CrossmintApiService extends XMIFService {
     deviceId: z.string(),
   });
   static completeOnboardingOutputSchema = z.object({
-    shares: z.object({
-      device: z.string(),
-      auth: z.string(),
-    }),
+    deviceKeyShare: z.string(),
+    signerId: z.string(),
   });
 
   static getAuthShardInputSchema = z.undefined();
   static getAuthShardOutputSchema = z.object({
-    deviceId: z.string(),
-    keyShare: z.string(),
+    signerId: z.string(),
+    authKeyShare: z.string(),
     deviceKeyShareHash: z.string(),
   });
 

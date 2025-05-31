@@ -20,3 +20,18 @@ export function decodeBytes(bytes: string, encoding: 'base64' | 'base58' | 'hex'
       throw new Error(`Unsupported encoding: ${encoding}`);
   }
 }
+
+export function encodeBytes(bytes: Uint8Array, encoding: 'base64' | 'base58' | 'hex'): string {
+  switch (encoding) {
+    case 'base58':
+      return bs58.encode(bytes);
+    case 'hex':
+      return Array.from(bytes)
+        .map(byte => byte.toString(16).padStart(2, '0'))
+        .join('');
+    case 'base64':
+      return btoa(String.fromCharCode.apply(null, Array.from(bytes)));
+    default:
+      throw new Error(`Unsupported encoding: ${encoding}`);
+  }
+}

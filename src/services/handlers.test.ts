@@ -29,10 +29,8 @@ describe('EventHandlers', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockServices.sharding.getDeviceId.mockReturnValue(TEST_FIXTURES.deviceId);
-    mockServices.attestation.getPublicKeyFromAttestation.mockResolvedValue(
-      'mock-attestation-public-key'
-    );
+    mockServices.device.getId.mockReturnValue(TEST_FIXTURES.deviceId);
+    mockServices.attestation.getAttestedPublicKey.mockResolvedValue('mock-attestation-public-key');
   });
 
   describe('StartOnboardingEventHandler', () => {
@@ -43,7 +41,6 @@ describe('EventHandlers', () => {
         data: { authId: 'test-auth-id' },
       };
 
-      mockServices.sharding.status.mockReturnValue('ready');
       mockServices.sharding.reconstructMasterSecret.mockResolvedValue(TEST_FIXTURES.masterSecret);
       mockServices.cryptoKey.getPublicKeyFromSeed.mockResolvedValue({
         bytes: TEST_FIXTURES.publicKey,
@@ -72,7 +69,8 @@ describe('EventHandlers', () => {
       mockServices.fpe.decrypt.mockResolvedValue([1, 2, 3, 4, 5, 6]);
 
       mockServices.api.completeOnboarding.mockResolvedValue({
-        shares: TEST_FIXTURES.shares,
+        deviceKeyShare: TEST_FIXTURES.shares.device,
+        signerId: 'test-signer-id',
       });
 
       mockServices.sharding.reconstructMasterSecret.mockResolvedValue(TEST_FIXTURES.masterSecret);
@@ -102,6 +100,7 @@ describe('EventHandlers', () => {
       );
 
       expect(mockServices.sharding.storeDeviceShare).toHaveBeenCalledWith(
+        'test-signer-id',
         TEST_FIXTURES.shares.device
       );
       expect(result).toHaveProperty('publicKeys');
