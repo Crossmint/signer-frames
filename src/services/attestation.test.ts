@@ -1,247 +1,348 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+/**
+ * SECURITY CRITICAL: AttestationService Test Suite
+ *
+ * This service validates Intel TDX TEE attestations for cryptographic key access.
+ * Security properties tested:
+ * 1. TEE authenticity validation (hardware attestation verification)
+ * 2. Public key attestation integrity (cryptographic proof validation)
+ * 3. RTMR3 measurement verification (calculated vs reported values)
+ * 4. Application identity enforcement (prevents unauthorized app access)
+ * 5. Secure failure modes (proper error handling without data leakage)
+ */
 
-// Mock the WASM imports before importing the AttestationService
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { mock, type MockProxy } from 'vitest-mock-extended';
+import { AttestationService } from './attestation';
+import type { CrossmintApiService } from './api';
+
+// Mock WASM functions - minimal mocking just for imports
 vi.mock('@phala/dcap-qvl-web', () => ({
-  default: vi.fn(), // mock the init function
+  default: vi.fn(),
   js_get_collateral: vi.fn(),
   js_verify: vi.fn(),
 }));
 
 vi.mock('@phala/dcap-qvl-web/dcap-qvl-web_bg.wasm', () => ({
-  default: {},
+  default: 'mock-wasm-buffer',
 }));
 
-import { AttestationService } from './attestation';
-import { mock } from 'vitest-mock-extended';
-import type { CrossmintApiService } from './api';
+vi.mock('./environment', () => ({
+  isDevelopment: () => false,
+}));
 
-describe('AttestationService', () => {
-  let attestationService: AttestationService;
-  let mockApiService: CrossmintApiService;
+const VALID_PUBLIC_KEY =
+  'BE2tK2+EUljfdSAvTy9qR7Osk1roVfsB+FDdmz5lfl6ZBLXUUa5I/FQwwh/Hh5QLUwpqAW+EyMDN/X0Ikd4eROuBTCyMNc9gGVmRKKZpCtUv24O5uvRINvswGOZ1ibiYjQ==';
+
+describe('AttestationService - Security Critical Tests', () => {
+  let service: AttestationService;
+  let mockApiService: MockProxy<CrossmintApiService>;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     mockApiService = mock<CrossmintApiService>();
-    attestationService = new AttestationService(mockApiService);
+    service = new AttestationService(mockApiService);
   });
 
-  // Helper function to calculate expected hash for a given input
-  async function calculateExpectedHash(input: string): Promise<string> {
-    const prefixBytes = new TextEncoder().encode('app-data:');
-    const inputBytes = new TextEncoder().encode(input);
-    const reconstructedReportData = new Uint8Array(prefixBytes.length + inputBytes.length);
-    reconstructedReportData.set(prefixBytes, 0);
-    reconstructedReportData.set(inputBytes, prefixBytes.length);
+  describe('TEE Authenticity Validation - Core Security Function', () => {
+    // These tests require WASM mocking since they test the verifyTEEReport method
+    // biome-ignore lint/suspicious/noExplicitAny: WASM mock functions require any for testing
+    let mockWasmInit: any;
+    // biome-ignore lint/suspicious/noExplicitAny: WASM mock functions require any for testing
+    let mockJsGetCollateral: any;
+    // biome-ignore lint/suspicious/noExplicitAny: WASM mock functions require any for testing
+    let mockJsVerify: any;
 
-    const hash = await crypto.subtle.digest('SHA-512', reconstructedReportData);
-    const hashArray = Array.from(new Uint8Array(hash));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  }
+    beforeEach(async () => {
+      // Setup WASM mocks for TEE report verification tests
+      const wasmModule = await import('@phala/dcap-qvl-web');
+      mockWasmInit = vi.mocked(wasmModule.default);
+      mockJsGetCollateral = vi.mocked(wasmModule.js_get_collateral);
+      mockJsVerify = vi.mocked(wasmModule.js_verify);
 
-  describe('init and attestation verification', () => {
-    it('should successfully initialize with valid attestation (happy path)', async () => {
-      const testPublicKey = 'SGVsbG8gV29ybGQ='; // base64 "Hello World"
-      const expectedReportData = await calculateExpectedHash('Hello World');
-
-      // Mock API response
-      vi.mocked(mockApiService.getAttestation).mockResolvedValue({
-        quote: 'abcdef123456', // hex encoded quote
-        publicKey: testPublicKey,
-      });
-
-      // Mock js_verify to return valid attestation with correct report data
-      const { js_verify } = await import('@phala/dcap-qvl-web');
-      vi.mocked(js_verify).mockResolvedValue({
+      // Default successful WASM operations
+      mockWasmInit.mockResolvedValue(undefined);
+      mockJsGetCollateral.mockResolvedValue('mock-collateral');
+      mockJsVerify.mockResolvedValue({
         status: 'UpToDate',
         report: {
           TD10: {
-            report_data: expectedReportData,
+            report_data: 'a'.repeat(128), // 64 bytes in hex
+            rt_mr3: 'b'.repeat(96), // 48 bytes in hex
           },
         },
       });
-
-      const result = await attestationService.verifyAttestationAndParseKey();
-      expect(result).toBe(testPublicKey);
     });
 
-    it('should throw error when TEE attestation status is invalid', async () => {
-      const testPublicKey = 'SGVsbG8gV29ybGQ=';
+    it('SECURITY: Should successfully validate authentic TEE attestation', async () => {
+      const validQuote = 'valid-quote-hex';
 
-      vi.mocked(mockApiService.getAttestation).mockResolvedValue({
-        quote: 'abcdef123456',
-        publicKey: testPublicKey,
-      });
+      const report = await service.verifyTEEReport(validQuote);
 
-      // Mock js_verify to return invalid status
-      const { js_verify } = await import('@phala/dcap-qvl-web');
-      vi.mocked(js_verify).mockResolvedValue({
+      expect(report.status).toBe('UpToDate');
+      expect(mockWasmInit).toHaveBeenCalledWith('mock-wasm-buffer');
+      expect(mockJsGetCollateral).toHaveBeenCalled();
+      expect(mockJsVerify).toHaveBeenCalled();
+    });
+
+    it('SECURITY: Should reject attestation with invalid TEE status', async () => {
+      const validQuote = 'valid-quote-hex';
+      mockJsVerify.mockResolvedValue({
         status: 'OutOfDate', // Invalid status
         report: {
           TD10: {
-            report_data: 'some_hash',
+            report_data: 'a'.repeat(128),
+            rt_mr3: 'b'.repeat(96),
           },
         },
       });
 
-      await expect(attestationService.verifyAttestationAndParseKey()).rejects.toThrow(
+      await expect(service.verifyTEEReport(validQuote)).rejects.toThrow(
         'TEE attestation is invalid'
       );
     });
 
-    it('should throw error when public key hash does not match report data', async () => {
-      const testPublicKey = 'SGVsbG8gV29ybGQ='; // base64 "Hello World"
-      const wrongReportData = '0'.repeat(128); // Wrong hash but correct length
-
-      vi.mocked(mockApiService.getAttestation).mockResolvedValue({
-        quote: 'abcdef123456',
-        publicKey: testPublicKey,
+    it('SECURITY: Should handle malformed TEE report structure', async () => {
+      const validQuote = 'valid-quote-hex';
+      mockJsVerify.mockResolvedValue({
+        // Missing required fields
+        invalid: 'structure',
       });
 
-      // Mock js_verify to return valid status but wrong report data
-      const { js_verify } = await import('@phala/dcap-qvl-web');
-      vi.mocked(js_verify).mockResolvedValue({
-        status: 'UpToDate',
-        report: {
-          TD10: {
-            report_data: wrongReportData, // This won't match the public key hash
-          },
-        },
-      });
+      await expect(service.verifyTEEReport(validQuote)).rejects.toThrow();
+    });
+  });
 
-      await expect(attestationService.verifyAttestationAndParseKey()).rejects.toThrow(
+  describe('Public Key Attestation Integrity - Cryptographic Proof Validation', () => {
+    it('SECURITY: Should validate authentic public key attestation', async () => {
+      // Create valid report data that matches the public key
+      const prefixBytes = new TextEncoder().encode('app-data:');
+      const publicKeyBytes = new Uint8Array(Buffer.from(VALID_PUBLIC_KEY, 'base64'));
+      const combined = new Uint8Array(prefixBytes.length + publicKeyBytes.length);
+      combined.set(prefixBytes, 0);
+      combined.set(publicKeyBytes, prefixBytes.length);
+
+      const hash = await crypto.subtle.digest('SHA-512', combined);
+      const reportData = Array.from(new Uint8Array(hash))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+
+      await expect(service.verifyTEEPublicKey(reportData, VALID_PUBLIC_KEY)).resolves.not.toThrow();
+    });
+
+    it('SECURITY: Should reject invalid report data hash length', async () => {
+      const invalidReportData = 'a'.repeat(126); // Not 64 bytes
+      const validPublicKey = VALID_PUBLIC_KEY;
+
+      await expect(service.verifyTEEPublicKey(invalidReportData, validPublicKey)).rejects.toThrow(
         'TEE reported public key does not match attestation report'
       );
     });
 
-    it('should throw error when attestation report has invalid structure', async () => {
-      const testPublicKey = 'SGVsbG8gV29ybGQ=';
+    it('SECURITY: Should detect public key hash tampering', async () => {
+      const tamperedReportData = 'f'.repeat(128); // Valid length but wrong hash
+      const validPublicKey = VALID_PUBLIC_KEY;
 
-      vi.mocked(mockApiService.getAttestation).mockResolvedValue({
-        quote: 'abcdef123456',
-        publicKey: testPublicKey,
-      });
+      await expect(service.verifyTEEPublicKey(tamperedReportData, validPublicKey)).rejects.toThrow(
+        'TEE reported public key does not match attestation report'
+      );
+    });
 
-      // Mock js_verify to return malformed report structure
-      const { js_verify } = await import('@phala/dcap-qvl-web');
-      vi.mocked(js_verify).mockResolvedValue({
-        status: 'UpToDate',
-        // Missing required report.TD10 structure
-        report: {
-          malformed: 'data',
-        },
-      });
+    it('SECURITY: Should handle malformed hex data', async () => {
+      const invalidReportData = 'xyz'.repeat(43); // Invalid hex characters
+      const validPublicKey = VALID_PUBLIC_KEY;
 
-      await expect(attestationService.verifyAttestationAndParseKey()).rejects.toThrow();
+      await expect(service.verifyTEEPublicKey(invalidReportData, validPublicKey)).rejects.toThrow(
+        'TEE reported public key does not match attestation report'
+      );
+    });
+
+    it('SECURITY: Should handle invalid base64 public key', async () => {
+      const validReportData = 'a'.repeat(128);
+      const invalidPublicKey = 'invalid-base64!@#';
+
+      await expect(service.verifyTEEPublicKey(validReportData, invalidPublicKey)).rejects.toThrow(
+        'TEE reported public key does not match attestation report'
+      );
     });
   });
 
-  describe('reportAttestsPublicKey', () => {
-    it('should return true when the public key hash matches the report data', async () => {
-      const publicKey = 'SGVsbG8gV29ybGQ='; // base64 encoded "Hello World"
-      const expectedReportData = await calculateExpectedHash('Hello World');
+  describe('TEE Application Integrity', () => {
+    const validAppId = '0ade7b12204222a684b6e8e26aa5223f38e90725';
+    const validEventLog = [
+      {
+        imr: 3,
+        event_type: 134217729,
+        digest:
+          '738ae348dbf674b3399300c0b9416c203e9b645c6ffee233035d09003cccad12f71becc805ad8d97575bc790c6819216',
+        event: 'rootfs-hash',
+        event_payload: '4a89dadfa8c6be6d312beb51e24ef5bd4b3aeb695f11f4e2ff9c87eac907389b',
+      },
+      {
+        imr: 3,
+        event_type: 134217729,
+        digest:
+          '993d41d02e173811ebc95ea58382e53f2cd9ec3d10a2b4a710b88b4c56468b311ae17d4578761c8b4befcae28f19f72c',
+        event: 'app-id',
+        event_payload: validAppId,
+      },
+      {
+        imr: 3,
+        event_type: 134217729,
+        digest:
+          'acff145946a80cd74ddffe5739043ac80340518e0bbe2fe348ffdee8608a6d9c7869b492c7165ef3ea1b551c81685d47',
+        event: 'compose-hash',
+        event_payload: '8796c5e1f01e94c8e24ff61043a5595eb63b89f6178ca9f0bf9fb91808a8d517',
+      },
+      {
+        imr: 3,
+        event_type: 134217729,
+        digest:
+          '958707e22602f4cd46c08709835e6a376db40d03334b4f778155e7905a002903b8a0ea12b89e8ada3b39ee0f2aeabe68',
+        event: 'ca-cert-hash',
+        event_payload: 'd09ae26bfa93155e53aa5b7c66a6471e464ddae6ccc8d887e937b71e6c215ba0',
+      },
+      {
+        imr: 3,
+        event_type: 134217729,
+        digest:
+          'b42765eacf83068159cf09338283e6fd99d78d904daaddd7508690e59a634b1cb0351084f17ef2504a52eb910e43af24',
+        event: 'instance-id',
+        event_payload: '8d358c810ce640f72d56570a1ccb6c9cf9773fce',
+      },
+    ];
 
-      const result = await attestationService.reportAttestsPublicKey(expectedReportData, publicKey);
+    const validRtmr3 =
+      '443010407d16e1884fe159614e71b03d7f6640a3726079821e62a995704527464777cdf3f753bb38d82c1d012f5ecb1d';
 
-      expect(result).toBe(true);
+    describe('RTMR3 Measurement Verification', () => {
+      it('SECURITY: happy path :)', async () => {
+        await expect(
+          service.verifyTEEApplicationIntegrity(JSON.stringify(validEventLog), validRtmr3)
+        ).resolves.not.toThrow();
+      });
+
+      it('SECURITY: Should detect RTMR3 value tampering', async () => {
+        const wrongRtmr3 =
+          '1aef4999a3fbdb9957cbebe37bc60ef6a77024063dc97c9be6718fb4fdabf45e555f08d06023ae3ee48b9baf27b60c39';
+
+        await expect(
+          service.verifyTEEApplicationIntegrity(JSON.stringify(validEventLog), wrongRtmr3)
+        ).rejects.toThrow(`RTMR3 mismatch: calculated ${validRtmr3} != reported ${wrongRtmr3}`);
+      });
     });
 
-    it('should return false for mismatched hashes and wrong data', async () => {
-      const publicKey = 'dGVzdA=='; // base64 encoded "test"
+    describe('Application Identity Enforcement', () => {
+      it('SECURITY: Should reject unauthorized application IDs', async () => {
+        const eventLogWithWrongAppId = validEventLog.filter(log => log.event !== 'app-id');
 
-      const testCases = [
-        'abcdef1234567890'.repeat(8), // Wrong hash, correct length
-        '1234567890abcdef'.repeat(8), // Different wrong hash
-        '0'.repeat(128), // All zeros, correct length
-      ];
+        const invalidAppId = '0dae7b21204222a684b6e8e26aa5223f38e90728';
+        eventLogWithWrongAppId.push({
+          imr: 3,
+          event_type: 134217729,
+          digest:
+            '993d41d02e173811ebc95ea58382e53f2cd9ec3d10a2b4a710b88b4c56468b311ae17d4578761c8b4befcae28f19f72c',
+          event: 'app-id',
+          event_payload: invalidAppId,
+        });
 
-      for (const wrongReportData of testCases) {
-        const result = await attestationService.reportAttestsPublicKey(wrongReportData, publicKey);
-        expect(result).toBe(false);
-      }
+        const preCalculatedRTMR3Value =
+          '1aef4999a3fbdb9957cbebe37bc60ef6a77024063dc97c9be6718fb4fdabf45e555f08d06023ae3ee48b9baf27b60c39';
+
+        // Now test with the correct RTMR3 - this should fail on app ID validation
+        await expect(
+          service.verifyTEEApplicationIntegrity(
+            JSON.stringify(eventLogWithWrongAppId),
+            preCalculatedRTMR3Value
+          )
+        ).rejects.toThrow(`Invalid app ID: expected ${validAppId}, got ${invalidAppId}`);
+      });
+
+      it('SECURITY: Should reject malformed event log structure', async () => {
+        const invalidJson = 'not-valid-json';
+
+        await expect(
+          service.verifyTEEApplicationIntegrity(invalidJson, 'any-rtmr3')
+        ).rejects.toThrow();
+      });
+
+      it('SECURITY: Should reject incomplete event logs', async () => {
+        const incompleteEventLog = JSON.stringify([
+          {
+            imr: 3,
+            event_type: 134217729,
+            digest: 'digest1',
+            event: 'rootfs-hash',
+            event_payload: 'a'.repeat(64),
+          },
+          // Missing other required events: app-id, compose-hash, ca-cert-hash, instance-id
+        ]);
+
+        await expect(
+          service.verifyTEEApplicationIntegrity(incompleteEventLog, 'any-rtmr3')
+        ).rejects.toThrow();
+      });
+
+      it('SECURITY: Should reject event logs with wrong IMR', async () => {
+        const wrongImrEventLog = JSON.stringify(validEventLog.map(log => ({ ...log, imr: 2 })));
+
+        await expect(
+          service.verifyTEEApplicationIntegrity(wrongImrEventLog, validRtmr3)
+        ).rejects.toThrow();
+      });
+
+      it('SECURITY: Should reject event logs with wrong event type', async () => {
+        const wrongTypeEventLog = JSON.stringify(
+          validEventLog.map(log => ({ ...log, event_type: 125217729 }))
+        );
+
+        await expect(
+          service.verifyTEEApplicationIntegrity(wrongTypeEventLog, validRtmr3)
+        ).rejects.toThrow();
+      });
+    });
+  });
+
+  describe('Secure Failure Modes - Error Handling Security', () => {
+    it('SECURITY: Should prevent access to uninitialized service', async () => {
+      await expect(service.getAttestedPublicKey()).rejects.toThrow(
+        'Attestation service has not been initialized!'
+      );
     });
 
-    it('should handle empty inputs correctly', async () => {
-      const emptyPublicKey = ''; // empty base64 string
-      const expectedHash = await calculateExpectedHash('');
+    it('SECURITY: Should handle malformed API responses', async () => {
+      mockApiService.getAttestation.mockResolvedValue({
+        quote: 'invalid-quote',
+        publicKey: 'invalid-key',
+        event_log: 'invalid-log',
+        hash_algorithm: 'sha512',
+        prefix: 'app-data',
+      });
 
-      const result = await attestationService.reportAttestsPublicKey(expectedHash, emptyPublicKey);
-      expect(result).toBe(true);
+      await expect(service.init()).rejects.toThrow();
+    });
+  });
 
-      // Empty report data should fail
-      const result2 = await attestationService.reportAttestsPublicKey('', 'dGVzdA==');
-      expect(result2).toBe(false);
+  describe('Edge Cases and Robustness', () => {
+    it('should handle empty event log array', async () => {
+      const emptyEventLog = JSON.stringify([]);
+
+      await expect(
+        service.verifyTEEApplicationIntegrity(emptyEventLog, 'any-rtmr3')
+      ).rejects.toThrow();
     });
 
-    it('should reject invalid lengths (SHA-512 must be exactly 64 bytes)', async () => {
-      const publicKey = 'dGVzdA==';
-
-      const invalidLengths = [
-        'abcd', // Too short (2 bytes)
-        'a'.repeat(126), // 63 bytes
-        'a'.repeat(130), // 65 bytes
-        'a'.repeat(64), // 32 bytes
-        'a'.repeat(256), // 128 bytes
-        '', // Empty
-      ];
-
-      for (const invalidLength of invalidLengths) {
-        const result = await attestationService.reportAttestsPublicKey(invalidLength, publicKey);
-        expect(result).toBe(false);
-      }
+    it('should handle null/undefined inputs gracefully', async () => {
+      await expect(service.verifyTEEPublicKey('', '')).rejects.toThrow(
+        'TEE reported public key does not match attestation report'
+      );
+      await expect(service.verifyTEEApplicationIntegrity('{}', '')).rejects.toThrow();
     });
 
-    it('should accept exactly 128 hex characters and handle case insensitivity', async () => {
-      const publicKey = 'dGVzdA=='; // base64 encoded "test"
-      const expectedHash = await calculateExpectedHash('test');
-
-      // Verify it's exactly 128 characters (64 bytes)
-      expect(expectedHash).toHaveLength(128);
-
-      const upperCaseHash = expectedHash.toUpperCase();
-      const mixedCaseHash = expectedHash
-        .split('')
-        .map((char, i) => (i % 2 === 0 ? char.toUpperCase() : char.toLowerCase()))
-        .join('');
-
-      // All case variations should work
-      expect(await attestationService.reportAttestsPublicKey(expectedHash, publicKey)).toBe(true);
-      expect(await attestationService.reportAttestsPublicKey(upperCaseHash, publicKey)).toBe(true);
-      expect(await attestationService.reportAttestsPublicKey(mixedCaseHash, publicKey)).toBe(true);
-    });
-
-    it('should handle invalid characters gracefully without crashing', async () => {
-      const publicKey = 'dGVzdA==';
-
-      // Invalid hex characters
-      const invalidHexCases = [
-        `gggggggg${'a'.repeat(120)}`, // Contains 'g'
-        `xyz${'a'.repeat(125)}`, // Contains 'x', 'y', 'z'
-        `0x${'a'.repeat(126)}`, // Contains '0x' prefix
-        `你好世界${'a'.repeat(120)}`, // Unicode characters
-        `🚀🎉${'a'.repeat(124)}`, // Emojis
-      ];
-
-      for (const invalidHex of invalidHexCases) {
-        const result = await attestationService.reportAttestsPublicKey(invalidHex, publicKey);
-        expect(result).toBe(false);
-      }
-    });
-
-    it('should handle invalid base64 inputs gracefully', async () => {
-      const validHash = await calculateExpectedHash('test');
-
-      const invalidBase64Cases = [
-        '!!!invalid', // Completely invalid
-        'dGVzdA=!', // Contains '!'
-        'dGVzdA==@', // Contains '@'
-        'αβγδ', // Greek letters
-        'dG#Vzd', // Contains '#'
-        'dGVzdA===', // Too much padding
-      ];
-
-      for (const invalidBase64 of invalidBase64Cases) {
-        const result = await attestationService.reportAttestsPublicKey(validHash, invalidBase64);
-        expect(result).toBe(false);
-      }
+    it('should handle very large hex values', async () => {
+      const largeHex = 'f'.repeat(10000);
+      await expect(service.verifyTEEPublicKey(largeHex, VALID_PUBLIC_KEY)).rejects.toThrow(
+        'TEE reported public key does not match attestation report'
+      );
     });
   });
 });
