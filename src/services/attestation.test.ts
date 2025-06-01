@@ -30,9 +30,8 @@ vi.mock('./environment', () => ({
   isDevelopment: () => false,
 }));
 
-// Security test constants
 const VALID_PUBLIC_KEY =
-  'BE2tK2+EUljfdSAvTy9qR7Osk1roVfsB+FDdmz5lfl6ZBLXUUa5I/FQwwh/Hh5QLUwpqAW+EyMDN/X0Ikd4eROuBTCyMNc9gGVmRKKZpCtUv24O5uvRINvswGOZ1ibiYjQ=='; // base64: "test"
+  'BE2tK2+EUljfdSAvTy9qR7Osk1roVfsB+FDdmz5lfl6ZBLXUUa5I/FQwwh/Hh5QLUwpqAW+EyMDN/X0Ikd4eROuBTCyMNc9gGVmRKKZpCtUv24O5uvRINvswGOZ1ibiYjQ==';
 
 describe('AttestationService - Security Critical Tests', () => {
   let service: AttestationService;
@@ -315,6 +314,8 @@ describe('AttestationService - Security Critical Tests', () => {
         quote: 'invalid-quote',
         publicKey: 'invalid-key',
         event_log: 'invalid-log',
+        hash_algorithm: 'sha512',
+        prefix: 'app-data',
       });
 
       await expect(service.init()).rejects.toThrow();

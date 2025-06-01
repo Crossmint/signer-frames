@@ -206,18 +206,16 @@ export class AttestationService extends XMIFService {
    * Verifies that the TEE attestation report cryptographically commits to the provided public key.
    *
    * This method establishes the critical link between the TEE hardware attestation and the
-   * TEE's public key, which if left unchecked, may otherwise be modified by the system Relay, by:
+   * TEE's public key, which if left unchecked, may otherwise be modified by the system Relay.
+   * It does so by:
    * 1. Extracting the report_data field from the TEE attestation
-   * 2. Reconstructing the expected report_data by hashing 'app-data:' prefix + public key
+   * 2. Reconstructing the expected report_data by hashing 'app-data:' prefix + relay reported public key
    * 3. Comparing the reconstructed hash with the TEE-reported hash byte-by-byte
    *
    * The TEE report_data field contains a SHA-512 hash that was generated inside the TEE,
    * proving that the TEE had access to the public key during attestation generation.
    * This prevents key substitution attacks where a malicious Relay might try to use a different
    * public key than the one actually protected by the TEE.
-   *
-   * The 'app-data:' prefix ensures that the hash is application-specific and prevents
-   * hash collision attacks using other data structures.
    *
    * @param reportData - Hexadecimal TEE report_data containing hash of attested public key
    * @param publicKey - Base64-encoded public key that should be attested by the TEE
