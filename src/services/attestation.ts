@@ -6,15 +6,41 @@ import { decodeBytes, encodeBytes } from './utils';
 import { z } from 'zod';
 import { isDevelopment } from './environment';
 
+// TEE Quote Verification using Phala's DCAP QVL library
 const PCCS_URL = 'https://pccs.phala.network/tdx/certification/v4';
 const ATTESTATION_VERIFIED_STATUS = 'UpToDate';
 const TEE_REPORT_DATA_PREFIX = 'app-data:';
 const TEE_REPORT_DATA_HASH = 'SHA-512' as const;
 
-// RTMR3 calculation constants
+// RTMR3 calculation constants - Based on DStack TEE implementations
 const INIT_MR = '0'.repeat(96);
-const DSTACK_EVENT_TAG = 0x08000001;
+const DSTACK_EVENT_TAG = 0x08000001; // Event type, taken from DStack source code
 const EXPECTED_APP_ID = '0ade7b12204222a684b6e8e26aa5223f38e90725';
+
+// Event log filtering constants
+const EVENT_LOG_IMR = 3;
+const EVENT_LOG_TYPE = 134217729;
+const RTMR3_HASH_ALGORITHM = 'SHA-384';
+const SHA512_HASH_LENGTH = 64;
+const SHA384_HASH_LENGTH = 48;
+
+// Event name mappings for RTMR3 calculation
+const EVENT_NAMES = {
+  ROOTFS_HASH: 'rootfs-hash',
+  APP_ID: 'app-id',
+  COMPOSE_HASH: 'compose-hash',
+  CA_CERT_HASH: 'ca-cert-hash',
+  INSTANCE_ID: 'instance-id',
+} as const;
+
+// Event to property mapping for efficient parsing
+const EVENT_PROPERTY_MAP: Record<string, keyof HashEvent> = {
+  [EVENT_NAMES.ROOTFS_HASH]: 'rootfs_hash',
+  [EVENT_NAMES.APP_ID]: 'app_id',
+  [EVENT_NAMES.COMPOSE_HASH]: 'compose_hash',
+  [EVENT_NAMES.CA_CERT_HASH]: 'ca_cert_hash',
+  [EVENT_NAMES.INSTANCE_ID]: 'instance_id',
+};
 
 const AttestationReportSchema = z.object({
   status: z.string(),
@@ -77,7 +103,7 @@ export class AttestationService extends XMIFService {
         validatedReport.report.TD10.rt_mr3
       );
 
-      this.log('Verifying supplied relay reported public key');
+      this.log('Verifying relay reported public key');
       await this.verifyTEEPublicKey(validatedReport.report.TD10.report_data, attestation.publicKey);
 
       this.publicKey = attestation.publicKey;
@@ -180,14 +206,14 @@ export class AttestationService extends XMIFService {
    * Verifies that the TEE attestation report cryptographically commits to the provided public key.
    *
    * This method establishes the critical link between the TEE hardware attestation and the
-   * cryptographic public key used for signing operations by:
+   * TEE's public key, which if left unchecked, may otherwise be modified by the system Relay, by:
    * 1. Extracting the report_data field from the TEE attestation
    * 2. Reconstructing the expected report_data by hashing 'app-data:' prefix + public key
    * 3. Comparing the reconstructed hash with the TEE-reported hash byte-by-byte
    *
    * The TEE report_data field contains a SHA-512 hash that was generated inside the TEE,
    * proving that the TEE had access to the public key during attestation generation.
-   * This prevents key substitution attacks where an attacker might try to use a different
+   * This prevents key substitution attacks where a malicious Relay might try to use a different
    * public key than the one actually protected by the TEE.
    *
    * The 'app-data:' prefix ensures that the hash is application-specific and prevents
@@ -195,7 +221,7 @@ export class AttestationService extends XMIFService {
    *
    * @param reportData - Hexadecimal TEE report_data containing hash of attested public key
    * @param publicKey - Base64-encoded public key that should be attested by the TEE
-   * @returns Promise resolving to true if public key is properly attested, false otherwise
+   * @returns Promise that resolves if the key has been cryptographically verified by the TEE
    * @throws {Error} When cryptographic hash calculation fails
    * @throws {Error} When report_data length is invalid (not 64 bytes for SHA-512)
    */
@@ -218,7 +244,7 @@ export class AttestationService extends XMIFService {
   ): Promise<boolean> {
     try {
       const reportDataHash = decodeBytes(reportData, 'hex');
-      if (reportDataHash.length !== 64) {
+      if (reportDataHash.length !== SHA512_HASH_LENGTH) {
         return false;
       }
 
@@ -241,32 +267,17 @@ export class AttestationService extends XMIFService {
 
     const hashEvents = eventLog.filter(
       entry =>
-        entry.imr === 3 &&
-        entry.event_type === 134217729 &&
-        ['rootfs-hash', 'app-id', 'compose-hash', 'ca-cert-hash', 'instance-id'].includes(
-          entry.event
-        )
+        entry.imr === EVENT_LOG_IMR &&
+        entry.event_type === EVENT_LOG_TYPE &&
+        Object.prototype.hasOwnProperty.call(EVENT_PROPERTY_MAP, entry.event)
     );
 
     const hashes: Partial<HashEvent> = {};
 
     for (const entry of hashEvents) {
-      switch (entry.event) {
-        case 'rootfs-hash':
-          hashes.rootfs_hash = entry.event_payload;
-          break;
-        case 'app-id':
-          hashes.app_id = entry.event_payload;
-          break;
-        case 'compose-hash':
-          hashes.compose_hash = entry.event_payload;
-          break;
-        case 'ca-cert-hash':
-          hashes.ca_cert_hash = entry.event_payload;
-          break;
-        case 'instance-id':
-          hashes.instance_id = entry.event_payload;
-          break;
+      const property = EVENT_PROPERTY_MAP[entry.event];
+      if (property) {
+        hashes[property] = entry.event_payload;
       }
     }
 
@@ -279,12 +290,24 @@ export class AttestationService extends XMIFService {
     }
   }
 
+  /**
+   * Calculate the RTMR3 value from the given hash values.
+   *
+   * Replicates this code from DStack:
+   * https://github.com/Dstack-TEE/dstack/blob/master/tdxctl/src/fde_setup.rs#L437
+   *
+   * @param hashes - Object containing all required hash values for RTMR3 calculation
+   * @returns Promise resolving to the calculated RTMR3 value as a hexadecimal string
+   */
   private async calculateRtmr3FromHashes(hashes: HashEvent): Promise<string> {
-    const rootfsDigest = await this.calculateDigest('rootfs-hash', hashes.rootfs_hash);
-    const appIdDigest = await this.calculateDigest('app-id', hashes.app_id);
-    const composeDigest = await this.calculateDigest('compose-hash', hashes.compose_hash);
-    const caCertDigest = await this.calculateDigest('ca-cert-hash', hashes.ca_cert_hash);
-    const instanceIdDigest = await this.calculateDigest('instance-id', hashes.instance_id);
+    const rootfsDigest = await this.calculateDigest(EVENT_NAMES.ROOTFS_HASH, hashes.rootfs_hash);
+    const appIdDigest = await this.calculateDigest(EVENT_NAMES.APP_ID, hashes.app_id);
+    const composeDigest = await this.calculateDigest(EVENT_NAMES.COMPOSE_HASH, hashes.compose_hash);
+    const caCertDigest = await this.calculateDigest(EVENT_NAMES.CA_CERT_HASH, hashes.ca_cert_hash);
+    const instanceIdDigest = await this.calculateDigest(
+      EVENT_NAMES.INSTANCE_ID,
+      hashes.instance_id
+    );
 
     return await this.replayRtmrHistory([
       rootfsDigest,
@@ -295,6 +318,16 @@ export class AttestationService extends XMIFService {
     ]);
   }
 
+  /**
+   * Calculate the digest for a given event name and value.
+   *
+   * Replicates this code from DStack:
+   * https://github.com/Dstack-TEE/dstack/blob/master/cc-eventlog/src/lib.rs#L54-L63
+   *
+   * @param eventName - Name of the event (e.g., 'rootfs-hash', 'app-id')
+   * @param eventValue - Hexadecimal value of the event
+   * @returns Promise resolving to the calculated digest as a hexadecimal string
+   */
   private async calculateDigest(eventName: string, eventValue: string): Promise<string> {
     const eventNameBytes = new TextEncoder().encode(eventName);
     const eventValueBytes = decodeBytes(eventValue, 'hex');
@@ -325,10 +358,19 @@ export class AttestationService extends XMIFService {
 
     view.set(eventValueBytes, offset);
 
-    const hashBuffer = await crypto.subtle.digest('SHA-384', buffer);
+    const hashBuffer = await crypto.subtle.digest(RTMR3_HASH_ALGORITHM, buffer);
     return encodeBytes(new Uint8Array(hashBuffer), 'hex');
   }
 
+  /**
+   * Replay the event history to calculate the current RTMR value.
+   *
+   * Taken from DStack Python SDK:
+   * https://github.com/Dstack-TEE/dstack/blob/master/python/tappd_client/tappd_client.py#L49
+   *
+   * @param history - List of digest values to be used to calculate RTMR value
+   * @returns Promise resolving to the calculated RTMR value as a hexadecimal string
+   */
   private async replayRtmrHistory(history: string[]): Promise<string> {
     if (history.length === 0) {
       return INIT_MR;
@@ -339,8 +381,8 @@ export class AttestationService extends XMIFService {
     for (const content of history) {
       let contentBytes = decodeBytes(content, 'hex');
 
-      if (contentBytes.length < 48) {
-        const paddedBytes = new Uint8Array(48);
+      if (contentBytes.length < SHA384_HASH_LENGTH) {
+        const paddedBytes = new Uint8Array(SHA384_HASH_LENGTH);
         paddedBytes.set(contentBytes, 0);
         contentBytes = paddedBytes;
       }
@@ -349,7 +391,7 @@ export class AttestationService extends XMIFService {
       combined.set(mr, 0);
       combined.set(contentBytes, mr.length);
 
-      const hashBuffer = await crypto.subtle.digest('SHA-384', combined);
+      const hashBuffer = await crypto.subtle.digest(RTMR3_HASH_ALGORITHM, combined);
       mr = new Uint8Array(hashBuffer);
     }
 
