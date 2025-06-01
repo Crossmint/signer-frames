@@ -144,7 +144,7 @@ export class AttestationService extends XMIFService {
    * @throws {Error} When quote verification fails or collateral retrieval fails
    * @throws {Error} When TEE attestation status is not 'UpToDate' (indicating untrusted TEE)
    */
-  private async verifyTEEReport(quote: string) {
+  public async verifyTEEReport(quote: string) {
     await init(wasm);
 
     const decodedQuote = decodeBytes(quote, 'hex');
@@ -188,7 +188,7 @@ export class AttestationService extends XMIFService {
    * @throws {Error} When application ID doesn't match expected authorized application
    * @throws {Error} When cryptographic hash calculation fails
    */
-  private async verifyTEEApplicationIntegrity(
+  public async verifyTEEApplicationIntegrity(
     eventLogJson: string,
     reportedRtmr3: string
   ): Promise<void> {
@@ -225,7 +225,7 @@ export class AttestationService extends XMIFService {
    * @throws {Error} When cryptographic hash calculation fails
    * @throws {Error} When report_data length is invalid (not 64 bytes for SHA-512)
    */
-  private async verifyTEEPublicKey(reportData: string, publicKey: string): Promise<void> {
+  public async verifyTEEPublicKey(reportData: string, publicKey: string): Promise<void> {
     const publicKeyIsAttested = await this.verifyReportAttestsPublicKey(reportData, publicKey);
 
     if (!publicKeyIsAttested) {
