@@ -65,7 +65,23 @@ export class AttestationService extends XMIFService {
         return;
       }
 
-      this.publicKey = await this.verifyAttestationAndParseKey();
+      const attestation = await this.api.getAttestation();
+      this.log('TEE attestation document fetched');
+
+      this.log('Verifying intel TDX quote');
+      const validatedReport = await this.verifyTEEReport(attestation.quote);
+
+      this.log('Verifying TEE application integrity');
+      await this.verifyTEEApplicationIntegrity(
+        attestation.event_log,
+        validatedReport.report.TD10.rt_mr3
+      );
+
+      this.log('Verifying supplied relay reported public key');
+      await this.verifyTEEPublicKey(validatedReport.report.TD10.report_data, attestation.publicKey);
+
+      this.publicKey = attestation.publicKey;
+      this.log('TEE attestation document fully validated! Continuing...');
     } catch (e: unknown) {
       this.logError('Failed to validate attestation document! This error is not recoverable');
       this.publicKey = null;
@@ -81,13 +97,31 @@ export class AttestationService extends XMIFService {
     return this.publicKey;
   }
 
-  async verifyAttestationAndParseKey(): Promise<string> {
-    const attestation = await this.api.getAttestation();
-    this.log('TEE attestation document fetched');
-
+  /**
+   * Verifies the Intel TDX TEE attestation report using WASM-based quote verification.
+   *
+   * This method performs the core hardware attestation validation by:
+   * 1. Initializing the Intel DCAP Quote Verification Library (WASM)
+   * 2. Decoding the attestation quote from hexadecimal format
+   * 3. Retrieving cryptographic collateral from Intel's PCCS service
+   * 4. Verifying the quote authenticity and recency using Intel's verification logic
+   * 5. Validating that the TEE attestation status is current and trusted
+   *
+   * The verification process cryptographically proves that:
+   * - The code is running in a genuine Intel TDX Trusted Execution Environment
+   * - The TEE measurements and configuration are authentic and unmodified
+   * - The attestation was generated recently (prevents replay attacks)
+   *
+   * @param quote - Base64-encoded Intel TDX attestation quote containing TEE measurements
+   * @returns Promise resolving to validated attestation report with TEE measurements and status
+   * @throws {Error} When WASM initialization fails
+   * @throws {Error} When quote verification fails or collateral retrieval fails
+   * @throws {Error} When TEE attestation status is not 'UpToDate' (indicating untrusted TEE)
+   */
+  private async verifyTEEReport(quote: string) {
     await init(wasm);
 
-    const decodedQuote = decodeBytes(attestation.quote, 'hex');
+    const decodedQuote = decodeBytes(quote, 'hex');
     const collateral = await js_get_collateral(PCCS_URL, decodedQuote);
     const currentTime = BigInt(Math.floor(Date.now() / 1000));
     const report = await js_verify(decodedQuote, collateral, currentTime);
@@ -98,35 +132,90 @@ export class AttestationService extends XMIFService {
       throw new Error('TEE attestation is invalid');
     }
 
-    const eventLogHashes = this.parseEventLogHashes(attestation.event_log);
+    return validatedReport;
+  }
+
+  /**
+   * Verifies TEE application integrity through RTMR3 measurement validation and application identity enforcement.
+   *
+   * This method ensures that the specific application running in the TEE is authorized and unmodified by:
+   * 1. Parsing the TEE event log to extract cryptographic hashes of system components
+   * 2. Calculating the expected RTMR3 (Runtime Measurement Register 3) value from event history
+   * 3. Comparing calculated RTMR3 against the value reported by the TEE hardware
+   * 4. Validating that the application ID matches the expected authorized application
+   *
+   * RTMR3 provides a cryptographic chain of trust by measuring:
+   * - Root filesystem integrity (rootfs-hash)
+   * - Application identity and version (app-id)
+   * - Docker composition configuration (compose-hash)
+   * - Certificate authority trust chain (ca-cert-hash)
+   * - Unique instance identifier (instance-id)
+   *
+   * Any modification to these components will result in a different RTMR3 value,
+   * preventing execution of unauthorized or tampered applications.
+   *
+   * @param eventLogJson - JSON string containing TEE event log with component measurements
+   * @param reportedRtmr3 - RTMR3 value reported by TEE hardware for comparison
+   * @returns Promise that resolves if integrity validation passes
+   * @throws {Error} When event log JSON is malformed or missing required events
+   * @throws {Error} When calculated RTMR3 doesn't match reported value (indicates tampering)
+   * @throws {Error} When application ID doesn't match expected authorized application
+   * @throws {Error} When cryptographic hash calculation fails
+   */
+  private async verifyTEEApplicationIntegrity(
+    eventLogJson: string,
+    reportedRtmr3: string
+  ): Promise<void> {
+    const eventLogHashes = this.parseEventLogHashes(eventLogJson);
     const calculatedRtmr3 = await this.calculateRtmr3FromHashes(eventLogHashes);
-    const reportedRtmr3 = validatedReport.report.TD10.rt_mr3;
 
     if (calculatedRtmr3 !== reportedRtmr3) {
       throw new Error(`RTMR3 mismatch: calculated ${calculatedRtmr3} != reported ${reportedRtmr3}`);
     }
 
     this.validateEventLogValues(eventLogHashes);
+  }
 
-    const publicKeyIsAttested = await this.verifyReportAttestsPublicKey(
-      validatedReport.report.TD10.report_data,
-      attestation.publicKey
-    );
+  /**
+   * Verifies that the TEE attestation report cryptographically commits to the provided public key.
+   *
+   * This method establishes the critical link between the TEE hardware attestation and the
+   * cryptographic public key used for signing operations by:
+   * 1. Extracting the report_data field from the TEE attestation
+   * 2. Reconstructing the expected report_data by hashing 'app-data:' prefix + public key
+   * 3. Comparing the reconstructed hash with the TEE-reported hash byte-by-byte
+   *
+   * The TEE report_data field contains a SHA-512 hash that was generated inside the TEE,
+   * proving that the TEE had access to the public key during attestation generation.
+   * This prevents key substitution attacks where an attacker might try to use a different
+   * public key than the one actually protected by the TEE.
+   *
+   * The 'app-data:' prefix ensures that the hash is application-specific and prevents
+   * hash collision attacks using other data structures.
+   *
+   * @param reportData - Hexadecimal TEE report_data containing hash of attested public key
+   * @param publicKey - Base64-encoded public key that should be attested by the TEE
+   * @returns Promise resolving to true if public key is properly attested, false otherwise
+   * @throws {Error} When cryptographic hash calculation fails
+   * @throws {Error} When report_data length is invalid (not 64 bytes for SHA-512)
+   */
+  private async verifyTEEPublicKey(reportData: string, publicKey: string): Promise<void> {
+    const publicKeyIsAttested = await this.verifyReportAttestsPublicKey(reportData, publicKey);
 
     if (!publicKeyIsAttested) {
       throw new Error('TEE reported public key does not match attestation report');
     }
-
-    this.log('TEE attestation document fully validated! Continuing...');
-    return attestation.publicKey;
   }
 
-  async getPublicKeyDevMode(): Promise<string> {
+  private async getPublicKeyDevMode(): Promise<string> {
     const response = await this.api.getPublicKey();
     return response.publicKey;
   }
 
-  async verifyReportAttestsPublicKey(reportData: string, publicKey: string): Promise<boolean> {
+  private async verifyReportAttestsPublicKey(
+    reportData: string,
+    publicKey: string
+  ): Promise<boolean> {
     try {
       const reportDataHash = decodeBytes(reportData, 'hex');
       if (reportDataHash.length !== 64) {
