@@ -21,6 +21,26 @@ import {
 
 import { encodeBytes, decodeBytes } from './utils';
 
+/**
+ * HPKE-based encryption service for secure client ↔ TEE communication.
+ *
+ * This service handles two distinct cryptographic flows:
+ *
+ * **1. Client → TEE Encryption (Base Mode)**
+ * - Client encrypts sensitive data TO the attested TEE
+ * - Uses HPKE base mode (no sender authentication required)
+ * - Only the TEE can decrypt using its private key
+ * - TEE's public key authenticity is guaranteed by hardware attestation
+ *
+ * **2. TEE → Client Decryption (Auth Mode)**
+ * - Client decrypts messages FROM the attested TEE
+ * - Uses HPKE auth mode to cryptographically verify sender identity
+ * - Prevents impersonation attacks - only genuine TEE can send these messages
+ * - Provides both confidentiality AND authenticity guarantees
+ *
+ * The TEE's identity is established through Intel TDX hardware attestation,
+ * validating application integrity and binding the public key to the secure enclave.
+ */
 export class EncryptionService extends XMIFService {
   name = 'Encryption service';
   log_prefix = '[EncryptionService]';
@@ -55,7 +75,6 @@ export class EncryptionService extends XMIFService {
     return this.attestationService;
   }
 
-  // Initialization
   async init(): Promise<void> {
     try {
       this.assertAttestationService();
@@ -131,7 +150,19 @@ export class EncryptionService extends XMIFService {
     return this.bufferToBase64(serializedPublicKey);
   }
 
-  // Encryption
+  /**
+   * Encrypts data for transmission TO the attested TEE.
+   *
+   * Uses HPKE base mode - the client acts as sender, TEE as recipient.
+   * No sender authentication is needed, user's authenticate their client devices
+   * and therefore the sender key, through other means, for example an OTP.
+   * The TEE's public key authenticity is guaranteed by hardware attestation.
+   *
+   * @param data - Data object to encrypt
+   * @returns Promise resolving to encryption result with ciphertext and encapsulated key
+   * @throws {Error} When encryption service is not initialized
+   * @throws {Error} When encryption operation fails
+   */
   async encrypt<T extends Record<string, unknown>>(
     data: T
   ): Promise<EncryptionResult<ArrayBuffer>> {
@@ -177,6 +208,24 @@ export class EncryptionService extends XMIFService {
     };
   }
 
+  /**
+   * Decrypts messages received FROM the attested TEE.
+   *
+   * Uses HPKE auth mode to cryptographically verify that messages originated
+   * from the genuine attested TEE. This prevents impersonation attacks where
+   * malicious actors attempt to send fake messages claiming to be from the TEE.
+   *
+   * The sender verification happens automatically during HPKE decryption - if the
+   * message wasn't sent by the expected TEE (attested public key), decryption fails.
+   *
+   * @param ciphertextInput - Encrypted message data (string or ArrayBuffer)
+   * @param encapsulatedKeyInput - HPKE encapsulated key (string or ArrayBuffer)
+   * @param senderPublicKeyInput - Optional sender public key (defaults to attested TEE key)
+   * @returns Promise resolving to decrypted data
+   * @throws {Error} When encryption service is not initialized
+   * @throws {Error} When sender authentication fails (message not from expected TEE)
+   * @throws {Error} When decryption operation fails
+   */
   async decrypt<T extends Record<string, unknown>, U extends string | ArrayBuffer>(
     ciphertextInput: U,
     encapsulatedKeyInput: U
