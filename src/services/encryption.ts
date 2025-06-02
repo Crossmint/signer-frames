@@ -15,7 +15,6 @@ import {
   SerializedPrivateKeySchema,
   SerializedPublicKeySchema,
   type EncryptionResult,
-  type DecryptOptions,
   type SerializedPrivateKey,
   type SerializedPublicKey,
 } from './encryption-consts';
