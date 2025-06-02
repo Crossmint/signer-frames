@@ -6,6 +6,7 @@ export class Ed25519Service extends XMIFService {
   name = 'Ed25519 Service';
   log_prefix = '[Ed25519Service]';
   async init() {}
+
   /**
    * Derive a Solana public key from a private key
    * @param {string} privateKeyBase58 - Base58-encoded private key (64 bytes Solana format)
@@ -35,20 +36,6 @@ export class Ed25519Service extends XMIFService {
       this.logError('Error deriving public key:', error);
       throw error;
     }
-  }
-
-  /**
-   * Get a secret key from a private key and public key
-   * @param {string|Uint8Array} privateKey - Base58-encoded private key (64 bytes Solana format)
-   * @param {string|Uint8Array} publicKey - Base58-encoded public key
-   * @returns {Uint8Array} Secret key
-   */
-  getSecretKey(privateKey: string | Uint8Array, publicKey: string | Uint8Array): Uint8Array {
-    const privateKeyBytes = typeof privateKey === 'string' ? bs58.decode(privateKey) : privateKey;
-
-    const publicKeyBytes = typeof publicKey === 'string' ? bs58.decode(publicKey) : publicKey;
-
-    return this.concatBytes(privateKeyBytes.slice(0, 32), publicKeyBytes);
   }
 
   /**
@@ -92,38 +79,6 @@ export class Ed25519Service extends XMIFService {
     } catch (error) {
       this.logError('Error signing message:', error);
       throw error;
-    }
-  }
-
-  /**
-   * Verify a signature with a public key
-   * @param {Uint8Array|string} message - Message that was signed (Uint8Array or utf-8 string)
-   * @param {Uint8Array|string} signature - Signature
-   * @param {Uint8Array|string} publicKey - Public key
-   * @returns {Promise<boolean>} Whether the signature is valid
-   */
-  async verifySignature(
-    payload: Uint8Array | string,
-    signature: Uint8Array | string,
-    publicKey: Uint8Array | string
-  ): Promise<boolean> {
-    try {
-      // Convert string message to Uint8Array if needed
-      const messageBytes = typeof payload === 'string' ? bs58.decode(payload) : payload;
-
-      const signatureBytes = typeof signature === 'string' ? bs58.decode(signature) : signature;
-
-      const publicKeyBytes = typeof publicKey === 'string' ? bs58.decode(publicKey) : publicKey;
-
-      if (publicKeyBytes.length !== 32) {
-        this.logError(`Invalid public key length: ${publicKeyBytes.length}. Expected 32 bytes.`);
-        return false;
-      }
-
-      return await ed.verifyAsync(signatureBytes, messageBytes, publicKeyBytes);
-    } catch (error) {
-      this.logError('Error verifying signature:', error);
-      return false;
     }
   }
 

@@ -20,12 +20,6 @@ describe('Secp256k1Service', () => {
     expect(service).toBeDefined();
   });
 
-  it('should get correctAddress', async () => {
-    const publicKey = await service.getPublicKey(privKey);
-    const derivedAddress = await service.getAddress(publicKey);
-    expect(derivedAddress).toBe(address);
-  });
-
   it('should sign a message correctly -- should match ethers signature', async () => {
     const message = 'Hello world';
 
@@ -70,9 +64,13 @@ describe('Secp256k1Service', () => {
   });
 
   it('should generate a private key from a seed', async () => {
-    const address = '0x332fD0972BC42eabb397fAe91D97c9bbDc53CF5e';
     const privateKey = await service.privateKeyFromSeed(new Uint8Array(0));
     expect(privateKey).toBeDefined();
-    expect(await service.getAddress(await service.getPublicKey(privateKey))).toBe(address);
+    expect(privateKey).toStrictEqual(
+      new Uint8Array([
+        199, 95, 61, 61, 106, 186, 190, 0, 215, 122, 16, 37, 81, 243, 121, 190, 185, 191, 148, 232,
+        45, 149, 213, 208, 228, 21, 106, 195, 205, 70, 188, 221,
+      ])
+    );
   });
 });

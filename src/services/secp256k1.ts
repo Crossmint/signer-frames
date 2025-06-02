@@ -1,8 +1,7 @@
 import { XMIFService } from './service';
 import { secp256k1 } from 'ethereum-cryptography/secp256k1.js';
-import { keccak256 } from 'ethereum-cryptography/keccak.js';
 import { sha256 } from 'ethereum-cryptography/sha256.js';
-import { toHex } from 'ethereum-cryptography/utils';
+import { decodeBytes } from './utils';
 const SECP256K1_DERIVATION_PATH = new Uint8Array([
   0x73, 0x65, 0x63, 0x70, 0x32, 0x35, 0x36, 0x6b, 0x31, 0x2d, 0x64, 0x65, 0x72, 0x69, 0x76, 0x61,
   0x74, 0x69, 0x6f, 0x6e, 0x2d, 0x70, 0x61, 0x74, 0x68,
@@ -34,15 +33,8 @@ export class Secp256k1Service extends XMIFService {
     return secp256k1.getPublicKey(privateKey, false);
   }
 
-  // https://ethereum.org/en/developers/docs/accounts/#account-creation
-  async getAddress(publicKey: Uint8Array): Promise<Hex> {
-    const hash = keccak256(publicKey.slice(1)).slice(-20);
-    const address = `0x${toHex(hash)}`;
-    return this.toChecksumAddress(address as Hex);
-  }
-
   async sign(digest: Hex | Uint8Array, privateKey: PrivKey): Promise<Hex> {
-    const digestBytes = typeof digest === 'string' ? this.hexDecode(digest) : digest;
+    const digestBytes = typeof digest === 'string' ? decodeBytes(digest.slice(2), 'hex') : digest;
     if (digestBytes.length !== 32) {
       throw new Error('Digest must be 32 bytes');
     }
@@ -52,21 +44,5 @@ export class Secp256k1Service extends XMIFService {
     const s = toBigEndianHex(sig.s);
     const v = sig.recovery ? '1c' : '1b';
     return `0x${r}${s}${v}` as Hex;
-  }
-
-  // https://eips.ethereum.org/EIPS/eip-55
-  private toChecksumAddress(address: Hex): Hex {
-    const hashInput = Buffer.from(address.toLowerCase().replace('0x', ''), 'ascii');
-    const hash = [...keccak256(hashInput)].map(v => v.toString(16).padStart(2, '0')).join('');
-
-    return `0x${address
-      .slice(2)
-      .split('')
-      .map((char, i) => (Number.parseInt(hash[i], 16) >= 8 ? char.toUpperCase() : char))
-      .join('')}` as Hex;
-  }
-
-  private hexDecode(hex: Hex): Uint8Array {
-    return Buffer.from(hex.slice(2), 'hex');
   }
 }
