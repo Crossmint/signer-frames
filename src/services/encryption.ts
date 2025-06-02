@@ -20,6 +20,8 @@ import {
   type SerializedPublicKey,
 } from './encryption-consts';
 
+import { encodeBytes, decodeBytes } from './utils';
+
 export class EncryptionService extends XMIFService {
   name = 'Encryption service';
   log_prefix = '[EncryptionService]';
@@ -319,18 +321,11 @@ export class EncryptionService extends XMIFService {
 
   // Encoding methods
   private bufferToBase64(buffer: ArrayBuffer): string {
-    return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+    return encodeBytes(new Uint8Array(buffer), 'base64');
   }
 
   private base64ToBuffer(base64: string): ArrayBuffer {
-    const binaryString = atob(base64);
-    const bytes = new Uint8Array(binaryString.length);
-
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-
-    return bytes.buffer;
+    return decodeBytes(base64, 'base64').buffer;
   }
 
   private bufferOrStringToBuffer(value: string | ArrayBuffer): ArrayBuffer {
