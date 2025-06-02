@@ -21,26 +21,6 @@ import {
 
 import { encodeBytes, decodeBytes } from './utils';
 
-/**
- * HPKE-based encryption service for secure client ↔ TEE communication.
- *
- * This service handles two distinct cryptographic flows:
- *
- * **1. Client → TEE Encryption (Base Mode)**
- * - Client encrypts sensitive data TO the attested TEE
- * - Uses HPKE base mode (no sender authentication required)
- * - Only the TEE can decrypt using its private key
- * - TEE's public key authenticity is guaranteed by hardware attestation
- *
- * **2. TEE → Client Decryption (Auth Mode)**
- * - Client decrypts messages FROM the attested TEE
- * - Uses HPKE auth mode to cryptographically verify sender identity
- * - Prevents impersonation attacks - only genuine TEE can send these messages
- * - Provides both confidentiality AND authenticity guarantees
- *
- * The TEE's identity is established through Intel TDX hardware attestation,
- * validating application integrity and binding the public key to the secure enclave.
- */
 export class EncryptionService extends XMIFService {
   name = 'Encryption service';
   log_prefix = '[EncryptionService]';
@@ -155,7 +135,8 @@ export class EncryptionService extends XMIFService {
    *
    * Uses HPKE base mode - the client acts as sender, TEE as recipient.
    * No sender authentication is needed, user's authenticate their client devices
-   * and therefore the sender key, through other means, for example an OTP.
+   * and therefore the sender key, through other means, for example an OTP,
+   * This is handled outside the context of HPKE.
    * The TEE's public key authenticity is guaranteed by hardware attestation.
    *
    * @param data - Data object to encrypt
@@ -235,28 +216,20 @@ export class EncryptionService extends XMIFService {
       ephemeralKeyPair: this.ephemeralKeyPair as NonNullable<typeof this.ephemeralKeyPair>,
     };
 
-    const ciphertext = this.bufferOrStringToBuffer(ciphertextInput);
-    const encapsulatedKey = this.bufferOrStringToBuffer(encapsulatedKeyInput);
-
     try {
-      const recipientConfig = {
-        recipientKey: ephemeralKeyPair.privateKey,
-        enc: encapsulatedKey,
-      } as const;
-
       const attestationService = this.assertAttestationService();
       const attestationPublicKey = await attestationService.getAttestedPublicKey();
       const senderPublicKey = await this.suite.kem.deserializePublicKey(
         this.base64ToBuffer(attestationPublicKey)
       );
 
-      const recipientConfigWithSender = {
-        ...recipientConfig,
+      const recipient = await this.suite.createRecipientContext({
+        recipientKey: ephemeralKeyPair.privateKey,
+        enc: this.bufferOrStringToBuffer(encapsulatedKeyInput),
         senderPublicKey,
-      };
+      });
 
-      const recipient = await this.suite.createRecipientContext(recipientConfigWithSender);
-      const plaintext = await recipient.open(ciphertext);
+      const plaintext = await recipient.open(this.bufferOrStringToBuffer(ciphertextInput));
       return this.deserialize<{ data: T }>(plaintext).data;
     } catch (error) {
       this.logError(`Decryption failed: ${error}`);
@@ -367,7 +340,6 @@ export class EncryptionService extends XMIFService {
     return await this.cryptoApi.importKey('jwk', raw, algorithm, true, usages);
   }
 
-  // Encoding methods
   private bufferToBase64(buffer: ArrayBuffer): string {
     return encodeBytes(new Uint8Array(buffer), 'base64');
   }
