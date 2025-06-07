@@ -11,6 +11,7 @@ import type { AttestationService } from './attestation';
 import {
   AES256_KEY_SPEC,
   ECDH_KEY_SPEC,
+  IDENTITY_KEY_PERMISSIONS,
   IDENTITY_STORAGE_KEY,
   type EncryptionResult,
 } from './encryption-consts';
@@ -20,7 +21,6 @@ import { encodeBytes, decodeBytes } from './utils';
 export class EncryptionService extends XMIFService {
   name = 'Encryption service';
   log_prefix = '[EncryptionService]';
-  private cryptoApi: SubtleCrypto = crypto.subtle;
   private attestationService: AttestationService | null = null;
 
   constructor(
@@ -58,7 +58,6 @@ export class EncryptionService extends XMIFService {
       await this.initSenderContext();
       await this.initSymmetricEncryptionKey();
     } catch (error) {
-      this.log(`Failed to initialize encryption service: ${error}`);
       throw new Error('Encryption initialization failed');
     }
   }
@@ -239,7 +238,7 @@ export class EncryptionService extends XMIFService {
       .getAttestedPublicKey()
       .then(this.base64ToBuffer);
     const recipientPublicKey = await this.suite.kem.deserializePublicKey(recipientPublicKeyBuffer);
-    return this.cryptoApi.deriveKey(
+    return crypto.subtle.deriveKey(
       {
         name: 'ECDH',
         public: recipientPublicKey,
@@ -247,7 +246,7 @@ export class EncryptionService extends XMIFService {
       ephemeralKeyPair.privateKey,
       AES256_KEY_SPEC,
       true,
-      ['wrapKey']
+      ['decrypt']
     );
   }
 
@@ -276,7 +275,7 @@ export class EncryptionService extends XMIFService {
     if (!this.aes256EncryptionKey) {
       throw new Error('AES256 encryption key not initialized');
     }
-    return new Uint8Array(await this.cryptoApi.exportKey('raw', this.aes256EncryptionKey));
+    return new Uint8Array(await crypto.subtle.exportKey('raw', this.aes256EncryptionKey));
   }
 
   private async getTeePublicKey() {
@@ -286,7 +285,7 @@ export class EncryptionService extends XMIFService {
   }
 
   private async generateKeyPair(): Promise<CryptoKeyPair> {
-    return this.cryptoApi.generateKey(ECDH_KEY_SPEC, true, ['deriveBits', 'deriveKey']);
+    return crypto.subtle.generateKey(ECDH_KEY_SPEC, true, IDENTITY_KEY_PERMISSIONS);
   }
 
   private async initSymmetricEncryptionKey() {
@@ -316,21 +315,25 @@ export class EncryptionService extends XMIFService {
   }
 
   private async serializeKeyPair(keyPair: CryptoKeyPair): Promise<string> {
-    const privateKeyJwk = await this.cryptoApi.exportKey('jwk', keyPair.privateKey);
+    const privateKeyJwk = await crypto.subtle.exportKey('jwk', keyPair.privateKey);
     return JSON.stringify(privateKeyJwk);
   }
 
   private async deserializeKeyPair(serializedKeyPair: string): Promise<CryptoKeyPair> {
     const privateKeyJwk = JSON.parse(serializedKeyPair);
-    const privateKey = await this.cryptoApi.importKey('jwk', privateKeyJwk, ECDH_KEY_SPEC, true, [
-      'deriveKey',
-      'deriveBits',
-    ]);
 
-    const publicKeyJwk = { ...privateKeyJwk }; // Create public key JWK from private key (remove the 'd' parameter)
+    const privateKey = await crypto.subtle.importKey(
+      'jwk',
+      privateKeyJwk,
+      ECDH_KEY_SPEC,
+      true,
+      IDENTITY_KEY_PERMISSIONS
+    );
+
+    const publicKeyJwk = { ...privateKeyJwk };
     delete publicKeyJwk.d;
 
-    const publicKey = await this.cryptoApi.importKey('jwk', publicKeyJwk, ECDH_KEY_SPEC, true, []);
+    const publicKey = await crypto.subtle.importKey('jwk', publicKeyJwk, ECDH_KEY_SPEC, false, []);
 
     return { privateKey, publicKey };
   }
