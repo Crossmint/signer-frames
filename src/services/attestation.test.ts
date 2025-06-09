@@ -32,6 +32,7 @@ vi.mock('./environment', () => ({
 
 const VALID_PUBLIC_KEY =
   'BE2tK2+EUljfdSAvTy9qR7Osk1roVfsB+FDdmz5lfl6ZBLXUUa5I/FQwwh/Hh5QLUwpqAW+EyMDN/X0Ikd4eROuBTCyMNc9gGVmRKKZpCtUv24O5uvRINvswGOZ1ibiYjQ==';
+const VALID_APP_ID = '0ade7b12204222a684b6e8e26aa5223f38e90725';
 
 describe('AttestationService - Security Critical Tests', () => {
   let service: AttestationService;
@@ -40,7 +41,7 @@ describe('AttestationService - Security Critical Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockApiService = mock<CrossmintApiService>();
-    service = new AttestationService(mockApiService, '0ade7b12204222a684b6e8e26aa5223f38e90725');
+    service = new AttestationService(mockApiService, VALID_APP_ID);
   });
 
   describe('TEE Authenticity Validation - Core Security Function', () => {

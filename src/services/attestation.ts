@@ -78,7 +78,7 @@ export class AttestationService extends XMIFService {
 
   constructor(
     private readonly api: CrossmintApiService,
-    private readonly expected_app_id: string
+    private readonly expectedAppId: string
   ) {
     super();
   }
@@ -285,8 +285,8 @@ export class AttestationService extends XMIFService {
   }
 
   private validateEventLogValues(hashes: HashEvent): void {
-    if (hashes.app_id !== this.expected_app_id) {
-      throw new Error(`Invalid app ID: expected ${this.expected_app_id}, got ${hashes.app_id}`);
+    if (hashes.app_id !== this.expectedAppId) {
+      throw new Error(`Invalid app ID: expected ${this.expectedAppId}, got ${hashes.app_id}`);
     }
   }
 
