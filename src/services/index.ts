@@ -30,13 +30,15 @@ export type XMIFServices = {
   device: DeviceService;
 };
 
+const EXPECTED_PHALA_APP_ID = 'df4f0ec61f92a8eec754593da9ea9cd939985e9c';
+
 export const createXMIFServices = () => {
   const eventsService = new EventsService();
   const ed25519Service = new Ed25519Service();
   const encryptionService = new EncryptionService();
   const secp256k1Service = new Secp256k1Service();
   const crossmintApiService = new CrossmintApiService(encryptionService);
-  const attestationService = new AttestationService(crossmintApiService);
+  const attestationService = new AttestationService(crossmintApiService, EXPECTED_PHALA_APP_ID);
   const deviceService = new DeviceService();
   const shardingService = new ShardingService(
     new AuthShareCache(crossmintApiService),

@@ -40,7 +40,7 @@ describe('AttestationService - Security Critical Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockApiService = mock<CrossmintApiService>();
-    service = new AttestationService(mockApiService);
+    service = new AttestationService(mockApiService, '0ade7b12204222a684b6e8e26aa5223f38e90725');
   });
 
   describe('TEE Authenticity Validation - Core Security Function', () => {
