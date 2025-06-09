@@ -15,7 +15,6 @@ const TEE_REPORT_DATA_HASH = 'SHA-512' as const;
 // RTMR3 calculation constants - Based on DStack TEE implementations
 const INIT_MR = '0'.repeat(96);
 const DSTACK_EVENT_TAG = 0x08000001; // Event type, taken from DStack source code
-const EXPECTED_APP_ID = '0ade7b12204222a684b6e8e26aa5223f38e90725';
 
 // Event log filtering constants
 const EVENT_LOG_IMR = 3;
@@ -77,7 +76,10 @@ export class AttestationService extends XMIFService {
   name = 'Attestation Service';
   log_prefix = '[AttestationService]';
 
-  constructor(private readonly api: CrossmintApiService) {
+  constructor(
+    private readonly api: CrossmintApiService,
+    private readonly expectedAppId: string
+  ) {
     super();
   }
 
@@ -283,8 +285,8 @@ export class AttestationService extends XMIFService {
   }
 
   private validateEventLogValues(hashes: HashEvent): void {
-    if (hashes.app_id !== EXPECTED_APP_ID) {
-      throw new Error(`Invalid app ID: expected ${EXPECTED_APP_ID}, got ${hashes.app_id}`);
+    if (hashes.app_id !== this.expectedAppId) {
+      throw new Error(`Invalid app ID: expected ${this.expectedAppId}, got ${hashes.app_id}`);
     }
   }
 

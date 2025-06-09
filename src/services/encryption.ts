@@ -1,9 +1,9 @@
 import { XMIFService } from './service';
 import {
   CipherSuite,
-  HkdfSha384,
   Aes256Gcm,
-  DhkemP384HkdfSha384,
+  DhkemP256HkdfSha256,
+  HkdfSha256,
   type SenderContext,
 } from '@hpke/core';
 
@@ -11,12 +11,9 @@ import type { AttestationService } from './attestation';
 import {
   AES256_KEY_SPEC,
   ECDH_KEY_SPEC,
-  STORAGE_KEYS,
-  SerializedPrivateKeySchema,
-  SerializedPublicKeySchema,
+  IDENTITY_KEY_PERMISSIONS,
+  IDENTITY_STORAGE_KEY,
   type EncryptionResult,
-  type SerializedPrivateKey,
-  type SerializedPublicKey,
 } from './encryption-consts';
 
 import { encodeBytes, decodeBytes } from './utils';
@@ -24,14 +21,13 @@ import { encodeBytes, decodeBytes } from './utils';
 export class EncryptionService extends XMIFService {
   name = 'Encryption service';
   log_prefix = '[EncryptionService]';
-  private cryptoApi: SubtleCrypto = crypto.subtle;
   private attestationService: AttestationService | null = null;
 
   constructor(
     attestationService?: AttestationService,
     private readonly suite = new CipherSuite({
-      kem: new DhkemP384HkdfSha384(),
-      kdf: new HkdfSha384(),
+      kem: new DhkemP256HkdfSha256(),
+      kdf: new HkdfSha256(),
       aead: new Aes256Gcm(),
     }),
     private ephemeralKeyPair: CryptoKeyPair | null = null,
@@ -62,7 +58,6 @@ export class EncryptionService extends XMIFService {
       await this.initSenderContext();
       await this.initSymmetricEncryptionKey();
     } catch (error) {
-      this.log(`Failed to initialize encryption service: ${error}`);
       throw new Error('Encryption initialization failed');
     }
   }
@@ -85,15 +80,11 @@ export class EncryptionService extends XMIFService {
 
   private async initFromLocalStorage(): Promise<CryptoKeyPair | null> {
     try {
-      const existingPrivKey = localStorage.getItem(STORAGE_KEYS.PRIV_KEY);
-      const existingPubKey = localStorage.getItem(STORAGE_KEYS.PUB_KEY);
-      if (!existingPrivKey || !existingPubKey) {
+      const existingKeyPair = localStorage.getItem(IDENTITY_STORAGE_KEY);
+      if (!existingKeyPair) {
         return null;
       }
-      return {
-        privateKey: await this.deserializePrivateKey(this.base64ToBuffer(existingPrivKey)),
-        publicKey: await this.deserializePublicKey(this.base64ToBuffer(existingPubKey)),
-      };
+      return await this.deserializeKeyPair(existingKeyPair);
     } catch (error: unknown) {
       this.logError(`Error initializing from localStorage: ${error}`);
       return null;
@@ -113,10 +104,8 @@ export class EncryptionService extends XMIFService {
     }
 
     try {
-      const serializedPrivKey = await this.serializePrivateKey(this.ephemeralKeyPair.privateKey);
-      const serializedPubKey = await this.serializePublicKey(this.ephemeralKeyPair.publicKey);
-      localStorage.setItem(STORAGE_KEYS.PRIV_KEY, this.bufferToBase64(serializedPrivKey));
-      localStorage.setItem(STORAGE_KEYS.PUB_KEY, this.bufferToBase64(serializedPubKey));
+      const serializedKeyPair = await this.serializeKeyPair(this.ephemeralKeyPair);
+      localStorage.setItem(IDENTITY_STORAGE_KEY, serializedKeyPair);
     } catch (error) {
       this.logError(`Failed to save key pair to localStorage: ${error}`);
       throw new Error('Failed to persist encryption keys');
@@ -249,7 +238,7 @@ export class EncryptionService extends XMIFService {
       .getAttestedPublicKey()
       .then(this.base64ToBuffer);
     const recipientPublicKey = await this.suite.kem.deserializePublicKey(recipientPublicKeyBuffer);
-    return this.cryptoApi.deriveKey(
+    return crypto.subtle.deriveKey(
       {
         name: 'ECDH',
         public: recipientPublicKey,
@@ -257,7 +246,7 @@ export class EncryptionService extends XMIFService {
       ephemeralKeyPair.privateKey,
       AES256_KEY_SPEC,
       true,
-      ['wrapKey']
+      ['decrypt']
     );
   }
 
@@ -286,7 +275,7 @@ export class EncryptionService extends XMIFService {
     if (!this.aes256EncryptionKey) {
       throw new Error('AES256 encryption key not initialized');
     }
-    return new Uint8Array(await this.cryptoApi.exportKey('raw', this.aes256EncryptionKey));
+    return new Uint8Array(await crypto.subtle.exportKey('raw', this.aes256EncryptionKey));
   }
 
   private async getTeePublicKey() {
@@ -296,7 +285,7 @@ export class EncryptionService extends XMIFService {
   }
 
   private async generateKeyPair(): Promise<CryptoKeyPair> {
-    return this.cryptoApi.generateKey(ECDH_KEY_SPEC, true, ['deriveBits', 'deriveKey']);
+    return crypto.subtle.generateKey(ECDH_KEY_SPEC, true, IDENTITY_KEY_PERMISSIONS);
   }
 
   private async initSymmetricEncryptionKey() {
@@ -313,54 +302,6 @@ export class EncryptionService extends XMIFService {
     return JSON.parse(new TextDecoder().decode(data)) as T;
   }
 
-  private async serializePrivateKey(key: CryptoKey): Promise<ArrayBuffer> {
-    const jwk = await this.cryptoApi.exportKey('jwk', key);
-    if (!('d' in jwk) || !jwk.d) {
-      throw new Error('Not a private key');
-    }
-
-    const keyBundle: SerializedPrivateKey = {
-      raw: jwk,
-      usages: key.usages,
-      algorithm: key.algorithm,
-    };
-
-    return this.serialize(SerializedPrivateKeySchema.parse(keyBundle));
-  }
-
-  private async serializePublicKey(key: CryptoKey): Promise<ArrayBuffer> {
-    this.log(`Serializing public key with algorithm: ${JSON.stringify(key.algorithm)}`);
-    const keyBundle: SerializedPublicKey = {
-      raw: this.bufferToBase64(await this.cryptoApi.exportKey('raw', key)),
-      algorithm: key.algorithm,
-    };
-
-    return this.serialize(SerializedPublicKeySchema.parse(keyBundle));
-  }
-
-  private async deserializePublicKey(serializedKey: ArrayBuffer): Promise<CryptoKey> {
-    const parseResult = SerializedPublicKeySchema.safeParse(
-      this.deserialize<SerializedPublicKey>(serializedKey)
-    );
-    if (!parseResult.success) {
-      throw new Error('Invalid key serialization');
-    }
-    const { raw, algorithm } = parseResult.data;
-    const rawBuffer = this.base64ToBuffer(raw);
-    return this.cryptoApi.importKey('raw', rawBuffer, algorithm, true, []);
-  }
-
-  private async deserializePrivateKey(serializedKey: ArrayBuffer): Promise<CryptoKey> {
-    const parseResult = SerializedPrivateKeySchema.safeParse(
-      this.deserialize<SerializedPrivateKey>(serializedKey)
-    );
-    if (!parseResult.success) {
-      throw new Error('Invalid key serialization');
-    }
-    const { raw, algorithm, usages } = parseResult.data;
-    return await this.cryptoApi.importKey('jwk', raw, algorithm, true, usages);
-  }
-
   private bufferToBase64(buffer: ArrayBuffer): string {
     return encodeBytes(new Uint8Array(buffer), 'base64');
   }
@@ -371,5 +312,29 @@ export class EncryptionService extends XMIFService {
 
   private bufferOrStringToBuffer(value: string | ArrayBuffer): ArrayBuffer {
     return typeof value === 'string' ? this.base64ToBuffer(value) : value;
+  }
+
+  private async serializeKeyPair(keyPair: CryptoKeyPair): Promise<string> {
+    const privateKeyJwk = await crypto.subtle.exportKey('jwk', keyPair.privateKey);
+    return JSON.stringify(privateKeyJwk);
+  }
+
+  private async deserializeKeyPair(serializedKeyPair: string): Promise<CryptoKeyPair> {
+    const privateKeyJwk = JSON.parse(serializedKeyPair);
+
+    const privateKey = await crypto.subtle.importKey(
+      'jwk',
+      privateKeyJwk,
+      ECDH_KEY_SPEC,
+      true,
+      IDENTITY_KEY_PERMISSIONS
+    );
+
+    const publicKeyJwk = { ...privateKeyJwk };
+    delete publicKeyJwk.d;
+
+    const publicKey = await crypto.subtle.importKey('jwk', publicKeyJwk, ECDH_KEY_SPEC, false, []);
+
+    return { privateKey, publicKey };
   }
 }

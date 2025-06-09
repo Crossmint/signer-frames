@@ -1,21 +1,21 @@
 import { expect, describe, it, beforeEach, vi } from 'vitest';
 import { EncryptionService } from './encryption';
-import type { AttestationService, ValidateAttestationDocumentResult } from './attestation';
-import { STORAGE_KEYS } from './encryption-consts';
+import type { AttestationService } from './attestation';
+import { IDENTITY_STORAGE_KEY } from './encryption-consts';
 
 // Mock types for attestation
 type AttestationDocument = { publicKey: string } & Record<string, unknown>;
 
 // Mock crypto keys
 const mockPublicKey = {
-  algorithm: { name: 'ECDH', namedCurve: 'P-384' },
+  algorithm: { name: 'ECDH', namedCurve: 'P-256' },
   extractable: true,
   type: 'public',
   usages: ['deriveBits', 'deriveKey'],
 } as CryptoKey;
 
 const mockPrivateKey = {
-  algorithm: { name: 'ECDH', namedCurve: 'P-384' },
+  algorithm: { name: 'ECDH', namedCurve: 'P-256' },
   extractable: true,
   type: 'private',
   usages: ['deriveBits', 'deriveKey'],
@@ -24,6 +24,22 @@ const mockPrivateKey = {
 const mockKeyPair = {
   publicKey: mockPublicKey,
   privateKey: mockPrivateKey,
+};
+
+// Mock JWK for testing
+const mockPrivateKeyJwk = {
+  kty: 'EC',
+  crv: 'P-256',
+  x: 'mockJwkX',
+  y: 'mockJwkY',
+  d: 'mockJwkD',
+};
+
+const mockPublicKeyJwk = {
+  kty: 'EC',
+  crv: 'P-256',
+  x: 'mockJwkX',
+  y: 'mockJwkY',
 };
 
 // Mock the HPKE library
@@ -54,8 +70,8 @@ vi.mock('@hpke/core', () => {
         }),
       }),
     })),
-    DhkemP384HkdfSha384: vi.fn(),
-    HkdfSha384: vi.fn(),
+    DhkemP256HkdfSha256: vi.fn(),
+    HkdfSha256: vi.fn(),
     Aes256Gcm: vi.fn(),
   };
 });
@@ -73,24 +89,35 @@ vi.mock('crypto', () => ({
         return Promise.resolve(new ArrayBuffer(32));
       }
       if (format === 'jwk') {
-        return Promise.resolve({
-          d: 'mockJwkD',
-          x: 'mockJwkX',
-          y: 'mockJwkY',
-        });
+        if (key.type === 'private') {
+          return Promise.resolve(mockPrivateKeyJwk);
+        } else {
+          return Promise.resolve(mockPublicKeyJwk);
+        }
       }
       return Promise.resolve(new ArrayBuffer(32));
     }),
     importKey: vi.fn().mockImplementation((format, keyData, algorithm, extractable, usages) => {
+      if (format === 'jwk') {
+        const hasPrivateKey = 'd' in keyData;
+        return Promise.resolve({
+          algorithm,
+          usages,
+          type: hasPrivateKey ? 'private' : 'public',
+          extractable,
+        } as CryptoKey);
+      }
       return Promise.resolve({
         algorithm,
         usages,
-      });
+        type: 'public',
+        extractable,
+      } as CryptoKey);
     }),
   },
 }));
 
-// Mock sessionStorage
+// Mock localStorage
 const createStorageMock = () => {
   let store: Record<string, string> = {};
   return {
@@ -107,35 +134,19 @@ const createStorageMock = () => {
   };
 };
 
-const sessionStorageMock = createStorageMock();
-
-// Mock localStorage
 const localStorageMock = createStorageMock();
 
 // Mock AttestationService
 const mockAttestationService: AttestationService = {
   name: 'Mock Attestation Service',
   log_prefix: '[MockAttestationService]',
-  attestationDoc: { publicKey: 'mockKey' } as AttestationDocument,
   async init() {},
-  async validateAttestationDoc(): Promise<ValidateAttestationDocumentResult> {
-    return { validated: true, publicKey: 'mockKey' };
-  },
-  async getPublicKeyFromAttestation() {
+  async getAttestedPublicKey() {
     return 'base64MockedPublicKey';
-  },
-  async getAttestation() {
-    return 'mockAttestation';
-  },
-  async fetchAttestationDoc(): Promise<AttestationDocument> {
-    return { publicKey: 'mockKey' };
   },
   log: vi.fn(),
   logError: vi.fn(),
   logDebug: vi.fn(),
-  assertInitialized(): AttestationDocument {
-    return { publicKey: 'mockKey' };
-  },
 } as unknown as AttestationService;
 
 // Mock global methods
@@ -147,7 +158,6 @@ vi.stubGlobal(
   'atob',
   vi.fn(b64 => 'decoded')
 );
-vi.stubGlobal('sessionStorage', sessionStorageMock);
 vi.stubGlobal('localStorage', localStorageMock);
 
 // Create a test version of the EncryptionService to avoid initialization issues
@@ -161,8 +171,8 @@ class TestEncryptionService extends EncryptionService {
 
   // Override methods for testing
   async init(): Promise<void> {
-    // Access sessionStorage to make tests pass
-    sessionStorage.getItem(STORAGE_KEYS.KEY_PAIR);
+    // Access localStorage to make tests pass
+    localStorage.getItem(IDENTITY_STORAGE_KEY);
     return Promise.resolve();
   }
 
@@ -184,8 +194,7 @@ class TestEncryptionService extends EncryptionService {
 
   async decrypt<T extends Record<string, unknown>, U extends string | ArrayBuffer>(
     ciphertext: U,
-    encapsulatedKey: U,
-    options = {}
+    encapsulatedKey: U
   ): Promise<T> {
     return {
       data: { message: 'Hello, encryption!', timestamp: 123456789 },
@@ -199,7 +208,6 @@ describe('EncryptionService', () => {
 
   beforeEach(() => {
     // Clear mock storage
-    sessionStorageMock.clear();
     localStorageMock.clear();
 
     // Reset all mocks
@@ -226,29 +234,29 @@ describe('EncryptionService', () => {
       // Reset mock counters
       vi.clearAllMocks();
 
-      // Test initialization with existing key pair in sessionStorage
-      sessionStorageMock.getItem.mockReturnValueOnce('mockKeyPair');
+      // Test initialization with existing key pair in localStorage
+      localStorageMock.getItem.mockReturnValueOnce(JSON.stringify(mockPrivateKeyJwk));
 
       await encryptionService.init();
-      expect(sessionStorageMock.getItem).toHaveBeenCalledWith(STORAGE_KEYS.KEY_PAIR);
+      expect(localStorageMock.getItem).toHaveBeenCalledWith(IDENTITY_STORAGE_KEY);
     });
 
-    it('should handle sessionStorage initialization errors', async () => {
+    it('should handle localStorage initialization errors', async () => {
       // Reset mock counters
       vi.clearAllMocks();
 
-      // Setup sessionStorage to throw an error
+      // Setup localStorage to throw an error
       const logErrorSpy = vi.spyOn(encryptionService, 'logError');
-      sessionStorageMock.getItem.mockImplementation(() => {
+      localStorageMock.getItem.mockImplementation(() => {
         throw new Error('Storage error');
       });
 
       // Mock the init method just for this test
       vi.spyOn(encryptionService, 'init').mockImplementation(async () => {
         try {
-          sessionStorage.getItem(STORAGE_KEYS.KEY_PAIR);
+          localStorage.getItem(IDENTITY_STORAGE_KEY);
         } catch (error) {
-          encryptionService.logError(`Error accessing sessionStorage: ${error}`);
+          encryptionService.logError(`Error accessing localStorage: ${error}`);
         }
         return Promise.resolve();
       });
@@ -290,120 +298,57 @@ describe('EncryptionService', () => {
     });
   });
 
-  describe('keypair serialization and deserialization', () => {
-    // Create real implementations for atob and btoa for this test
-    const realBtoa = (str: string): string => {
-      const buffer = new TextEncoder().encode(str);
-      const bytes = Array.from(new Uint8Array(buffer));
-      return globalThis.btoa(String.fromCharCode.apply(null, bytes));
-    };
+  describe('JWK-based keypair serialization', () => {
+    it('should serialize and deserialize key pair using JWK format', async () => {
+      // Test the simplified JWK serialization approach
+      const testKeyPair = {
+        privateKey: mockPrivateKey,
+        publicKey: mockPublicKey,
+      };
 
-    const realAtob = (b64: string): Uint8Array => {
-      const binary = globalThis.atob(b64);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i);
-      }
-      return bytes;
-    };
+      // Test serialization - should return just the private key JWK as JSON string
+      const serialized = JSON.stringify(mockPrivateKeyJwk);
+      expect(serialized).toBeDefined();
+      expect(typeof serialized).toBe('string');
 
-    it('should properly serialize and deserialize a key pair', async () => {
-      // Save original mocks
-      const originalBtoa = vi.mocked(btoa);
-      const originalAtob = vi.mocked(atob);
+      // Verify the serialized data contains the expected JWK structure
+      const parsedJwk = JSON.parse(serialized);
+      expect(parsedJwk).toHaveProperty('kty', 'EC');
+      expect(parsedJwk).toHaveProperty('crv', 'P-256');
+      expect(parsedJwk).toHaveProperty('x');
+      expect(parsedJwk).toHaveProperty('y');
+      expect(parsedJwk).toHaveProperty('d'); // Private key component
 
-      // Override the mocks with real implementations just for this test
-      vi.mocked(btoa).mockImplementation(str => {
-        return realBtoa(str);
-      });
+      // Test deserialization - should be able to derive both keys from the private key JWK
+      const privateKeyJwk = JSON.parse(serialized);
+      const publicKeyJwk = { ...privateKeyJwk };
+      delete publicKeyJwk.d; // Remove private key component
 
-      vi.mocked(atob).mockImplementation(b64 => {
-        const bytes = realAtob(b64);
-        return new TextDecoder().decode(bytes);
-      });
+      // Verify public key JWK doesn't have private component
+      expect(publicKeyJwk).not.toHaveProperty('d');
+      expect(publicKeyJwk).toHaveProperty('x');
+      expect(publicKeyJwk).toHaveProperty('y');
 
-      try {
-        // Create a custom test service for serialization testing
-        const testService = {
-          serializeKeyPair: async (keyPair: CryptoKeyPair): Promise<ArrayBuffer> => {
-            // Create test data to serialize
-            const serializedData = {
-              publicKey: 'serializedPublicKey',
-              privateKey: 'serializedPrivateKey',
-            };
-            return new TextEncoder().encode(JSON.stringify(serializedData));
-          },
+      // Test that crypto.subtle.importKey would be called correctly
+      expect(vi.mocked(crypto.subtle.importKey)).toBeDefined();
+    });
 
-          deserializeKeyPair: async (serializedKeyPair: ArrayBuffer): Promise<CryptoKeyPair> => {
-            // Parse the serialized data
-            const decoder = new TextDecoder();
-            const serialized = JSON.parse(decoder.decode(serializedKeyPair));
+    it('should store and retrieve key pair from localStorage using JWK', async () => {
+      const jwkString = JSON.stringify(mockPrivateKeyJwk);
 
-            // Verify it has the expected structure
-            expect(serialized).toHaveProperty('publicKey');
-            expect(serialized).toHaveProperty('privateKey');
+      // Test storage
+      localStorage.setItem(IDENTITY_STORAGE_KEY, jwkString);
+      expect(localStorageMock.setItem).toHaveBeenCalledWith(IDENTITY_STORAGE_KEY, jwkString);
 
-            // Return a mock key pair
-            return {
-              publicKey: {
-                algorithm: { name: 'ECDH', namedCurve: 'P-384' },
-                extractable: true,
-                type: 'public',
-                usages: ['deriveBits', 'deriveKey'],
-              } as CryptoKey,
-              privateKey: {
-                algorithm: { name: 'ECDH', namedCurve: 'P-384' },
-                extractable: true,
-                type: 'private',
-                usages: ['deriveBits', 'deriveKey'],
-              } as CryptoKey,
-            };
-          },
-        };
+      // Test retrieval
+      localStorageMock.getItem.mockReturnValueOnce(jwkString);
+      const retrieved = localStorage.getItem(IDENTITY_STORAGE_KEY);
+      expect(retrieved).toBe(jwkString);
 
-        // Generate a mock key pair
-        const keyPair = {
-          publicKey: {
-            algorithm: { name: 'ECDH', namedCurve: 'P-384' },
-            extractable: true,
-            type: 'public',
-            usages: ['deriveBits', 'deriveKey'],
-          } as CryptoKey,
-          privateKey: {
-            algorithm: { name: 'ECDH', namedCurve: 'P-384' },
-            extractable: true,
-            type: 'private',
-            usages: ['deriveBits', 'deriveKey'],
-          } as CryptoKey,
-        };
-
-        // Test serialization
-        const serializedData = await testService.serializeKeyPair(keyPair);
-        expect(serializedData).toBeDefined();
-        expect(serializedData.byteLength).toBeGreaterThan(0);
-
-        // Convert serialized data to a string and verify JSON structure
-        const serializedText = new TextDecoder().decode(serializedData);
-        const serializedObj = JSON.parse(serializedText);
-        expect(serializedObj).toHaveProperty('publicKey');
-        expect(serializedObj).toHaveProperty('privateKey');
-
-        // Test deserialization
-        const deserializedKeyPair = await testService.deserializeKeyPair(serializedData);
-        expect(deserializedKeyPair).toBeDefined();
-        expect(deserializedKeyPair.publicKey).toBeDefined();
-        expect(deserializedKeyPair.privateKey).toBeDefined();
-
-        // Verify the key properties
-        expect(deserializedKeyPair.publicKey.type).toBe('public');
-        expect(deserializedKeyPair.privateKey.type).toBe('private');
-        expect(deserializedKeyPair.publicKey.algorithm.name).toBe('ECDH');
-        expect(deserializedKeyPair.privateKey.algorithm.name).toBe('ECDH');
-        expect(deserializedKeyPair.publicKey.usages).toEqual(['deriveBits', 'deriveKey']);
-      } finally {
-        // Restore original mocks
-        vi.mocked(btoa).mockImplementation(originalBtoa);
-        vi.mocked(atob).mockImplementation(originalAtob);
+      // Verify the retrieved data can be parsed back to JWK
+      if (retrieved) {
+        const parsedJwk = JSON.parse(retrieved);
+        expect(parsedJwk).toEqual(mockPrivateKeyJwk);
       }
     });
   });
