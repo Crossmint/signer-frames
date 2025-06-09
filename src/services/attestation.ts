@@ -15,7 +15,7 @@ const TEE_REPORT_DATA_HASH = 'SHA-512' as const;
 // RTMR3 calculation constants - Based on DStack TEE implementations
 const INIT_MR = '0'.repeat(96);
 const DSTACK_EVENT_TAG = 0x08000001; // Event type, taken from DStack source code
-const EXPECTED_APP_ID = '0ade7b12204222a684b6e8e26aa5223f38e90725';
+const EXPECTED_APP_ID = 'df4f0ec61f92a8eec754593da9ea9cd939985e9c';
 
 // Event log filtering constants
 const EVENT_LOG_IMR = 3;
