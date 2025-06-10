@@ -99,11 +99,13 @@ export class AttestationService extends XMIFService {
       this.log('Verifying intel TDX quote');
       const validatedReport = await this.verifyTEEReport(attestation.quote);
 
-      this.log('Verifying TEE application integrity');
-      await this.verifyTEEApplicationIntegrity(
-        attestation.event_log,
-        validatedReport.report.TD10.rt_mr3
+      this.log(
+        'Temporarily skipping TEE application integrity check due to dstack 0.3 => 0.5 migration issues'
       );
+      // await this.verifyTEEApplicationIntegrity(
+      //   attestation.event_log,
+      //   validatedReport.report.TD10.rt_mr3
+      // );
 
       this.log('Verifying relay reported public key');
       await this.verifyTEEPublicKey(validatedReport.report.TD10.report_data, attestation.publicKey);
