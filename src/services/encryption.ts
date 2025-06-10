@@ -333,7 +333,7 @@ export class EncryptionService extends XMIFService {
     const publicKeyJwk = { ...privateKeyJwk };
     delete publicKeyJwk.d;
 
-    const publicKey = await crypto.subtle.importKey('jwk', publicKeyJwk, ECDH_KEY_SPEC, false, []);
+    const publicKey = await crypto.subtle.importKey('jwk', publicKeyJwk, ECDH_KEY_SPEC, true, []);
 
     return { privateKey, publicKey };
   }
