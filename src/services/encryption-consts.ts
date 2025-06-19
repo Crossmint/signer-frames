@@ -15,4 +15,4 @@ export const ECDH_KEY_SPEC: EcKeyGenParams = {
 } as const;
 
 export const IDENTITY_STORAGE_KEY = 'encryption-key-pair';
-export const IDENTITY_KEY_PERMISSIONS: KeyUsage[] = ['deriveBits', 'deriveKey'];
+export const IDENTITY_KEY_PERMISSIONS: KeyUsage[] = ['deriveKey', 'deriveBits'];

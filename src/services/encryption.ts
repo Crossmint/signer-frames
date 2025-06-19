@@ -18,6 +18,10 @@ import {
 
 import { encodeBytes, decodeBytes } from './utils';
 
+const DB_NAME = 'XMIFKeyStore';
+const DB_VERSION = 1;
+const KEY_STORE_NAME = 'keys';
+
 export class EncryptionService extends XMIFService {
   name = 'Encryption service';
   log_prefix = '[EncryptionService]';
@@ -69,25 +73,12 @@ export class EncryptionService extends XMIFService {
   }
 
   async initEphemeralKeyPair(): Promise<void> {
-    const existingKeyPair = await this.initFromLocalStorage();
+    const existingKeyPair = await this._getKeyFromDb();
     if (existingKeyPair) {
       this.ephemeralKeyPair = existingKeyPair;
     } else {
       this.ephemeralKeyPair = await this.generateKeyPair();
-      await this.saveKeyPairToLocalStorage();
-    }
-  }
-
-  private async initFromLocalStorage(): Promise<CryptoKeyPair | null> {
-    try {
-      const existingKeyPair = localStorage.getItem(IDENTITY_STORAGE_KEY);
-      if (!existingKeyPair) {
-        return null;
-      }
-      return await this.deserializeKeyPair(existingKeyPair);
-    } catch (error: unknown) {
-      this.logError(`Error initializing from localStorage: ${error}`);
-      return null;
+      await this._saveKeyToDb(this.ephemeralKeyPair);
     }
   }
 
@@ -96,20 +87,6 @@ export class EncryptionService extends XMIFService {
     this.senderContext = await this.suite.createSenderContext({
       recipientPublicKey,
     });
-  }
-
-  private async saveKeyPairToLocalStorage(): Promise<void> {
-    if (!this.ephemeralKeyPair) {
-      throw new Error('Encryption key pair not initialized');
-    }
-
-    try {
-      const serializedKeyPair = await this.serializeKeyPair(this.ephemeralKeyPair);
-      localStorage.setItem(IDENTITY_STORAGE_KEY, serializedKeyPair);
-    } catch (error) {
-      this.logError(`Failed to save key pair to localStorage: ${error}`);
-      throw new Error('Failed to persist encryption keys');
-    }
   }
 
   async getPublicKey(): Promise<string> {
@@ -226,6 +203,40 @@ export class EncryptionService extends XMIFService {
     }
   }
 
+  async createSigningKey(infoString: string = 'Frame Signing Key'): Promise<CryptoKey> {
+    this.assertInitialized();
+    const ephemeralKeyPair = this.ephemeralKeyPair as NonNullable<typeof this.ephemeralKeyPair>;
+    const teePublicKey = await this.getTeePublicKey();
+
+    const sharedSecretBits = await crypto.subtle.deriveBits(
+      {
+        name: 'ECDH',
+        public: teePublicKey,
+      },
+      ephemeralKeyPair.privateKey,
+      256
+    );
+
+    const hkdfKey = await crypto.subtle.importKey('raw', sharedSecretBits, 'HKDF', false, [
+      'deriveKey',
+    ]);
+
+    const salt = new Uint8Array();
+
+    return crypto.subtle.deriveKey(
+      {
+        name: 'HKDF',
+        salt: salt,
+        info: new TextEncoder().encode(infoString),
+        hash: 'SHA-256',
+      },
+      hkdfKey,
+      { name: 'HMAC', hash: 'SHA-256', length: 256 },
+      false, // non-extractable
+      ['sign', 'verify']
+    );
+  }
+
   // Key derivation
 
   private async deriveAES256EncryptionKey(): Promise<CryptoKey> {
@@ -285,7 +296,7 @@ export class EncryptionService extends XMIFService {
   }
 
   private async generateKeyPair(): Promise<CryptoKeyPair> {
-    return crypto.subtle.generateKey(ECDH_KEY_SPEC, true, IDENTITY_KEY_PERMISSIONS);
+    return crypto.subtle.generateKey(ECDH_KEY_SPEC, false, IDENTITY_KEY_PERMISSIONS);
   }
 
   private async initSymmetricEncryptionKey() {
@@ -314,27 +325,48 @@ export class EncryptionService extends XMIFService {
     return typeof value === 'string' ? this.base64ToBuffer(value) : value;
   }
 
-  private async serializeKeyPair(keyPair: CryptoKeyPair): Promise<string> {
-    const privateKeyJwk = await crypto.subtle.exportKey('jwk', keyPair.privateKey);
-    return JSON.stringify(privateKeyJwk);
+  private _openDb(): Promise<IDBDatabase> {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+      request.onerror = () => reject(new Error('Failed to open IndexedDB'));
+      request.onsuccess = () => resolve(request.result);
+      request.onupgradeneeded = () => {
+        request.result.createObjectStore(KEY_STORE_NAME);
+      };
+    });
   }
 
-  private async deserializeKeyPair(serializedKeyPair: string): Promise<CryptoKeyPair> {
-    const privateKeyJwk = JSON.parse(serializedKeyPair);
+  private async _getKeyFromDb(): Promise<CryptoKeyPair | null> {
+    try {
+      const db = await this._openDb();
+      return new Promise<CryptoKeyPair | null>((resolve, reject) => {
+        const transaction = db.transaction(KEY_STORE_NAME, 'readonly');
+        const store = transaction.objectStore(KEY_STORE_NAME);
+        const request = store.get(IDENTITY_STORAGE_KEY);
 
-    const privateKey = await crypto.subtle.importKey(
-      'jwk',
-      privateKeyJwk,
-      ECDH_KEY_SPEC,
-      true,
-      IDENTITY_KEY_PERMISSIONS
-    );
+        request.onsuccess = () => resolve(request.result || null);
+        request.onerror = e => reject(request.error || e);
+      });
+    } catch (error) {
+      this.logError(`Error initializing from IndexedDB: ${error}`);
+      return null;
+    }
+  }
 
-    const publicKeyJwk = { ...privateKeyJwk };
-    delete publicKeyJwk.d;
+  private async _saveKeyToDb(keyPair: CryptoKeyPair): Promise<void> {
+    try {
+      const db = await this._openDb();
+      const transaction = db.transaction(KEY_STORE_NAME, 'readwrite');
+      const store = transaction.objectStore(KEY_STORE_NAME);
+      store.put(keyPair, IDENTITY_STORAGE_KEY);
 
-    const publicKey = await crypto.subtle.importKey('jwk', publicKeyJwk, ECDH_KEY_SPEC, true, []);
-
-    return { privateKey, publicKey };
+      return new Promise<void>((resolve, reject) => {
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = e => reject(transaction.error || e);
+      });
+    } catch (error) {
+      this.logError(`Failed to save key pair to IndexedDB: ${error}`);
+      throw new Error('Failed to persist encryption keys');
+    }
   }
 }
