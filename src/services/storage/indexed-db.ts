@@ -1,9 +1,17 @@
+import { CrossmintFrameService } from '../service';
+
 const DB_NAME = 'CrossmintFrameDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'keyStore';
 
-class IndexedDBAdapter {
+export class IndexedDBAdapter extends CrossmintFrameService {
+  name = 'IndexedDB service';
+  log_prefix = '[IndexedDB]';
   private db: IDBDatabase | null = null;
+
+  public async init(): Promise<void> {
+    await this.openDB();
+  }
 
   private async openDB(): Promise<IDBDatabase> {
     if (this.db) {
@@ -65,5 +73,3 @@ class IndexedDBAdapter {
     });
   }
 }
-
-export const indexedDBAdapter = new IndexedDBAdapter();
