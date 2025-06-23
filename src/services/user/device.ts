@@ -10,15 +10,14 @@ export class DeviceService extends CrossmintFrameService {
     super();
   }
 
-  async init() {
-    // Do nothing
-  }
+  async init() {}
 
   public async getId(): Promise<string> {
     this.log('Attempting to get device ID from public key');
 
     const publicKey = await this.encryptionService.getPublicKey();
     const publicKeyBuffer = new TextEncoder().encode(publicKey);
+    console.log('publicKeyBuffer', publicKey);
     const hashBuffer = await crypto.subtle.digest('SHA-256', publicKeyBuffer);
     const deviceId = encodeBytes(new Uint8Array(hashBuffer), 'hex');
 

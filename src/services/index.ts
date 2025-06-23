@@ -54,6 +54,7 @@ export const createCrossmintFrameServices = () => {
   encryptionService.setAttestationService(attestationService);
 
   const services = {
+    storage: storageService,
     events: eventsService,
     attestation: attestationService,
     ed25519: ed25519Service,
@@ -64,7 +65,6 @@ export const createCrossmintFrameServices = () => {
     fpe: fpeService,
     cryptoKey: cryptoKeyService,
     device: deviceService,
-    storage: storageService,
   } satisfies Record<string, CrossmintFrameService>;
   return services;
 };
