@@ -2,7 +2,10 @@ import { CrossmintFrameService } from '../service';
 
 const DB_NAME = 'CrossmintFrameDB';
 const DB_VERSION = 1;
-const STORE_NAME = 'keyStore';
+
+export const SHARDS_STORE_NAME = 'shardsStore';
+export const ENCRYPTION_KEYS_STORE_NAME = 'encryptionKeysStore';
+const ALL_STORES = [SHARDS_STORE_NAME, ENCRYPTION_KEYS_STORE_NAME];
 
 export class IndexedDBAdapter extends CrossmintFrameService {
   name = 'IndexedDB service';
@@ -10,7 +13,12 @@ export class IndexedDBAdapter extends CrossmintFrameService {
   private db: IDBDatabase | null = null;
 
   public async init(): Promise<void> {
-    await this.openDB();
+    const db = await this.openDB();
+    for (const storeName of ALL_STORES) {
+      if (!db.objectStoreNames.contains(storeName)) {
+        db.createObjectStore(storeName);
+      }
+    }
   }
 
   private async openDB(): Promise<IDBDatabase> {
@@ -23,8 +31,8 @@ export class IndexedDBAdapter extends CrossmintFrameService {
 
       request.onupgradeneeded = event => {
         const db = (event.target as IDBOpenDBRequest).result;
-        if (!db.objectStoreNames.contains(STORE_NAME)) {
-          db.createObjectStore(STORE_NAME);
+        for (const storeName of ALL_STORES) {
+          this.createStore(db, storeName);
         }
       };
 
@@ -39,11 +47,17 @@ export class IndexedDBAdapter extends CrossmintFrameService {
     });
   }
 
-  public async getItem<T>(key: IDBValidKey): Promise<T | null> {
+  private createStore(db: IDBDatabase, storeName: string) {
+    if (!db.objectStoreNames.contains(storeName)) {
+      db.createObjectStore(storeName);
+    }
+  }
+
+  public async getItem<T>(storeName: string, key: IDBValidKey): Promise<T | null> {
     const db = await this.openDB();
     return new Promise((resolve, reject) => {
-      const transaction = db.transaction([STORE_NAME], 'readonly');
-      const store = transaction.objectStore(STORE_NAME);
+      const transaction = db.transaction(storeName, 'readonly');
+      const store = transaction.objectStore(storeName);
       const request = store.get(key);
 
       request.onsuccess = () => {
@@ -56,11 +70,11 @@ export class IndexedDBAdapter extends CrossmintFrameService {
     });
   }
 
-  public async setItem<T>(key: IDBValidKey, value: T): Promise<void> {
+  public async setItem<T>(storeName: string, key: IDBValidKey, value: T): Promise<void> {
     const db = await this.openDB();
     return new Promise((resolve, reject) => {
-      const transaction = db.transaction([STORE_NAME], 'readwrite');
-      const store = transaction.objectStore(STORE_NAME);
+      const transaction = db.transaction(storeName, 'readwrite');
+      const store = transaction.objectStore(storeName);
       const request = store.put(value, key);
 
       request.onsuccess = () => {
@@ -73,11 +87,11 @@ export class IndexedDBAdapter extends CrossmintFrameService {
     });
   }
 
-  public async removeItem(key: IDBValidKey): Promise<void> {
+  public async removeItem(storeName: string, key: IDBValidKey): Promise<void> {
     const db = await this.openDB();
     return new Promise((resolve, reject) => {
-      const transaction = db.transaction([STORE_NAME], 'readwrite');
-      const store = transaction.objectStore(STORE_NAME);
+      const transaction = db.transaction(storeName, 'readwrite');
+      const store = transaction.objectStore(storeName);
       const request = store.delete(key);
 
       request.onsuccess = () => {

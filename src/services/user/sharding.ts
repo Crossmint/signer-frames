@@ -4,7 +4,7 @@ import { CrossmintFrameCodedError } from '../api/error';
 import { decodeBytes, encodeBytes } from '../common/utils';
 import type { AuthShareCache } from '../storage';
 import type { DeviceService } from './device';
-import type { IndexedDBAdapter } from '../storage';
+import { SHARDS_STORE_NAME, type IndexedDBAdapter } from '../storage';
 
 const HASH_ALGO = 'SHA-256';
 
@@ -51,7 +51,7 @@ export class ShardingService extends CrossmintFrameService {
    * @param share - Base64-encoded device share data to store
    */
   public async storeDeviceShare(signerId: string, share: string): Promise<void> {
-    await this.indexedDB.setItem(this.deviceShareStorageKey(signerId), share);
+    await this.indexedDB.setItem(SHARDS_STORE_NAME, this.deviceShareStorageKey(signerId), share);
   }
 
   /**
@@ -82,7 +82,10 @@ export class ShardingService extends CrossmintFrameService {
 
     const { authKeyShare, deviceKeyShareHash, signerId } = authShardData;
 
-    const deviceShare = await this.indexedDB.getItem<string>(this.deviceShareStorageKey(signerId));
+    const deviceShare = await this.indexedDB.getItem<string>(
+      SHARDS_STORE_NAME,
+      this.deviceShareStorageKey(signerId)
+    );
     if (deviceShare == null) {
       return null;
     }
@@ -124,7 +127,7 @@ Expected hash from Crossmint: ${expectedHashBase64}`,
   }
 
   private async clear(signerId: string) {
-    await this.indexedDB.removeItem(this.deviceShareStorageKey(signerId));
+    await this.indexedDB.removeItem(SHARDS_STORE_NAME, this.deviceShareStorageKey(signerId));
     this.deviceService.clearId();
     this.authShareCache.clearCache();
   }
