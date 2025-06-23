@@ -71,7 +71,7 @@ export class ShardingService extends CrossmintFrameService {
    * @throws {Error} When cryptographic reconstruction fails
    */
   public async reconstructMasterSecret(authData: { jwt: string; apiKey: string }) {
-    const deviceId = this.deviceService.getId();
+    const deviceId = await this.deviceService.getId();
     const authShardData = await this.authShareCache.get(deviceId, authData);
     if (authShardData == null) {
       return null;
@@ -106,7 +106,7 @@ export class ShardingService extends CrossmintFrameService {
     const reconstructedDeviceHashBase64 = encodeBytes(new Uint8Array(hashBuffer), 'base64');
 
     if (reconstructedDeviceHashBase64 !== expectedHashBase64) {
-      this.clear(signerId);
+      await this.clear(signerId);
       throw new CrossmintFrameCodedError(
         `Key share stored on this device does not match Crossmint held authentication share.
 Actual hash of local device share: ${reconstructedDeviceHashBase64}
@@ -120,9 +120,9 @@ Expected hash from Crossmint: ${expectedHashBase64}`,
     return `device-share-${signerId}`;
   }
 
-  private clear(signerId: string) {
+  private async clear(signerId: string) {
     localStorage.removeItem(this.deviceShareStorageKey(signerId));
-    this.deviceService.clearId();
+    await this.deviceService.clearId();
     this.authShareCache.clearCache();
   }
 }

@@ -39,7 +39,7 @@ export const createCrossmintFrameServices = () => {
   const secp256k1Service = new Secp256k1Service();
   const crossmintApiService = new CrossmintApiService(encryptionService);
   const attestationService = new AttestationService(crossmintApiService, EXPECTED_PHALA_APP_ID);
-  const deviceService = new DeviceService();
+  const deviceService = new DeviceService(encryptionService);
   const shardingService = new ShardingService(
     new AuthShareCache(crossmintApiService),
     deviceService

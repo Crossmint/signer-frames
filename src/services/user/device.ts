@@ -1,29 +1,33 @@
 import { CrossmintFrameService } from '../service';
-
-const DEVICE_ID_KEY = 'device-id';
+import { type EncryptionService } from '../encryption';
+import { encodeBytes } from '../common/utils';
 
 export class DeviceService extends CrossmintFrameService {
   name = 'Device Service';
   log_prefix = '[DeviceService]';
 
-  public getId(): string {
-    this.log('Attempting to get device ID from storage');
+  constructor(private readonly encryptionService: EncryptionService) {
+    super();
+  }
 
-    const existing = localStorage.getItem(DEVICE_ID_KEY);
-    if (existing != null) {
-      this.log(`Found existing device ID: ${existing.substring(0, 8)}...`);
-      return existing;
-    }
+  async init() {
+    // Do nothing
+  }
 
-    this.log('No existing device ID found, generating new one');
-    const deviceId = crypto.randomUUID();
-    localStorage.setItem(DEVICE_ID_KEY, deviceId);
-    this.log(`Successfully stored new device ID: ${deviceId.substring(0, 8)}...`);
+  public async getId(): Promise<string> {
+    this.log('Attempting to get device ID from public key');
+
+    const publicKey = await this.encryptionService.getPublicKey();
+    const publicKeyBuffer = new TextEncoder().encode(publicKey);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', publicKeyBuffer);
+    const deviceId = encodeBytes(new Uint8Array(hashBuffer), 'hex');
+
+    this.log(`Device ID from public key: ${deviceId.substring(0, 8)}...`);
     return deviceId;
   }
 
-  public clearId(): void {
-    this.log('Clearing device ID from storage');
-    localStorage.removeItem(DEVICE_ID_KEY);
+  public async clearId(): Promise<void> {
+    this.log('Clearing device ID by clearing encryption keys');
+    await this.encryptionService.clearKeys();
   }
 }
