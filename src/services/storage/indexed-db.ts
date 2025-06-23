@@ -73,7 +73,7 @@ export class IndexedDBAdapter extends CrossmintFrameService {
     });
   }
 
-  public async deleteItem(key: IDBValidKey): Promise<void> {
+  public async removeItem(key: IDBValidKey): Promise<void> {
     const db = await this.openDB();
     return new Promise((resolve, reject) => {
       const transaction = db.transaction([STORE_NAME], 'readwrite');

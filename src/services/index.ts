@@ -45,7 +45,8 @@ export const createCrossmintFrameServices = () => {
   const deviceService = new DeviceService(encryptionService);
   const shardingService = new ShardingService(
     new AuthShareCache(crossmintApiService),
-    deviceService
+    deviceService,
+    storageService
   );
   const fpeService = new FPEService(encryptionService);
   const cryptoKeyService = new CryptoKeyService(ed25519Service, secp256k1Service);
