@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Ed25519Service } from './ed25519';
 import { Keypair } from '@solana/web3.js';
 import bs58 from 'bs58';
-import * as ed from '../lib/noble-ed25519';
+import * as ed from '../../../lib/noble-ed25519';
 
 describe('Ed25519Service', () => {
   // Test keys and values that will be used throughout tests

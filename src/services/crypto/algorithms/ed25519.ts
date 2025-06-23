@@ -1,8 +1,8 @@
-import * as ed from '../lib/noble-ed25519';
+import * as ed from '../../../lib/noble-ed25519';
 import bs58 from 'bs58';
-import { XMIFService } from './service';
+import { CrossmintFrameService } from '../../service';
 
-export class Ed25519Service extends XMIFService {
+export class Ed25519Service extends CrossmintFrameService {
   name = 'Ed25519 Service';
   log_prefix = '[Ed25519Service]';
   async init() {}

@@ -13,8 +13,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mock } from 'vitest-mock-extended';
 import type { MockProxy } from 'vitest-mock-extended';
 import { ShardingService } from './sharding';
-import type { AuthShareCache } from './auth-share-cache';
-import { XMIFCodedError } from './error';
+import type { AuthShareCache } from '../storage/auth-share-cache';
+import { CrossmintFrameCodedError } from '../api/error';
 
 // Test constants
 const MOCK_MASTER_SECRET = new Uint8Array(32).fill(1);

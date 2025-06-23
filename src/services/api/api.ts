@@ -3,10 +3,10 @@
  */
 
 import { calculateBackoff, defaultRetryConfig, shouldRetry } from './backoff';
-import { XMIFService } from './service';
+import { CrossmintFrameService } from '../service';
 import type { RetryConfig } from './backoff';
 import { z } from 'zod';
-import type { EncryptionService } from './encryption';
+import type { EncryptionService } from '../encryption';
 import { type AuthData, CrossmintRequest } from './request';
 import { type Environment, getEnvironment } from './environment';
 
@@ -53,7 +53,7 @@ export function parseApiKey(apiKey: string): {
   };
 }
 
-export class CrossmintApiService extends XMIFService {
+export class CrossmintApiService extends CrossmintFrameService {
   name = 'Crossmint API Service';
   log_prefix = '[CrossmintApiService]';
   private retryConfig: RetryConfig;

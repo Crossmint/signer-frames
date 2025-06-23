@@ -1,6 +1,6 @@
-import { XMIFService } from './service';
-import type { CrossmintApiService } from './api';
-import { CrossmintHttpError } from './request';
+import { CrossmintFrameService } from '../service';
+import type { CrossmintApiService } from '../api';
+import { CrossmintHttpError } from '../api/request';
 
 interface AuthShardCacheEntry {
   authKeyShare: string;
@@ -37,7 +37,7 @@ interface AuthShardData {
  * Since this cache exists in iframe memory, it provides no persistence across
  * browser sessions and is automatically cleaned up when the iframe context ends.
  */
-export class AuthShareCache extends XMIFService {
+export class AuthShareCache extends CrossmintFrameService {
   name = 'Auth Share Cache';
   log_prefix = '[AuthShareCache]';
 

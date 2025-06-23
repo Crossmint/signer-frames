@@ -1,8 +1,8 @@
 import { combine } from 'shamir-secret-sharing';
-import { XMIFService } from './service';
-import { XMIFCodedError } from './error';
-import { decodeBytes, encodeBytes } from './utils';
-import type { AuthShareCache } from './auth-share-cache';
+import { CrossmintFrameService } from '../service';
+import { CrossmintFrameCodedError } from '../api/error';
+import { decodeBytes, encodeBytes } from '../common/utils';
+import type { AuthShareCache } from '../storage';
 import type { DeviceService } from './device';
 
 const HASH_ALGO = 'SHA-256';
@@ -23,7 +23,7 @@ const HASH_ALGO = 'SHA-256';
  * The service includes integrity validation through cryptographic hashing to detect
  * tampering of device shares and provides secure cleanup on security violations.
  */
-export class ShardingService extends XMIFService {
+export class ShardingService extends CrossmintFrameService {
   name = 'Sharding Service';
   log_prefix = '[ShardingService]';
 
@@ -67,7 +67,7 @@ export class ShardingService extends XMIFService {
    * @param authData.jwt - JSON Web Token for user authentication
    * @param authData.apiKey - API key for application authentication
    * @returns Promise resolving to reconstructed master secret bytes, or null if shares unavailable
-   * @throws {XMIFCodedError} When device share tampering is detected
+   * @throws {CrossmintFrameCodedError} When device share tampering is detected
    * @throws {Error} When cryptographic reconstruction fails
    */
   public async reconstructMasterSecret(authData: { jwt: string; apiKey: string }) {
@@ -107,7 +107,7 @@ export class ShardingService extends XMIFService {
 
     if (reconstructedDeviceHashBase64 !== expectedHashBase64) {
       this.clear(signerId);
-      throw new XMIFCodedError(
+      throw new CrossmintFrameCodedError(
         `Key share stored on this device does not match Crossmint held authentication share.
 Actual hash of local device share: ${reconstructedDeviceHashBase64}
 Expected hash from Crossmint: ${expectedHashBase64}`,

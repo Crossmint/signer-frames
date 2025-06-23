@@ -13,7 +13,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mock, type MockProxy } from 'vitest-mock-extended';
 import { AttestationService } from './attestation';
-import type { CrossmintApiService } from './api';
+import type { CrossmintApiService } from '../api';
 
 // Mock WASM functions - minimal mocking just for imports
 vi.mock('@phala/dcap-qvl-web', () => ({

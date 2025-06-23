@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { CrossmintApiService, parseApiKey } from './api';
 import { CrossmintHttpError, CrossmintRequest } from './request';
 import { mock } from 'vitest-mock-extended';
-import type { EncryptionService } from './encryption';
+import type { EncryptionService } from '../encryption';
 import { z } from 'zod';
 
 const executeSpy = vi.fn().mockResolvedValue({ success: true });

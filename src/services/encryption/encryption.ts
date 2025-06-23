@@ -1,4 +1,4 @@
-import { XMIFService } from './service';
+import { CrossmintFrameService } from '../service';
 import {
   CipherSuite,
   Aes256Gcm,
@@ -7,7 +7,7 @@ import {
   type SenderContext,
 } from '@hpke/core';
 
-import type { AttestationService } from './attestation';
+import type { AttestationService } from '../tee/attestation';
 import {
   AES256_KEY_SPEC,
   ECDH_KEY_SPEC,
@@ -16,9 +16,9 @@ import {
   type EncryptionResult,
 } from './encryption-consts';
 
-import { encodeBytes, decodeBytes } from './utils';
+import { encodeBytes, decodeBytes } from '../common/utils';
 
-export class EncryptionService extends XMIFService {
+export class EncryptionService extends CrossmintFrameService {
   name = 'Encryption service';
   log_prefix = '[EncryptionService]';
   private attestationService: AttestationService | null = null;

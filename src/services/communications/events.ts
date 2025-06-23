@@ -5,9 +5,9 @@ import {
 } from '@crossmint/client-sdk-window';
 import { RNWebViewChild } from '@crossmint/client-sdk-rn-window';
 import { signerInboundEvents, signerOutboundEvents } from '@crossmint/client-signers';
-import { XMIFService } from './service';
+import { CrossmintFrameService } from '../service';
 
-export class EventsService extends XMIFService {
+export class EventsService extends CrossmintFrameService {
   name = 'Events Service';
   log_prefix = '[EventsService]';
   private static messenger: HandshakeChild<
