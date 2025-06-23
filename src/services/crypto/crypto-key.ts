@@ -1,6 +1,6 @@
 import { CrossmintFrameService } from '../service';
-import type { KeyType } from '@crossmint/client-signers';
-import type { CryptoStrategy } from './crypto-key-strategy';
+import type { Encoding, KeyType } from '@crossmint/client-signers';
+import type { CryptoStrategy, PublicKey, Signature } from './crypto-key-strategy';
 
 // Import the concrete strategy classes and the base services they depend on
 import { Ed25519Service } from './algorithms/ed25519';
@@ -12,7 +12,7 @@ export class CryptoKeyService extends CrossmintFrameService {
   name = 'Crypto Key Service';
   log_prefix = '[CryptoKeyService]';
 
-  private strategies: Map<KeyType, CryptoStrategy>;
+  private strategies: Map<KeyType, CryptoStrategy<KeyType>>;
 
   constructor(ed25519Service: Ed25519Service, secp256k1Service: Secp256k1Service) {
     super();
@@ -22,24 +22,30 @@ export class CryptoKeyService extends CrossmintFrameService {
     this.registerStrategy(new Secp256k1Strategy(secp256k1Service));
   }
 
-  private registerStrategy(strategy: CryptoStrategy): void {
+  private registerStrategy<K extends KeyType>(strategy: CryptoStrategy<K>): void {
     this.strategies.set(strategy.keyType, strategy);
   }
 
-  private getStrategy(keyType: KeyType): CryptoStrategy {
+  private getStrategy<K extends KeyType>(keyType: K): CryptoStrategy<K> {
     const strategy = this.strategies.get(keyType);
     if (!strategy) {
       throw new Error(`Unsupported key type: ${keyType}`);
     }
-    return strategy;
+    return strategy as CryptoStrategy<K>;
   }
 
-  async getPrivateKeyFromSeed(keyType: KeyType, seed: Uint8Array): Promise<Uint8Array> {
+  async getPrivateKeyFromSeed<K extends KeyType>(
+    keyType: K,
+    seed: Uint8Array
+  ): Promise<Uint8Array> {
     const strategy = this.getStrategy(keyType);
     return strategy.getPrivateKeyFromSeed(seed);
   }
 
-  async getPublicKeyFromSeed(keyType: KeyType, seed: Uint8Array) {
+  async getPublicKeyFromSeed<K extends KeyType>(
+    keyType: K,
+    seed: Uint8Array
+  ): Promise<PublicKey<K>> {
     const strategy = this.getStrategy(keyType);
     const privateKey = await strategy.getPrivateKeyFromSeed(seed);
     const publicKey = await strategy.getPublicKey(privateKey);
@@ -49,15 +55,19 @@ export class CryptoKeyService extends CrossmintFrameService {
     };
   }
 
-  async getAllPublicKeysFromSeed(seed: Uint8Array) {
-    const publicKeys: any = {};
+  async getAllPublicKeysFromSeed(seed: Uint8Array): Promise<Record<KeyType, PublicKey<KeyType>>> {
+    const publicKeys: Partial<Record<KeyType, PublicKey<KeyType>>> = {};
     for (const keyType of this.strategies.keys()) {
       publicKeys[keyType] = await this.getPublicKeyFromSeed(keyType, seed);
     }
-    return publicKeys;
+    return publicKeys as Record<KeyType, PublicKey<KeyType>>;
   }
 
-  async sign(keyType: KeyType, privateKey: Uint8Array, message: Uint8Array) {
+  async sign<K extends KeyType>(
+    keyType: K,
+    privateKey: Uint8Array,
+    message: Uint8Array
+  ): Promise<{ signature: Signature<K>; publicKey: PublicKey<K> }> {
     const strategy = this.getStrategy(keyType);
     const signature = await strategy.sign(privateKey, message);
     const publicKey = await strategy.getPublicKey(privateKey);

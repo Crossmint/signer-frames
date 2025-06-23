@@ -1,9 +1,8 @@
-import type { CryptoStrategy } from '../crypto-key-strategy';
+import type { CryptoStrategy, PublicKey, Signature } from '../crypto-key-strategy';
 import type { Ed25519Service } from '../algorithms/ed25519';
 import bs58 from 'bs58';
-import type { Encoding } from '@crossmint/client-signers';
 
-export class Ed25519Strategy implements CryptoStrategy {
+export class Ed25519Strategy implements CryptoStrategy<'ed25519'> {
   readonly keyType = 'ed25519' as const;
 
   constructor(private readonly ed25519Service: Ed25519Service) {}
@@ -22,11 +21,11 @@ export class Ed25519Strategy implements CryptoStrategy {
     return this.ed25519Service.sign(message, privateKey);
   }
 
-  formatPublicKey(publicKey: Uint8Array): { bytes: string; encoding: Encoding } {
-    return { bytes: bs58.encode(publicKey), encoding: 'base58' };
+  formatPublicKey(publicKey: Uint8Array): PublicKey<'ed25519'> {
+    return { bytes: bs58.encode(publicKey), encoding: 'base58', keyType: 'ed25519' };
   }
 
-  formatSignature(signature: Uint8Array): { bytes: string; encoding: Encoding } {
-    return { bytes: bs58.encode(signature), encoding: 'base58' };
+  formatSignature(signature: Uint8Array): Signature<'ed25519'> {
+    return { bytes: bs58.encode(signature), encoding: 'base58', keyType: 'ed25519' };
   }
 }

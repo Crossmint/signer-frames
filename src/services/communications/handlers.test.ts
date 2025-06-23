@@ -82,10 +82,12 @@ describe('EventHandlers', () => {
         ed25519: {
           bytes: TEST_FIXTURES.publicKey,
           encoding: 'base58',
+          keyType: 'ed25519',
         },
         secp256k1: {
           bytes: 'test-secp256k1-public-key',
           encoding: 'hex',
+          keyType: 'secp256k1',
         },
       });
 

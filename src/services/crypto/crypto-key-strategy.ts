@@ -1,13 +1,25 @@
 import type { Encoding, KeyType } from '@crossmint/client-signers';
 
+export type Signature<T extends KeyType> = {
+  bytes: string;
+  encoding: Encoding;
+  keyType: T;
+};
+
+export type PublicKey<T extends KeyType> = {
+  bytes: string;
+  encoding: Encoding;
+  keyType: T;
+};
+
 /**
  * Defines the contract for a cryptographic strategy.
  * Each strategy corresponds to a specific key type (e.g., ed25519, secp256k1)
  * and encapsulates the algorithm-specific logic for key derivation,
  * public key extraction, and signing.
  */
-export interface CryptoStrategy {
-  readonly keyType: KeyType;
+export interface CryptoStrategy<T extends KeyType> {
+  readonly keyType: T;
 
   /**
    * Derives a private key from a given seed.
@@ -49,5 +61,5 @@ export interface CryptoStrategy {
    * @param signature The signature to format.
    * @returns An object containing the encoded string and the encoding type.
    */
-  formatSignature(signature: Uint8Array): { bytes: string; encoding: Encoding };
+  formatSignature(signature: Uint8Array): Signature<T>;
 }
