@@ -50,15 +50,15 @@
                 }
             });
 
-            // Initialize XMIF
-            if (window.XMIF) {
-                window.XMIF.init()
+            // Initialize Crossmint Signers Frame
+            if (window.CrossmintFrame) {
+                window.CrossmintFrame.init()
                     .then(() => {
-                        console.log('XMIF framework initialized');
+                        console.log('Crossmint Signers Frame framework initialized');
                         document.getElementById('status').textContent = 'Ready';
                     })
                     .catch(err => {
-                        console.error('Failed to initialize XMIF:', err);
+                        console.error('Failed to initialize Crossmint Signers Frame:', err);
                         document.getElementById('status').textContent = `Error: ${typeof err === 'string' ? err : err.message}`;
                     });
             } else {

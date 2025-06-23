@@ -1,21 +1,21 @@
 import { vi } from 'vitest';
 import { mock } from 'vitest-mock-extended';
 import type { MockProxy } from 'vitest-mock-extended';
-import type { XMIFServices } from '../services';
+import type { CrossmintFrameServices } from '../services';
 import type { CrossmintApiService } from '../services/api';
-import type { ShardingService } from '../services/sharding';
-import type { AttestationService } from '../services/attestation';
-import type { Ed25519Service } from '../services/ed25519';
-import type { EventsService } from '../services/events';
+import type { ShardingService } from '../services/user/sharding';
+import type { AttestationService } from '../services/tee/attestation';
+import type { Ed25519Service } from '../services/crypto/algorithms/ed25519';
+import type { EventsService } from '../services/communications/events';
 import type { EncryptionService } from '../services/encryption';
-import type { FPEService } from '../services/fpe';
-import type { Secp256k1Service } from '../services/secp256k1';
-import type { CryptoKeyService } from '../services/crypto-key';
-import type { DeviceService } from '../services/device';
+import type { FPEService } from '../services/encryption/fpe';
+import type { Secp256k1Service } from '../services/crypto/algorithms/secp256k1';
+import type { CryptoKeyService } from '../services/crypto/crypto-key';
+import type { DeviceService } from '../services/user/device';
 /**
  * Creates mock services for testing with proper typing
  */
-export function createMockServices(): MockProxy<XMIFServices> & {
+export function createMockServices(): MockProxy<CrossmintFrameServices> & {
   api: MockProxy<CrossmintApiService>;
   sharding: MockProxy<ShardingService>;
   attestation: MockProxy<AttestationService>;

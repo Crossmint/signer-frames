@@ -12,8 +12,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockServices } from '../tests/test-utils';
-import { CrossmintHttpError } from './request';
+import { createMockServices } from '../../tests/test-utils';
+import { CrossmintHttpError } from '../api/request';
 import { AuthShareCache } from './auth-share-cache';
 
 // Test constants

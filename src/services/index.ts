@@ -1,23 +1,23 @@
 import { CrossmintApiService } from './api';
-import { EventsService } from './events';
-import { AttestationService } from './attestation';
+import { EventsService } from './communications/events';
+import { AttestationService } from './tee/attestation';
 import { EncryptionService } from './encryption';
-import { Ed25519Service } from './ed25519';
-import { ShardingService } from './sharding';
-import type { XMIFService } from './service';
-import { FPEService } from './fpe';
-import { Secp256k1Service } from './secp256k1';
-import { CryptoKeyService } from './crypto-key';
-import { AuthShareCache } from './auth-share-cache';
-import { DeviceService } from './device';
+import { Ed25519Service } from './crypto/algorithms/ed25519';
+import { ShardingService } from './user/sharding';
+import type { CrossmintFrameService } from './service';
+import { FPEService } from './encryption/fpe';
+import { Secp256k1Service } from './crypto/algorithms/secp256k1';
+import { CryptoKeyService } from './crypto/crypto-key';
+import { AuthShareCache } from './storage/auth-share-cache';
+import { DeviceService } from './user/device';
 
 /**
  * Services index - Export all services
  */
-export { initializeHandlers } from './handlers';
-export { XMIFService } from './service';
+export { initializeHandlers } from './communications/handlers';
+export { CrossmintFrameService } from './service';
 
-export type XMIFServices = {
+export type CrossmintFrameServices = {
   events: EventsService;
   api: CrossmintApiService;
   sharding: ShardingService;
@@ -32,7 +32,7 @@ export type XMIFServices = {
 
 const EXPECTED_PHALA_APP_ID = 'df4f0ec61f92a8eec754593da9ea9cd939985e9c';
 
-export const createXMIFServices = () => {
+export const createCrossmintFrameServices = () => {
   const eventsService = new EventsService();
   const ed25519Service = new Ed25519Service();
   const encryptionService = new EncryptionService();
@@ -60,6 +60,6 @@ export const createXMIFServices = () => {
     fpe: fpeService,
     cryptoKey: cryptoKeyService,
     device: deviceService,
-  } satisfies Record<string, XMIFService>;
+  } satisfies Record<string, CrossmintFrameService>;
   return services;
 };

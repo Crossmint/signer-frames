@@ -1,10 +1,10 @@
-import type { CrossmintApiService } from './api';
-import { XMIFService } from './service';
+import type { CrossmintApiService } from '../api';
+import { CrossmintFrameService } from '../service';
 import init, { js_get_collateral, js_verify } from '@phala/dcap-qvl-web';
 import wasm from '@phala/dcap-qvl-web/dcap-qvl-web_bg.wasm';
-import { decodeBytes, encodeBytes } from './utils';
+import { decodeBytes, encodeBytes } from '../common/utils';
 import { z } from 'zod';
-import { isDevelopment } from './environment';
+import { isDevelopment } from '../api';
 
 // TEE Quote Verification using Phala's DCAP QVL library
 const PCCS_URL = 'https://pccs.phala.network/tdx/certification/v4';
@@ -72,7 +72,7 @@ const HashEventSchema = z.object({
 
 type HashEvent = z.infer<typeof HashEventSchema>;
 
-export class AttestationService extends XMIFService {
+export class AttestationService extends CrossmintFrameService {
   name = 'Attestation Service';
   log_prefix = '[AttestationService]';
 

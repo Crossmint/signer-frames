@@ -1,4 +1,4 @@
-export abstract class XMIFService {
+export abstract class CrossmintFrameService {
   abstract name: string;
   abstract log_prefix: string;
   log = (...args: unknown[]) => console.log(`${this.log_prefix}`, ...args);

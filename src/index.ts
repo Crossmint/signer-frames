@@ -1,56 +1,56 @@
 /**
- * XMIF - Main Framework Entry Point
+ * Crossmint Signers Frame - Main Framework Entry Point
  */
 
-import { initializeHandlers, createXMIFServices } from './services';
-import type { EventHandler } from './services/handlers';
-import { measureFunctionTime } from './services/utils';
+import { initializeHandlers, createCrossmintFrameServices } from './services';
+import type { EventHandler } from './services/communications/handlers';
+import { measureFunctionTime } from './services/common/utils';
 
 // Define window augmentation
 declare global {
   interface Window {
-    XMIF: XMIF;
+    CrossmintFrame: CrossmintFrame;
     crossmintAppId?: string;
   }
 }
 
 /**
- * Main XMIF class
+ * Main Crossmint Signers Frame class
  */
-class XMIF {
-  private static instance: XMIF | null = null;
-  private static initializationPromise: Promise<XMIF> | null = null;
+class CrossmintFrame {
+  private static instance: CrossmintFrame | null = null;
+  private static initializationPromise: Promise<CrossmintFrame> | null = null;
   private constructor(
-    private readonly services = createXMIFServices(),
+    private readonly services = createCrossmintFrameServices(),
     private readonly handlers = initializeHandlers(services) as EventHandler[]
   ) {}
 
   /**
-   * Get the singleton instance of XMIF
-   * @returns {Promise<XMIF>} The singleton instance
+   * Get the singleton instance of Crossmint Signers Frame
+   * @returns {Promise<CrossmintFrame>} The singleton instance
    */
-  static async getInstance(): Promise<XMIF> {
-    if (XMIF.instance) {
-      return XMIF.instance;
+  static async getInstance(): Promise<CrossmintFrame> {
+    if (CrossmintFrame.instance) {
+      return CrossmintFrame.instance;
     }
 
-    if (!XMIF.initializationPromise) {
-      XMIF.initializationPromise = (async () => {
-        const instance = new XMIF();
-        XMIF.instance = instance;
+    if (!CrossmintFrame.initializationPromise) {
+      CrossmintFrame.initializationPromise = (async () => {
+        const instance = new CrossmintFrame();
+        CrossmintFrame.instance = instance;
         return instance;
       })();
     }
 
-    return XMIF.initializationPromise;
+    return CrossmintFrame.initializationPromise;
   }
 
   /**
-   * Initialize the XMIF framework
-   * @returns {Promise<XMIF>} This instance for chaining
+   * Initialize the Crossmint Signers Frame framework
+   * @returns {Promise<CrossmintFrame>} This instance for chaining
    */
   async init(): Promise<void> {
-    console.log('Initializing XMIF framework...');
+    console.log('Initializing Crossmint Signers Frame framework...');
 
     for (const service of Object.values(this.services)) {
       const serviceName = service.name;
@@ -79,10 +79,10 @@ class XMIF {
 
 // Initialize when loaded as IIFE
 if (typeof window !== 'undefined') {
-  XMIF.getInstance().then(xmifInstance => {
-    window.XMIF = xmifInstance;
+  CrossmintFrame.getInstance().then(crossmintFrameInstance => {
+    window.CrossmintFrame = crossmintFrameInstance;
   });
 }
 
-// Export the XMIF class for direct usage
-export default XMIF;
+// Export the CrossmintFrame class for direct usage
+export default CrossmintFrame;

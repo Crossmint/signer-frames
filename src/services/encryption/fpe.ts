@@ -1,4 +1,4 @@
-import { XMIFService } from './service';
+import { CrossmintFrameService } from '../service';
 import { FF1 } from '@noble/ciphers/ff1';
 import type { EncryptionService } from './encryption';
 type FPEEncryptionOptions = {
@@ -6,7 +6,7 @@ type FPEEncryptionOptions = {
   tweak?: Uint8Array;
 };
 
-export class FPEService extends XMIFService {
+export class FPEService extends CrossmintFrameService {
   name = 'Format Preserving Encryption Service';
   log_prefix = '[FPEService]';
   private encryptionKey: Uint8Array | null = null;

@@ -3,9 +3,9 @@ import type {
   SignerInputEvent,
   SignerOutputEvent,
 } from '@crossmint/client-signers';
-import type { XMIFServices } from '.';
-import { decodeBytes, measureFunctionTime } from './utils';
-import { XMIFCodedError } from './error';
+import type { CrossmintFrameServices } from '..';
+import { decodeBytes, measureFunctionTime } from '../common/utils';
+import { CrossmintFrameCodedError } from '../api/error';
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 type SuccessfulOutputEvent<EventName extends SignerIFrameEventName> = Extract<
@@ -21,7 +21,7 @@ export abstract class EventHandler<
 
   abstract handler(payload: SignerInputEvent<EventName>): Promise<SuccessfulOutputEvent<EventName>>;
 
-  constructor(protected readonly services: XMIFServices) {}
+  constructor(protected readonly services: CrossmintFrameServices) {}
 
   async callback(payload: SignerInputEvent<EventName>): Promise<SignerOutputEvent<EventName>> {
     try {
@@ -33,7 +33,7 @@ export abstract class EventHandler<
       const errorResponse = {
         status: 'error' as const,
         error: error instanceof Error ? error.message : 'Unknown error',
-        ...(error instanceof XMIFCodedError && { code: error.code }),
+        ...(error instanceof CrossmintFrameCodedError && { code: error.code }),
       };
 
       console.error(`[${this.event} handler] Error: ${error}`);
@@ -161,15 +161,20 @@ export class SignEventHandler extends EventHandler<'sign'> {
     const privateKey = await this.services.cryptoKey.getPrivateKeyFromSeed(keyType, masterSecret);
     const message = decodeBytes(bytes, encoding);
 
+    const { signature, publicKey } = await this.services.cryptoKey.sign(
+      keyType,
+      privateKey,
+      message
+    );
     return {
       status: 'success',
-      signature: await this.services.cryptoKey.sign(keyType, privateKey, message),
-      publicKey: await this.services.cryptoKey.getPublicKeyFromSeed(keyType, masterSecret),
+      signature,
+      publicKey,
     };
   }
 }
 
-export const initializeHandlers = (services: XMIFServices) => [
+export const initializeHandlers = (services: CrossmintFrameServices) => [
   new CompleteOnboardingEventHandler(services),
   new StartOnboardingEventHandler(services),
   new SignEventHandler(services),

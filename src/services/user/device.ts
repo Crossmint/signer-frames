@@ -1,8 +1,8 @@
-import { XMIFService } from './service';
+import { CrossmintFrameService } from '../service';
 
 const DEVICE_ID_KEY = 'device-id';
 
-export class DeviceService extends XMIFService {
+export class DeviceService extends CrossmintFrameService {
   name = 'Device Service';
   log_prefix = '[DeviceService]';
 

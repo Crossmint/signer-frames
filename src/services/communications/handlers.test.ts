@@ -4,10 +4,10 @@ import {
   CompleteOnboardingEventHandler,
   SignEventHandler,
 } from './handlers';
-import { createMockServices } from '../tests/test-utils';
+import { createMockServices } from '../../tests/test-utils';
 import type { SignerInputEvent } from '@crossmint/client-signers';
 import bs58 from 'bs58';
-import { XMIFCodedError } from './error';
+import { CrossmintFrameCodedError } from '../api/error';
 
 const TEST_FIXTURES = {
   deviceId: 'test-device-id',
@@ -125,7 +125,7 @@ describe('EventHandlers', () => {
       };
 
       // Mock the error that would be thrown when device share hash doesn't match
-      const mockError = new XMIFCodedError(
+      const mockError = new CrossmintFrameCodedError(
         'Key share stored on this device does not match Crossmint held authentication share.',
         'invalid-device-share'
       );
