@@ -116,6 +116,19 @@ export class EncryptionService extends CrossmintFrameService {
     }
   }
 
+  async clearKeys(): Promise<void> {
+    try {
+      await this.indexedDB.removeItem(ENCRYPTION_KEYS_STORE_NAME, IDENTITY_STORAGE_KEY);
+      this.ephemeralKeyPair = null;
+      this.senderContext = null;
+      this.aes256EncryptionKey = null;
+      this.log('Cleared encryption keys from IndexedDB and service state.');
+    } catch (error) {
+      this.logError(`Failed to clear keys from IndexedDB: ${error}`);
+      throw new Error('Failed to clear encryption keys');
+    }
+  }
+
   async getPublicKey(): Promise<string> {
     this.assertInitialized();
     const ephemeralKeyPair = this.ephemeralKeyPair as NonNullable<typeof this.ephemeralKeyPair>;

@@ -74,7 +74,7 @@ export class ShardingService extends CrossmintFrameService {
    * @throws {Error} When cryptographic reconstruction fails
    */
   public async reconstructMasterSecret(authData: { jwt: string; apiKey: string }) {
-    const deviceId = this.deviceService.getId();
+    const deviceId = await this.deviceService.getId();
     const authShardData = await this.authShareCache.get(deviceId, authData);
     if (authShardData == null) {
       return null;

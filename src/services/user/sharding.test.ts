@@ -68,7 +68,7 @@ describe('ShardingService - Security Critical Tests', () => {
     mockAuthShareCache = mock<AuthShareCache>();
     mockDeviceService = mock<DeviceService>();
     mockIndexedDB = mock<IndexedDBAdapter>();
-    mockDeviceService.getId.mockReturnValue(TEST_DEVICE_ID);
+    mockDeviceService.getId.mockResolvedValue(TEST_DEVICE_ID);
 
     service = new ShardingService(mockAuthShareCache, mockDeviceService, mockIndexedDB);
 
