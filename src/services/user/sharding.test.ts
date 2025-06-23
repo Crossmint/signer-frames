@@ -15,6 +15,7 @@ import type { MockProxy } from 'vitest-mock-extended';
 import { ShardingService } from './sharding';
 import type { AuthShareCache } from '../storage/auth-share-cache';
 import { CrossmintFrameCodedError } from '../api/error';
+import { SHARDS_STORE_NAME } from '../storage/indexed-db';
 
 // Test constants
 const MOCK_MASTER_SECRET = new Uint8Array(32).fill(1);
@@ -79,8 +80,9 @@ describe('ShardingService - Security Critical Tests', () => {
   describe('Master Secret Reconstruction - Core Security Function', () => {
     beforeEach(() => {
       // Default setup: valid device share exists
-      mockIndexedDB.getItem.mockImplementation(async key => {
-        if (key === `${DEVICE_SHARE_KEY}-${TEST_SIGNER_ID}`) return TEST_DEVICE_SHARE;
+      mockIndexedDB.getItem.mockImplementation(async (storeName, key) => {
+        if (storeName === SHARDS_STORE_NAME && key === `${DEVICE_SHARE_KEY}-${TEST_SIGNER_ID}`)
+          return TEST_DEVICE_SHARE;
         return null;
       });
     });
@@ -166,7 +168,8 @@ describe('ShardingService - Security Critical Tests', () => {
 
     beforeEach(() => {
       // Setup isolated storage for each signer
-      mockIndexedDB.getItem.mockImplementation(async key => {
+      mockIndexedDB.getItem.mockImplementation(async (storeName, key) => {
+        if (storeName !== SHARDS_STORE_NAME) return null;
         if (key === `${DEVICE_SHARE_KEY}-${SIGNER_SCENARIOS.signer1.signerId}`)
           return SIGNER_SCENARIOS.signer1.deviceShare;
         if (key === `${DEVICE_SHARE_KEY}-${SIGNER_SCENARIOS.signer2.signerId}`)
@@ -205,6 +208,7 @@ describe('ShardingService - Security Critical Tests', () => {
       // Verify only signer 1's device share was accessed
       expect(mockIndexedDB.getItem).toHaveBeenCalledTimes(1);
       expect(mockIndexedDB.getItem).toHaveBeenCalledWith(
+        SHARDS_STORE_NAME,
         `${DEVICE_SHARE_KEY}-${SIGNER_SCENARIOS.signer1.signerId}`
       );
 
@@ -225,6 +229,7 @@ describe('ShardingService - Security Critical Tests', () => {
       // Verify only signer 2's device share was accessed
       expect(mockIndexedDB.getItem).toHaveBeenCalledTimes(1);
       expect(mockIndexedDB.getItem).toHaveBeenCalledWith(
+        SHARDS_STORE_NAME,
         `${DEVICE_SHARE_KEY}-${SIGNER_SCENARIOS.signer2.signerId}`
       );
 
@@ -245,6 +250,7 @@ describe('ShardingService - Security Critical Tests', () => {
       // Verify only signer 3's device share was accessed
       expect(mockIndexedDB.getItem).toHaveBeenCalledTimes(1);
       expect(mockIndexedDB.getItem).toHaveBeenCalledWith(
+        SHARDS_STORE_NAME,
         `${DEVICE_SHARE_KEY}-${SIGNER_SCENARIOS.signer3.signerId}`
       );
 
@@ -298,12 +304,14 @@ describe('ShardingService - Security Critical Tests', () => {
 
       expect(mockIndexedDB.getItem).toHaveBeenCalledTimes(1);
       expect(mockIndexedDB.getItem).toHaveBeenCalledWith(
+        SHARDS_STORE_NAME,
         `${DEVICE_SHARE_KEY}-${SIGNER_SCENARIOS.signer1.signerId}`
       );
 
       // Verify complete security cleanup occurred
       expect(mockIndexedDB.removeItem).toHaveBeenCalledTimes(1);
       expect(mockIndexedDB.removeItem).toHaveBeenCalledWith(
+        SHARDS_STORE_NAME,
         `${DEVICE_SHARE_KEY}-${SIGNER_SCENARIOS.signer1.signerId}`
       );
       expect(mockDeviceService.clearId).toHaveBeenCalledTimes(1);
@@ -313,8 +321,11 @@ describe('ShardingService - Security Critical Tests', () => {
       vi.clearAllMocks();
 
       // Setup clean environment for signer 2 after device ID regeneration
-      mockIndexedDB.getItem.mockImplementation(async key => {
-        if (key === `${DEVICE_SHARE_KEY}-${SIGNER_SCENARIOS.signer2.signerId}`)
+      mockIndexedDB.getItem.mockImplementation(async (storeName, key) => {
+        if (
+          storeName === SHARDS_STORE_NAME &&
+          key === `${DEVICE_SHARE_KEY}-${SIGNER_SCENARIOS.signer2.signerId}`
+        )
           return SIGNER_SCENARIOS.signer2.deviceShare;
         return null;
       });
@@ -332,6 +343,7 @@ describe('ShardingService - Security Critical Tests', () => {
 
       expect(mockIndexedDB.getItem).toHaveBeenCalledTimes(1);
       expect(mockIndexedDB.getItem).toHaveBeenCalledWith(
+        SHARDS_STORE_NAME,
         `${DEVICE_SHARE_KEY}-${SIGNER_SCENARIOS.signer2.signerId}`
       );
 
@@ -349,8 +361,9 @@ describe('ShardingService - Security Critical Tests', () => {
         deviceKeyShareHash: 'different-hash', // This hash does NOT match
         signerId: TEST_SIGNER_ID,
       });
-      mockIndexedDB.getItem.mockImplementation(async key => {
-        if (key === `${DEVICE_SHARE_KEY}-${TEST_SIGNER_ID}`) return TEST_DEVICE_SHARE;
+      mockIndexedDB.getItem.mockImplementation(async (storeName, key) => {
+        if (storeName === SHARDS_STORE_NAME && key === `${DEVICE_SHARE_KEY}-${TEST_SIGNER_ID}`)
+          return TEST_DEVICE_SHARE;
         return null;
       });
 
@@ -360,6 +373,7 @@ describe('ShardingService - Security Critical Tests', () => {
 
       // Verify that cleanup functions were called
       expect(mockIndexedDB.removeItem).toHaveBeenCalledWith(
+        SHARDS_STORE_NAME,
         `${DEVICE_SHARE_KEY}-${TEST_SIGNER_ID}`
       );
       expect(mockDeviceService.clearId).toHaveBeenCalled();
@@ -373,6 +387,7 @@ describe('ShardingService - Security Critical Tests', () => {
 
       expect(mockIndexedDB.setItem).toHaveBeenCalledTimes(1);
       expect(mockIndexedDB.setItem).toHaveBeenCalledWith(
+        SHARDS_STORE_NAME,
         `${DEVICE_SHARE_KEY}-${TEST_SIGNER_ID}`,
         TEST_DEVICE_SHARE
       );
