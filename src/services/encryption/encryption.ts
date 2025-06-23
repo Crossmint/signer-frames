@@ -118,7 +118,7 @@ export class EncryptionService extends CrossmintFrameService {
 
   async clearKeys(): Promise<void> {
     try {
-      await this.indexedDB.removeItem(IDENTITY_STORAGE_KEY);
+      await this.indexedDB.removeItem(ENCRYPTION_KEYS_STORE_NAME, IDENTITY_STORAGE_KEY);
       this.ephemeralKeyPair = null;
       this.senderContext = null;
       this.aes256EncryptionKey = null;
