@@ -17,7 +17,7 @@ import {
 } from './encryption-consts';
 
 import { encodeBytes, decodeBytes } from '../common/utils';
-import { indexedDBAdapter } from '../storage';
+import type { IndexedDBAdapter } from '../storage';
 
 export class EncryptionService extends CrossmintFrameService {
   name = 'Encryption service';
@@ -25,6 +25,7 @@ export class EncryptionService extends CrossmintFrameService {
   private attestationService: AttestationService | null = null;
 
   constructor(
+    private readonly indexedDB: IndexedDBAdapter,
     attestationService?: AttestationService,
     private readonly suite = new CipherSuite({
       kem: new DhkemP256HkdfSha256(),
@@ -81,7 +82,7 @@ export class EncryptionService extends CrossmintFrameService {
 
   private async initFromIndexedDB(): Promise<CryptoKeyPair | null> {
     try {
-      return await indexedDBAdapter.getItem<CryptoKeyPair>(IDENTITY_STORAGE_KEY);
+      return await this.indexedDB.getItem<CryptoKeyPair>(IDENTITY_STORAGE_KEY);
     } catch (error: unknown) {
       this.logError(`Error initializing from IndexedDB: ${error}`);
       return null;
@@ -101,7 +102,7 @@ export class EncryptionService extends CrossmintFrameService {
     }
 
     try {
-      await indexedDBAdapter.setItem(IDENTITY_STORAGE_KEY, this.ephemeralKeyPair);
+      await this.indexedDB.setItem(IDENTITY_STORAGE_KEY, this.ephemeralKeyPair);
     } catch (error) {
       this.logError(`Failed to save key pair to IndexedDB: ${error}`);
       throw new Error('Failed to persist encryption keys');
