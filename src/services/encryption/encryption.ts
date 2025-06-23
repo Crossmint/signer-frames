@@ -17,6 +17,7 @@ import {
 } from './encryption-consts';
 
 import { encodeBytes, decodeBytes } from '../common/utils';
+import { ENCRYPTION_KEYS_STORE_NAME, type IndexedDBAdapter } from '../storage';
 
 export class EncryptionService extends CrossmintFrameService {
   name = 'Encryption service';
@@ -24,6 +25,7 @@ export class EncryptionService extends CrossmintFrameService {
   private attestationService: AttestationService | null = null;
 
   constructor(
+    private readonly indexedDB: IndexedDBAdapter,
     attestationService?: AttestationService,
     private readonly suite = new CipherSuite({
       kem: new DhkemP256HkdfSha256(),
@@ -69,24 +71,23 @@ export class EncryptionService extends CrossmintFrameService {
   }
 
   async initEphemeralKeyPair(): Promise<void> {
-    const existingKeyPair = await this.initFromLocalStorage();
+    const existingKeyPair = await this.initFromIndexedDB();
     if (existingKeyPair) {
       this.ephemeralKeyPair = existingKeyPair;
     } else {
       this.ephemeralKeyPair = await this.generateKeyPair();
-      await this.saveKeyPairToLocalStorage();
+      await this.saveKeyPairToIndexedDB();
     }
   }
 
-  private async initFromLocalStorage(): Promise<CryptoKeyPair | null> {
+  private async initFromIndexedDB(): Promise<CryptoKeyPair | null> {
     try {
-      const existingKeyPair = localStorage.getItem(IDENTITY_STORAGE_KEY);
-      if (!existingKeyPair) {
-        return null;
-      }
-      return await this.deserializeKeyPair(existingKeyPair);
+      return await this.indexedDB.getItem<CryptoKeyPair>(
+        ENCRYPTION_KEYS_STORE_NAME,
+        IDENTITY_STORAGE_KEY
+      );
     } catch (error: unknown) {
-      this.logError(`Error initializing from localStorage: ${error}`);
+      this.logError(`Error initializing from IndexedDB: ${error}`);
       return null;
     }
   }
@@ -98,16 +99,19 @@ export class EncryptionService extends CrossmintFrameService {
     });
   }
 
-  private async saveKeyPairToLocalStorage(): Promise<void> {
+  private async saveKeyPairToIndexedDB(): Promise<void> {
     if (!this.ephemeralKeyPair) {
       throw new Error('Encryption key pair not initialized');
     }
 
     try {
-      const serializedKeyPair = await this.serializeKeyPair(this.ephemeralKeyPair);
-      localStorage.setItem(IDENTITY_STORAGE_KEY, serializedKeyPair);
+      await this.indexedDB.setItem(
+        ENCRYPTION_KEYS_STORE_NAME,
+        IDENTITY_STORAGE_KEY,
+        this.ephemeralKeyPair
+      );
     } catch (error) {
-      this.logError(`Failed to save key pair to localStorage: ${error}`);
+      this.logError(`Failed to save key pair to IndexedDB: ${error}`);
       throw new Error('Failed to persist encryption keys');
     }
   }
@@ -312,29 +316,5 @@ export class EncryptionService extends CrossmintFrameService {
 
   private bufferOrStringToBuffer(value: string | ArrayBuffer): ArrayBuffer {
     return typeof value === 'string' ? this.base64ToBuffer(value) : value;
-  }
-
-  private async serializeKeyPair(keyPair: CryptoKeyPair): Promise<string> {
-    const privateKeyJwk = await crypto.subtle.exportKey('jwk', keyPair.privateKey);
-    return JSON.stringify(privateKeyJwk);
-  }
-
-  private async deserializeKeyPair(serializedKeyPair: string): Promise<CryptoKeyPair> {
-    const privateKeyJwk = JSON.parse(serializedKeyPair);
-
-    const privateKey = await crypto.subtle.importKey(
-      'jwk',
-      privateKeyJwk,
-      ECDH_KEY_SPEC,
-      true,
-      IDENTITY_KEY_PERMISSIONS
-    );
-
-    const publicKeyJwk = { ...privateKeyJwk };
-    delete publicKeyJwk.d;
-
-    const publicKey = await crypto.subtle.importKey('jwk', publicKeyJwk, ECDH_KEY_SPEC, true, []);
-
-    return { privateKey, publicKey };
   }
 }

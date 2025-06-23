@@ -12,6 +12,7 @@ import type { FPEService } from '../services/encryption/fpe';
 import type { Secp256k1Service } from '../services/crypto/algorithms/secp256k1';
 import type { CryptoKeyService } from '../services/crypto/crypto-key';
 import type { DeviceService } from '../services/user/device';
+import { IndexedDBAdapter } from '../services/storage';
 /**
  * Creates mock services for testing with proper typing
  */
@@ -38,6 +39,7 @@ export function createMockServices(): MockProxy<CrossmintFrameServices> & {
     secp256k1: mock<Secp256k1Service>(),
     cryptoKey: mock<CryptoKeyService>(),
     device: mock<DeviceService>(),
+    storage: mock<IndexedDBAdapter>(),
   };
 }
 
