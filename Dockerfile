@@ -12,7 +12,7 @@ RUN mkdir -p dist
 
 # Build using pnpm build script
 RUN pnpm build:prod
-# RUN pnpm generate-sri
+RUN pnpm generate-sri
 
 FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html/dist
