@@ -1,12 +1,10 @@
-import { KeyRepository } from '../../keys/key-repository';
-import { CrossmintFrameService } from '../../service';
-import { TeePublicKeyProvider } from '../encryption';
-import { AES256_KEY_SPEC } from '../encryption-consts';
+import { AES256_KEY_SPEC } from './encryption-consts';
+import { KeyPairProvider, PublicKeyProvider } from './provider';
 
 export class SymmetricEncryptionKeyProvider {
   constructor(
-    private readonly privateKeyProvider: KeyRepository,
-    private readonly publicKeyProvider: TeePublicKeyProvider
+    private readonly privateKeyProvider: KeyPairProvider,
+    private readonly publicKeyProvider: PublicKeyProvider
   ) {}
 
   async getKey(): Promise<CryptoKey> {

@@ -1,16 +1,14 @@
 import { CrossmintFrameService } from '../service';
-import {
-  createKEM,
-  ECDH_KEY_SPEC,
-  IDENTITY_KEY_PERMISSIONS,
-  IDENTITY_STORAGE_KEY,
-} from '../encryption/encryption-consts';
+import { createKEM, ECDH_KEY_SPEC } from '../encryption/lib/encryption-consts';
 import { ENCRYPTION_KEYS_STORE_NAME, type IndexedDBAdapter } from '../storage';
-import { encodeBytes } from '../common/utils';
+import { encodeBytes } from '../encryption/lib/utils';
 
-export class KeyRepository extends CrossmintFrameService {
-  name = 'Key Repository';
-  log_prefix = '[KeyRepository]';
+export const IDENTITY_STORAGE_KEY = 'encryption-key-pair';
+export const IDENTITY_KEY_PERMISSIONS: KeyUsage[] = ['deriveBits', 'deriveKey'];
+
+export class EncryptionKeyProvider extends CrossmintFrameService {
+  name = 'Encryption Key Provider';
+  log_prefix = '[EncryptionKeyProvider]';
 
   private keyPair!: CryptoKeyPair;
 

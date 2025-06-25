@@ -11,8 +11,8 @@ import { CryptoKeyService } from './crypto/crypto-key';
 import { AuthShareCache } from './storage/auth-share-cache';
 import { DeviceService } from './user/device';
 import { IndexedDBAdapter } from './storage';
-import { KeyRepository } from './keys/key-repository';
-import { TEEKeyService } from './encryption/tee-key-service';
+import { EncryptionKeyProvider } from './encryption-keys/encryption-key-provider';
+import { TEEKeyProvider } from './encryption-keys/tee-key-provider';
 import { SymmetricEncryptionKeyProvider } from './encryption/lib/symmetric-encryption-key-provider';
 
 /**
@@ -33,8 +33,8 @@ export type CrossmintFrameServices = {
   cryptoKey: CryptoKeyService;
   device: DeviceService;
   storage: IndexedDBAdapter;
-  teeKey: TEEKeyService;
-  keyRepository: KeyRepository;
+  teeKey: TEEKeyProvider;
+  keyRepository: EncryptionKeyProvider;
 };
 
 const EXPECTED_PHALA_APP_ID = 'df4f0ec61f92a8eec754593da9ea9cd939985e9c';
@@ -43,8 +43,8 @@ export const createCrossmintFrameServices = () => {
   const eventsService = new EventsService();
   const ed25519Service = new Ed25519Service();
   const storageService = new IndexedDBAdapter();
-  const keyRepository = new KeyRepository(storageService);
-  const teeKeyService = new TEEKeyService();
+  const keyRepository = new EncryptionKeyProvider(storageService);
+  const teeKeyService = new TEEKeyProvider();
   const encryptionService = new EncryptionService(keyRepository, teeKeyService);
   const secp256k1Service = new Secp256k1Service();
   const crossmintApiService = new CrossmintApiService(encryptionService);

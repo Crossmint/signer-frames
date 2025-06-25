@@ -15,9 +15,6 @@ export const ECDH_KEY_SPEC: EcKeyGenParams = {
   namedCurve: 'P-256' as const,
 } as const;
 
-export const IDENTITY_STORAGE_KEY = 'encryption-key-pair';
-export const IDENTITY_KEY_PERMISSIONS: KeyUsage[] = ['deriveBits', 'deriveKey'];
-
 export const createHpkeSuite = () => {
   return new CipherSuite({
     kem: createKEM(),

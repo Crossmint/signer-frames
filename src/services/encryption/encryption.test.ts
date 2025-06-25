@@ -1,10 +1,12 @@
 import { expect, describe, it, beforeEach, vi } from 'vitest';
 import { AsymmetricEncryptionService as EncryptionService } from './encryption';
 import type { AttestationService } from '../tee/attestation';
-import { IDENTITY_STORAGE_KEY } from './encryption-consts';
 import { mock } from 'vitest-mock-extended';
-import type { KeyRepository } from '../keys/key-repository';
-import type { TeePublicKeyProvider } from './encryption';
+import {
+  IDENTITY_STORAGE_KEY,
+  type EncryptionKeyProvider,
+} from '../encryption-keys/encryption-key-provider';
+import type { PublicKeyProvider } from './lib/provider';
 
 // Mock types for attestation
 type AttestationDocument = { publicKey: string } & Record<string, unknown>;
@@ -153,8 +155,8 @@ const mockAttestationService: AttestationService = {
 } as unknown as AttestationService;
 
 // Mock KeyRepository and TeePublicKeyProvider
-const mockKeyRepository = mock<KeyRepository>();
-const mockTeePublicKeyProvider = mock<TeePublicKeyProvider>();
+const mockKeyRepository = mock<EncryptionKeyProvider>();
+const mockTeePublicKeyProvider = mock<PublicKeyProvider>();
 
 // Mock global methods
 vi.stubGlobal(

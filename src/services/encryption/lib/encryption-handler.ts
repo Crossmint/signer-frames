@@ -1,5 +1,5 @@
-import { encodeBytes, decodeBytes } from '../../common/utils';
-import { type EncryptionResult, createHpkeSuite } from '../encryption-consts';
+import { encodeBytes, decodeBytes } from './utils';
+import { type EncryptionResult, createHpkeSuite } from './encryption-consts';
 import { CipherSuite } from '@hpke/core';
 
 type EncryptablePayload = Record<string, unknown>;
