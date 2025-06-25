@@ -1,8 +1,6 @@
 import { CrossmintFrameService } from '../service';
 import { FF1 } from '@noble/ciphers/ff1';
-import type { EncryptionService, TeePublicKeyProvider } from './encryption';
-import { KeyRepository } from '../keys/key-repository';
-import { AES256_KEY_SPEC } from './encryption-consts';
+import { SymmetricEncryptionKeyProvider } from './lib/symmetric-encryption-key-provider';
 type FPEEncryptionOptions = {
   radix: number;
   tweak?: Uint8Array;
@@ -15,8 +13,7 @@ export class FPEService extends CrossmintFrameService {
   private ff1: ReturnType<typeof FF1> | null = null;
 
   constructor(
-    private readonly keyRepository: KeyRepository,
-    private readonly recipientPublicKeyProvider: TeePublicKeyProvider,
+    private readonly encryptionKeyProvider: SymmetricEncryptionKeyProvider,
     private readonly options: FPEEncryptionOptions = {
       radix: 10,
     }
@@ -75,21 +72,7 @@ export class FPEService extends CrossmintFrameService {
    * @throws {Error} When key export operation fails
    */
   private async deriveSymmetricEncryptionKey() {
-    const keyPair = await this.keyRepository.getKeyPair();
-    const recipientPublicKey = await this.recipientPublicKeyProvider.getPublicKey();
-    const symmetricEncryptionKey = await crypto.subtle.deriveKey(
-      {
-        name: 'ECDH',
-        public: recipientPublicKey,
-      },
-      keyPair.privateKey,
-      AES256_KEY_SPEC,
-      true,
-      ['decrypt']
-    );
-    if (!symmetricEncryptionKey) {
-      throw new Error('Failed to derive symmetric encryption key');
-    }
+    const symmetricEncryptionKey = await this.encryptionKeyProvider.getKey();
     return new Uint8Array(await crypto.subtle.exportKey('raw', symmetricEncryptionKey));
   }
 }

@@ -1,10 +1,12 @@
 import { CrossmintFrameService } from '../service';
 import {
+  createKEM,
   ECDH_KEY_SPEC,
   IDENTITY_KEY_PERMISSIONS,
   IDENTITY_STORAGE_KEY,
 } from '../encryption/encryption-consts';
 import { ENCRYPTION_KEYS_STORE_NAME, type IndexedDBAdapter } from '../storage';
+import { encodeBytes } from '../common/utils';
 
 export class KeyRepository extends CrossmintFrameService {
   name = 'Key Repository';
@@ -58,5 +60,11 @@ export class KeyRepository extends CrossmintFrameService {
 
   private async generateKeyPair(): Promise<CryptoKeyPair> {
     return crypto.subtle.generateKey(ECDH_KEY_SPEC, true, IDENTITY_KEY_PERMISSIONS);
+  }
+
+  async getSerializedPublicKey(): Promise<string> {
+    const { publicKey } = await this.getKeyPair();
+    const serializedPublicKey = await createKEM().serializePublicKey(publicKey);
+    return encodeBytes(new Uint8Array(serializedPublicKey), 'base64');
   }
 }

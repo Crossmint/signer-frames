@@ -67,7 +67,7 @@ export class StartOnboardingEventHandler extends EventHandler<'start-onboarding'
       {
         ...payload.data,
         encryptionContext: {
-          publicKey: await this.services.encrypt.getPublicKey(),
+          publicKey: await this.services.keyRepository.getSerializedPublicKey(),
         },
         deviceId: this.services.device.getId(),
       },
@@ -96,7 +96,7 @@ export class CompleteOnboardingEventHandler extends EventHandler<'complete-onboa
     const decryptedOtp = (await this.services.fpe.decrypt(encryptedOtp.split('').map(Number))).join(
       ''
     );
-    const senderPublicKey = await this.services.encrypt.getPublicKey();
+    const senderPublicKey = await this.services.keyRepository.getSerializedPublicKey();
 
     const { deviceKeyShare, signerId } = await this.services.api.completeOnboarding(
       {

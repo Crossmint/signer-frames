@@ -1,7 +1,8 @@
 import { CrossmintFrameService } from '../service';
-import { type EncryptionResult } from './encryption-consts';
+import { createKEM, type EncryptionResult } from './encryption-consts';
 import { type KeyRepository } from '../keys/key-repository';
-import { EncryptionHandler } from './encryption-handler';
+import { EncryptionHandler } from './lib/encryption-handler';
+import { encodeBytes } from '../common/utils';
 
 type EncryptablePayload = Record<string, unknown>;
 
@@ -9,9 +10,9 @@ export interface TeePublicKeyProvider {
   getPublicKey(): Promise<CryptoKey>;
 }
 
-export class EncryptionService extends CrossmintFrameService {
-  name = 'Encryption service';
-  log_prefix = '[EncryptionService]';
+export class AsymmetricEncryptionService extends CrossmintFrameService {
+  name = 'Asymmetric Encryption Service';
+  log_prefix = '[AsymmetricEncryptionService]';
 
   constructor(
     private readonly keyRepository: KeyRepository,
