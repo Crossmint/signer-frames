@@ -130,11 +130,12 @@ describe('CrossmintHttpError e2e', () => {
       expect.fail('Expected request to throw');
     } catch (error) {
       expect(error).toBeInstanceOf(CrossmintHttpError);
-      expect(error.status).toBe(404);
-      expect(error.statusText).toBe('Not Found');
-      expect(error.url).toBe('http://localhost:3000/api/v1/signers/test-endpoint');
-      expect(error.responseBody).toEqual(responseBody);
-      expect(error.name).toBe('CrossmintHttpError');
+      const httpError = error as CrossmintHttpError;
+      expect(httpError.status).toBe(404);
+      expect(httpError.statusText).toBe('Not Found');
+      expect(httpError.url).toBe('http://localhost:3000/api/v1/signers/test-endpoint');
+      expect(httpError.responseBody).toEqual(responseBody);
+      expect(httpError.name).toBe('CrossmintHttpError');
     }
   });
 });

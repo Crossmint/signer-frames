@@ -1,20 +1,15 @@
 import { CrossmintFrameService } from '../service';
-import { FF1 } from '@noble/ciphers/ff1';
 import type { EncryptionService } from './encryption';
-type FPEEncryptionOptions = {
-  radix: number;
-  tweak?: Uint8Array;
-};
+import { FPE, type FPEOptions } from './lib';
 
 export class FPEService extends CrossmintFrameService {
   name = 'Format Preserving Encryption Service';
   log_prefix = '[FPEService]';
-  private encryptionKey: Uint8Array | null = null;
-  private ff1: ReturnType<typeof FF1> | null = null;
+  private fpe: FPE | null = null;
 
   constructor(
     private readonly encryptionService: EncryptionService,
-    private readonly options: FPEEncryptionOptions = {
+    private readonly options: FPEOptions = {
       radix: 10,
     }
   ) {
@@ -27,30 +22,24 @@ export class FPEService extends CrossmintFrameService {
     } catch (error) {
       throw new Error('EncryptionService should be initialized before initializing FPEService');
     }
-    this.encryptionKey = await this.encryptionService.getAES256EncryptionKey();
-    this.ff1 = FF1(this.options.radix, this.encryptionKey, this.options.tweak);
+    const encryptionKey = await this.encryptionService.getAES256EncryptionKey();
+    this.fpe = new FPE(encryptionKey, this.options);
   }
 
   public async encrypt(data: number[]): Promise<number[]> {
-    if (data.some(d => d >= this.options.radix)) {
-      throw new Error('Data contains values greater than the radix');
-    }
     this.assertInitialized();
-    const ff1 = this.ff1 as NonNullable<typeof this.ff1>;
-    return ff1.encrypt(data);
+    const fpe = this.fpe as NonNullable<typeof this.fpe>;
+    return fpe.encrypt(data);
   }
 
   public async decrypt(data: number[]): Promise<number[]> {
-    if (data.some(d => d >= this.options.radix)) {
-      throw new Error('Data contains values greater than the radix');
-    }
     this.assertInitialized();
-    const ff1 = this.ff1 as NonNullable<typeof this.ff1>;
-    return ff1.decrypt(data);
+    const fpe = this.fpe as NonNullable<typeof this.fpe>;
+    return fpe.decrypt(data);
   }
 
   private assertInitialized() {
-    if (!this.ff1) {
+    if (!this.fpe) {
       throw new Error('FPEService not initialized');
     }
   }
