@@ -55,7 +55,6 @@ export class CrossmintRequest<
   private encryptedPayloadSchema = z.object({
     ciphertext: base64StringSchema,
     encapsulatedKey: base64StringSchema,
-    publicKey: base64StringSchema,
   });
   private log = (...args: unknown[]) => {
     console.log(`[Request${this.name ? `: ${this.name}` : ''}]`, ...args);
