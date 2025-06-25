@@ -13,6 +13,8 @@ import type { Secp256k1Service } from '../services/crypto/algorithms/secp256k1';
 import type { CryptoKeyService } from '../services/crypto/crypto-key';
 import type { DeviceService } from '../services/user/device';
 import { IndexedDBAdapter } from '../services/storage';
+import { KeyRepository } from '../services/keys/key-repository';
+import { TEEKeyService } from '../services/encryption/tee-key-service';
 /**
  * Creates mock services for testing with proper typing
  */
@@ -27,6 +29,8 @@ export function createMockServices(): MockProxy<CrossmintFrameServices> & {
   secp256k1: MockProxy<Secp256k1Service>;
   cryptoKey: MockProxy<CryptoKeyService>;
   device: MockProxy<DeviceService>;
+  teeKey: MockProxy<TEEKeyService>;
+  keyRepository: MockProxy<KeyRepository>;
 } {
   return {
     api: mock<CrossmintApiService>(),
@@ -40,6 +44,8 @@ export function createMockServices(): MockProxy<CrossmintFrameServices> & {
     cryptoKey: mock<CryptoKeyService>(),
     device: mock<DeviceService>(),
     storage: mock<IndexedDBAdapter>(),
+    teeKey: mock<TEEKeyService>(),
+    keyRepository: mock<KeyRepository>(),
   };
 }
 
