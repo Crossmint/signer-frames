@@ -1,12 +1,12 @@
 import { expect, describe, it, beforeEach, vi } from 'vitest';
 import { EncryptionService } from './encryption';
-import type { AttestationService } from './attestation';
+import type { AttestationService } from '../tee/attestation';
 import { IDENTITY_STORAGE_KEY } from './encryption-consts';
 
 // Mock types for attestation
 type AttestationDocument = { publicKey: string } & Record<string, unknown>;
 
-// Mock crypto keys
+// Mock crypto keys - moved before vi.mock to avoid temporal dead zone
 const mockPublicKey = {
   algorithm: { name: 'ECDH', namedCurve: 'P-256' },
   extractable: true,
@@ -44,6 +44,14 @@ const mockPublicKeyJwk = {
 
 // Mock the HPKE library
 vi.mock('@hpke/core', () => {
+  // Create mockPublicKey inside the factory to avoid temporal dead zone
+  const mockPublicKey = {
+    algorithm: { name: 'ECDH', namedCurve: 'P-256' },
+    extractable: true,
+    type: 'public',
+    usages: ['deriveBits', 'deriveKey'],
+  } as CryptoKey;
+
   return {
     CipherSuite: vi.fn().mockImplementation(() => ({
       kem: {
@@ -136,6 +144,21 @@ const createStorageMock = () => {
 
 const localStorageMock = createStorageMock();
 
+// Mock IndexedDBAdapter
+const mockIndexedDBAdapter = {
+  name: 'Mock IndexedDB Service',
+  log_prefix: '[MockIndexedDB]',
+  async init() {},
+  async getItem() {
+    return null;
+  },
+  async setItem() {},
+  async removeItem() {},
+  log: vi.fn(),
+  logError: vi.fn(),
+  logDebug: vi.fn(),
+} as any;
+
 // Mock AttestationService
 const mockAttestationService: AttestationService = {
   name: 'Mock Attestation Service',
@@ -163,7 +186,7 @@ vi.stubGlobal('localStorage', localStorageMock);
 // Create a test version of the EncryptionService to avoid initialization issues
 class TestEncryptionService extends EncryptionService {
   constructor() {
-    super(mockAttestationService);
+    super(mockIndexedDBAdapter, mockAttestationService);
     // Mock internal methods
     this.log = vi.fn();
     this.logError = vi.fn();

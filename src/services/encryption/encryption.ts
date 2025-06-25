@@ -1,11 +1,5 @@
 import { CrossmintFrameService } from '../service';
-import {
-  CipherSuite,
-  Aes256Gcm,
-  DhkemP256HkdfSha256,
-  HkdfSha256,
-  type SenderContext,
-} from '@hpke/core';
+import { type SenderContext } from '@hpke/core';
 
 import type { AttestationService } from '../tee/attestation';
 import {
@@ -16,8 +10,15 @@ import {
   type EncryptionResult,
 } from './encryption-consts';
 
-import { encodeBytes, decodeBytes } from '../common/utils';
 import { ENCRYPTION_KEYS_STORE_NAME, type IndexedDBAdapter } from '../storage';
+import {
+  suite,
+  encrypt as hpkeEncrypt,
+  decrypt as hpkeDecrypt,
+  base64ToBuffer,
+  bufferToBase64,
+  bufferOrStringToBuffer,
+} from './lib';
 
 export class EncryptionService extends CrossmintFrameService {
   name = 'Encryption service';
@@ -27,11 +28,6 @@ export class EncryptionService extends CrossmintFrameService {
   constructor(
     private readonly indexedDB: IndexedDBAdapter,
     attestationService?: AttestationService,
-    private readonly suite = new CipherSuite({
-      kem: new DhkemP256HkdfSha256(),
-      kdf: new HkdfSha256(),
-      aead: new Aes256Gcm(),
-    }),
     private ephemeralKeyPair: CryptoKeyPair | null = null,
     private senderContext: SenderContext | null = null,
     private aes256EncryptionKey: CryptoKey | null = null
@@ -60,7 +56,7 @@ export class EncryptionService extends CrossmintFrameService {
       await this.initSenderContext();
       await this.initSymmetricEncryptionKey();
     } catch (error) {
-      throw new Error('Encryption initialization failed');
+      throw new Error(`Encryption initialization failed: ${error}`);
     }
   }
 
@@ -94,7 +90,7 @@ export class EncryptionService extends CrossmintFrameService {
 
   private async initSenderContext() {
     const recipientPublicKey = await this.getTeePublicKey();
-    this.senderContext = await this.suite.createSenderContext({
+    this.senderContext = await suite.createSenderContext({
       recipientPublicKey,
     });
   }
@@ -119,8 +115,8 @@ export class EncryptionService extends CrossmintFrameService {
   async getPublicKey(): Promise<string> {
     this.assertInitialized();
     const ephemeralKeyPair = this.ephemeralKeyPair as NonNullable<typeof this.ephemeralKeyPair>;
-    const serializedPublicKey = await this.suite.kem.serializePublicKey(ephemeralKeyPair.publicKey);
-    return this.bufferToBase64(serializedPublicKey);
+    const serializedPublicKey = await suite.kem.serializePublicKey(ephemeralKeyPair.publicKey);
+    return bufferToBase64(serializedPublicKey);
   }
 
   /**
@@ -147,23 +143,7 @@ export class EncryptionService extends CrossmintFrameService {
     };
 
     try {
-      const serializedPublicKey = await this.suite.kem.serializePublicKey(
-        ephemeralKeyPair.publicKey
-      );
-      const ciphertext = await senderContext.seal(
-        this.serialize({
-          data,
-          encryptionContext: {
-            senderPublicKey: this.bufferToBase64(serializedPublicKey),
-          },
-        })
-      );
-
-      return {
-        ciphertext,
-        publicKey: serializedPublicKey,
-        encapsulatedKey: senderContext.enc,
-      };
+      return await hpkeEncrypt(data, senderContext, ephemeralKeyPair.publicKey);
     } catch (error) {
       this.logError(`Encryption failed: ${error}`);
       throw new Error('Failed to encrypt data');
@@ -176,9 +156,9 @@ export class EncryptionService extends CrossmintFrameService {
     const { ciphertext, encapsulatedKey, publicKey } = await this.encrypt(data);
 
     return {
-      ciphertext: this.bufferToBase64(ciphertext),
-      encapsulatedKey: this.bufferToBase64(encapsulatedKey),
-      publicKey: this.bufferToBase64(publicKey),
+      ciphertext: bufferToBase64(ciphertext),
+      encapsulatedKey: bufferToBase64(encapsulatedKey),
+      publicKey: bufferToBase64(publicKey),
     };
   }
 
@@ -212,18 +192,15 @@ export class EncryptionService extends CrossmintFrameService {
     try {
       const attestationService = this.assertAttestationService();
       const attestationPublicKey = await attestationService.getAttestedPublicKey();
-      const senderPublicKey = await this.suite.kem.deserializePublicKey(
-        this.base64ToBuffer(attestationPublicKey)
+      const senderPublicKey = await suite.kem.deserializePublicKey(
+        base64ToBuffer(attestationPublicKey)
       );
-
-      const recipient = await this.suite.createRecipientContext({
-        recipientKey: ephemeralKeyPair.privateKey,
-        enc: this.bufferOrStringToBuffer(encapsulatedKeyInput),
-        senderPublicKey,
-      });
-
-      const plaintext = await recipient.open(this.bufferOrStringToBuffer(ciphertextInput));
-      return this.deserialize<{ data: T }>(plaintext).data;
+      return await hpkeDecrypt(
+        ciphertextInput,
+        encapsulatedKeyInput,
+        ephemeralKeyPair.privateKey,
+        senderPublicKey
+      );
     } catch (error) {
       this.logError(`Decryption failed: ${error}`);
       throw new Error('Failed to decrypt data');
@@ -240,8 +217,8 @@ export class EncryptionService extends CrossmintFrameService {
     const attestationService = this.assertAttestationService();
     const recipientPublicKeyBuffer = await attestationService
       .getAttestedPublicKey()
-      .then(this.base64ToBuffer);
-    const recipientPublicKey = await this.suite.kem.deserializePublicKey(recipientPublicKeyBuffer);
+      .then(base64ToBuffer);
+    const recipientPublicKey = await suite.kem.deserializePublicKey(recipientPublicKeyBuffer);
     return crypto.subtle.deriveKey(
       {
         name: 'ECDH',
@@ -285,7 +262,7 @@ export class EncryptionService extends CrossmintFrameService {
   private async getTeePublicKey() {
     const attestationService = this.assertAttestationService();
     const recipientPublicKeyString = await attestationService.getAttestedPublicKey();
-    return await this.suite.kem.deserializePublicKey(this.base64ToBuffer(recipientPublicKeyString));
+    return await suite.kem.deserializePublicKey(base64ToBuffer(recipientPublicKeyString));
   }
 
   private async generateKeyPair(): Promise<CryptoKeyPair> {
@@ -294,27 +271,5 @@ export class EncryptionService extends CrossmintFrameService {
 
   private async initSymmetricEncryptionKey() {
     this.aes256EncryptionKey = await this.deriveAES256EncryptionKey();
-  }
-
-  // Serialization
-
-  private serialize<T extends Record<string, unknown>>(data: T): ArrayBuffer {
-    return new TextEncoder().encode(JSON.stringify(data));
-  }
-
-  private deserialize<T extends Record<string, unknown>>(data: ArrayBuffer): T {
-    return JSON.parse(new TextDecoder().decode(data)) as T;
-  }
-
-  private bufferToBase64(buffer: ArrayBuffer): string {
-    return encodeBytes(new Uint8Array(buffer), 'base64');
-  }
-
-  private base64ToBuffer(base64: string): ArrayBuffer {
-    return decodeBytes(base64, 'base64').buffer;
-  }
-
-  private bufferOrStringToBuffer(value: string | ArrayBuffer): ArrayBuffer {
-    return typeof value === 'string' ? this.base64ToBuffer(value) : value;
   }
 }
