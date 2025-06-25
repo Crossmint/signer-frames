@@ -16,10 +16,8 @@ const TEST_FIXTURES = {
     apiKey: 'test-api-key',
   },
   publicKey: 'test-public-key',
-  shares: {
-    auth: 'auth-share-base64',
-    device: 'device-share-base64',
-  },
+  encryptedMasterKey: 'encrypted-master-key-json',
+  signerId: 'test-signer-id',
   masterSecret: new Uint8Array(32).fill(1),
   secretKey: new Uint8Array(64).fill(1),
 };
@@ -34,18 +32,17 @@ describe('EventHandlers', () => {
   });
 
   describe('StartOnboardingEventHandler', () => {
-    it('should skip API call if device share already exists', async () => {
+    it('should skip API call if master secret already exists', async () => {
       const handler = new StartOnboardingEventHandler(mockServices);
       const testInput: SignerInputEvent<'start-onboarding'> = {
         authData: TEST_FIXTURES.authData,
         data: { authId: 'test-auth-id' },
       };
 
-      mockServices.sharding.reconstructMasterSecret.mockResolvedValue(TEST_FIXTURES.masterSecret);
-      mockServices.cryptoKey.getPublicKeyFromSeed.mockResolvedValue({
-        bytes: TEST_FIXTURES.publicKey,
-        encoding: 'base58',
-        keyType: 'ed25519',
+      mockServices.keyManager.getMasterSecret.mockResolvedValue(TEST_FIXTURES.masterSecret);
+      mockServices.cryptoKey.getAllPublicKeysFromSeed.mockResolvedValue({
+        ed25519: { bytes: TEST_FIXTURES.publicKey, encoding: 'base58', keyType: 'ed25519' },
+        secp256k1: { bytes: 'test-secp256k1-public-key', encoding: 'hex', keyType: 'secp256k1' },
       });
 
       await handler.handler(testInput);
@@ -55,7 +52,7 @@ describe('EventHandlers', () => {
   });
 
   describe('CompleteOnboardingEventHandler', () => {
-    it('should process OTP flow correctly and store key shards', async () => {
+    it('should process OTP flow correctly and store encrypted master key', async () => {
       const handler = new CompleteOnboardingEventHandler(mockServices);
       const testInput: SignerInputEvent<'complete-onboarding'> = {
         authData: TEST_FIXTURES.authData,
@@ -69,15 +66,11 @@ describe('EventHandlers', () => {
       mockServices.fpe.decrypt.mockResolvedValue([1, 2, 3, 4, 5, 6]);
 
       mockServices.api.completeOnboarding.mockResolvedValue({
-        deviceKeyShare: TEST_FIXTURES.shares.device,
-        signerId: 'test-signer-id',
+        encryptedMasterKey: TEST_FIXTURES.encryptedMasterKey,
+        signerId: TEST_FIXTURES.signerId,
       });
 
-      mockServices.sharding.reconstructMasterSecret.mockResolvedValue(TEST_FIXTURES.masterSecret);
-      mockServices.ed25519.secretKeyFromSeed.mockResolvedValue(TEST_FIXTURES.secretKey);
-      mockServices.ed25519.getPublicKey.mockResolvedValue(
-        bs58.encode(TEST_FIXTURES.secretKey.slice(32))
-      );
+      mockServices.keyManager.getMasterSecret.mockResolvedValue(TEST_FIXTURES.masterSecret);
       mockServices.cryptoKey.getAllPublicKeysFromSeed.mockResolvedValue({
         ed25519: {
           bytes: TEST_FIXTURES.publicKey,
@@ -101,20 +94,17 @@ describe('EventHandlers', () => {
         testInput.authData
       );
 
-      expect(mockServices.sharding.storeDeviceShare).toHaveBeenCalledWith(
-        'test-signer-id',
-        TEST_FIXTURES.shares.device
+      expect(mockServices.keyManager.setEncryptedMasterKey).toHaveBeenCalledWith(
+        TEST_FIXTURES.signerId,
+        TEST_FIXTURES.encryptedMasterKey
       );
       expect(result).toHaveProperty('publicKeys');
     });
   });
 
   describe('SignEventHandler', () => {
-    it('should properly handle invalid device share errors', async () => {
-      // Create the handler directly like other tests
+    it('should properly handle errors when master secret is not found', async () => {
       const handler = new SignEventHandler(mockServices);
-
-      // Setup the test data
       const message = 'test message';
       const encodedMessage = bs58.encode(Buffer.from(message));
       const testInput: SignerInputEvent<'sign'> = {
@@ -126,23 +116,15 @@ describe('EventHandlers', () => {
         },
       };
 
-      // Mock the error that would be thrown when device share hash doesn't match
-      const mockError = new CrossmintFrameCodedError(
-        'Key share stored on this device does not match Crossmint held authentication share.',
-        'invalid-device-share'
-      );
-      mockServices.sharding.reconstructMasterSecret.mockRejectedValue(mockError);
+      const mockError = new Error('Master secret not found');
+      mockServices.keyManager.getMasterSecret.mockRejectedValue(mockError);
 
-      // Test the whole event handler flow including error handling
       const result = await handler.callback(testInput);
 
-      expect(mockServices.sharding.reconstructMasterSecret).toHaveBeenCalledWith(
-        testInput.authData
-      );
+      expect(mockServices.keyManager.getMasterSecret).toHaveBeenCalledWith(testInput.authData);
       expect(result).toEqual({
         status: 'error',
         error: mockError.message,
-        code: 'invalid-device-share',
       });
     });
   });

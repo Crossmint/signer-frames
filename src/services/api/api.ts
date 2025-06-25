@@ -83,15 +83,14 @@ export class CrossmintApiService extends CrossmintFrameService {
     deviceId: z.string(),
   });
   static completeOnboardingOutputSchema = z.object({
-    deviceKeyShare: z.string(),
+    encryptedMasterKey: z.string(),
     signerId: z.string(),
   });
 
   static getAuthShardInputSchema = z.undefined();
   static getAuthShardOutputSchema = z.object({
     signerId: z.string(),
-    authKeyShare: z.string(),
-    deviceKeyShareHash: z.string(),
+    encryptedMasterKey: z.string(),
   });
 
   static getAttestationInputSchema = z.undefined();

@@ -3,12 +3,11 @@ import { EventsService } from './communications/events';
 import { AttestationService } from './tee/attestation';
 import { EncryptionService } from './encryption';
 import { Ed25519Service } from './crypto/algorithms/ed25519';
-import { ShardingService } from './user/sharding';
+import { KeyManagerService } from './user/key-manager';
 import type { CrossmintFrameService } from './service';
 import { FPEService } from './encryption/fpe';
 import { Secp256k1Service } from './crypto/algorithms/secp256k1';
 import { CryptoKeyService } from './crypto/crypto-key';
-import { AuthShareCache } from './storage/auth-share-cache';
 import { DeviceService } from './user/device';
 import { IndexedDBAdapter } from './storage';
 
@@ -21,7 +20,7 @@ export { CrossmintFrameService } from './service';
 export type CrossmintFrameServices = {
   events: EventsService;
   api: CrossmintApiService;
-  sharding: ShardingService;
+  keyManager: KeyManagerService;
   encrypt: EncryptionService;
   attestation: AttestationService;
   ed25519: Ed25519Service;
@@ -43,10 +42,10 @@ export const createCrossmintFrameServices = () => {
   const crossmintApiService = new CrossmintApiService(encryptionService);
   const attestationService = new AttestationService(crossmintApiService, EXPECTED_PHALA_APP_ID);
   const deviceService = new DeviceService();
-  const shardingService = new ShardingService(
-    new AuthShareCache(crossmintApiService),
+  const keyManagerService = new KeyManagerService(
+    crossmintApiService,
     deviceService,
-    storageService
+    encryptionService
   );
   const fpeService = new FPEService(encryptionService);
   const cryptoKeyService = new CryptoKeyService(ed25519Service, secp256k1Service);
@@ -61,7 +60,7 @@ export const createCrossmintFrameServices = () => {
     secp256k1: secp256k1Service,
     encrypt: encryptionService,
     api: crossmintApiService,
-    sharding: shardingService,
+    keyManager: keyManagerService,
     fpe: fpeService,
     cryptoKey: cryptoKeyService,
     device: deviceService,
