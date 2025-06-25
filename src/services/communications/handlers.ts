@@ -53,7 +53,7 @@ export class StartOnboardingEventHandler extends EventHandler<'start-onboarding'
   async handler(
     payload: SignerInputEvent<'start-onboarding'>
   ): Promise<SuccessfulOutputEvent<'start-onboarding'>> {
-    const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
+    const masterSecret = await this.services.keyManager.getMasterSecret(payload.authData);
 
     if (masterSecret != null) {
       return {
@@ -98,7 +98,7 @@ export class CompleteOnboardingEventHandler extends EventHandler<'complete-onboa
     );
     const senderPublicKey = await this.services.encrypt.getPublicKey();
 
-    const { deviceKeyShare, signerId } = await this.services.api.completeOnboarding(
+    const { encryptedMasterKey, signerId } = await this.services.api.completeOnboarding(
       {
         publicKey: senderPublicKey,
         onboardingAuthentication: {
@@ -109,10 +109,10 @@ export class CompleteOnboardingEventHandler extends EventHandler<'complete-onboa
       payload.authData
     );
 
-    this.services.sharding.storeDeviceShare(signerId, deviceKeyShare);
-    const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
+    this.services.keyManager.setEncryptedMasterKey(signerId, encryptedMasterKey);
+    const masterSecret = await this.services.keyManager.getMasterSecret(payload.authData);
     if (masterSecret == null) {
-      throw new Error('Device share not found');
+      throw new Error('Failed to get master secret');
     }
 
     return {
@@ -130,7 +130,7 @@ export class GetStatusEventHandler extends EventHandler<'get-status'> {
   async handler(
     payload: SignerInputEvent<'get-status'>
   ): Promise<SuccessfulOutputEvent<'get-status'>> {
-    const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
+    const masterSecret = await this.services.keyManager.getMasterSecret(payload.authData);
 
     if (masterSecret == null) {
       return {
@@ -152,9 +152,9 @@ export class SignEventHandler extends EventHandler<'sign'> {
   responseEvent = 'response:sign' as const;
 
   async handler(payload: SignerInputEvent<'sign'>): Promise<SuccessfulOutputEvent<'sign'>> {
-    const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
+    const masterSecret = await this.services.keyManager.getMasterSecret(payload.authData);
     if (masterSecret == null) {
-      throw new Error('Device share not found');
+      throw new Error('Master secret not found. Signer may not be ready or initialized.');
     }
 
     const { keyType, bytes, encoding } = payload.data;
