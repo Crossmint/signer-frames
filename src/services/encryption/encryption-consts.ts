@@ -1,7 +1,6 @@
 export type EncryptionResult<T extends ArrayBuffer | string> = {
   ciphertext: T;
   encapsulatedKey: T;
-  publicKey: T;
 };
 
 export const AES256_KEY_SPEC: AesKeyGenParams = {

@@ -1,0 +1,62 @@
+import { CrossmintFrameService } from '../service';
+import {
+  ECDH_KEY_SPEC,
+  IDENTITY_KEY_PERMISSIONS,
+  IDENTITY_STORAGE_KEY,
+} from '../encryption/encryption-consts';
+import { ENCRYPTION_KEYS_STORE_NAME, type IndexedDBAdapter } from '../storage';
+
+export class KeyRepository extends CrossmintFrameService {
+  name = 'Key Repository';
+  log_prefix = '[KeyRepository]';
+
+  private keyPair!: CryptoKeyPair;
+
+  constructor(private readonly storage: IndexedDBAdapter) {
+    super();
+  }
+
+  async init(): Promise<void> {
+    try {
+      const keyPair = await this.initFromStorage();
+      if (!keyPair) {
+        this.keyPair = await this.generateKeyPair();
+        await this.saveKeyPairToStorage(this.keyPair);
+      } else {
+        this.keyPair = keyPair;
+      }
+    } catch (error: unknown) {
+      this.logError(`Error initializing from IndexedDB: ${error}`);
+      throw new Error('Failed to initialize key repository');
+    }
+  }
+
+  async getKeyPair(): Promise<CryptoKeyPair> {
+    return this.keyPair;
+  }
+
+  private async initFromStorage(): Promise<CryptoKeyPair | null> {
+    try {
+      return await this.storage.getItem<CryptoKeyPair>(
+        ENCRYPTION_KEYS_STORE_NAME,
+        IDENTITY_STORAGE_KEY
+      );
+    } catch (error: unknown) {
+      this.logError(`Error initializing from IndexedDB: ${error}`);
+      return null;
+    }
+  }
+
+  private async saveKeyPairToStorage(keyPair: CryptoKeyPair): Promise<void> {
+    try {
+      await this.storage.setItem(ENCRYPTION_KEYS_STORE_NAME, IDENTITY_STORAGE_KEY, keyPair);
+    } catch (error) {
+      this.logError(`Failed to save key pair to IndexedDB: ${error}`);
+      throw new Error('Failed to persist encryption keys');
+    }
+  }
+
+  private async generateKeyPair(): Promise<CryptoKeyPair> {
+    return crypto.subtle.generateKey(ECDH_KEY_SPEC, true, IDENTITY_KEY_PERMISSIONS);
+  }
+}

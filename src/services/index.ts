@@ -11,6 +11,8 @@ import { CryptoKeyService } from './crypto/crypto-key';
 import { AuthShareCache } from './storage/auth-share-cache';
 import { DeviceService } from './user/device';
 import { IndexedDBAdapter } from './storage';
+import { KeyRepository } from './keys/key-repository';
+import { TEEKeyService } from './encryption/tee-key-service';
 
 /**
  * Services index - Export all services
@@ -34,29 +36,32 @@ export type CrossmintFrameServices = {
 
 const EXPECTED_PHALA_APP_ID = 'df4f0ec61f92a8eec754593da9ea9cd939985e9c';
 
-export const createCrossmintFrameServices = () => {
+export const createCrossmintFrameServices = async () => {
   const eventsService = new EventsService();
   const ed25519Service = new Ed25519Service();
   const storageService = new IndexedDBAdapter();
-  const encryptionService = new EncryptionService(storageService);
+  const keyRepository = new KeyRepository(storageService);
+  const teeKeyService = new TEEKeyService();
+  const encryptionService = new EncryptionService(keyRepository, teeKeyService);
   const secp256k1Service = new Secp256k1Service();
   const crossmintApiService = new CrossmintApiService(encryptionService);
-  const attestationService = new AttestationService(crossmintApiService, EXPECTED_PHALA_APP_ID);
   const deviceService = new DeviceService();
   const shardingService = new ShardingService(
     new AuthShareCache(crossmintApiService),
     deviceService,
     storageService
   );
-  const fpeService = new FPEService(encryptionService);
+  const fpeService = new FPEService(keyRepository, teeKeyService);
   const cryptoKeyService = new CryptoKeyService(ed25519Service, secp256k1Service);
-
-  encryptionService.setAttestationService(attestationService);
+  const attestationService = new AttestationService(crossmintApiService, EXPECTED_PHALA_APP_ID);
+  teeKeyService.setAttestationService(attestationService);
 
   const services = {
     storage: storageService,
+    keyRepository: keyRepository,
     events: eventsService,
     attestation: attestationService,
+    teeKey: teeKeyService,
     ed25519: ed25519Service,
     secp256k1: secp256k1Service,
     encrypt: encryptionService,
