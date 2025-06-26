@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { SymmetricEncryptionHandler } from '../encryption/lib/encryption/symmetric/standard/handler';
 import { CrossmintFrameService } from '../service';
-import { SymmetricEncryptionKeyDerivator } from '../encryption/lib/key-management/symmetric-key-derivator';
+import { ECDHKeyProvider } from '../encryption/lib/key-management/ecdh-key-provider';
 import { KeyPairProvider } from '../encryption/lib/key-management/provider';
 import { PublicKeyDeserializer } from '../encryption-keys/tee-key-provider';
 import { decodeBytes, encodeBytes } from '../encryption/lib/utils';
@@ -41,7 +41,8 @@ export class UserKeyManager extends CrossmintFrameService {
     private readonly api: CrossmintApiService,
     private readonly keyProvider: KeyPairProvider,
     private readonly deviceService: DeviceService,
-    private readonly cache: InMemoryCacheService
+    private readonly cache: InMemoryCacheService,
+    private readonly encryptionHandler = new SymmetricEncryptionHandler()
   ) {
     super();
   }
@@ -87,21 +88,12 @@ export class UserKeyManager extends CrossmintFrameService {
     userKeyHash,
     signature: _signature,
   }: z.infer<typeof completeOnboardingOutputSchema>) {
-    console.log('Verifying and reconstructing master secret');
-    console.log('Encrypted user key', encryptedUserKey);
     const teePublicKey = encryptedUserKey.encryptionPublicKey;
-    console.log('Tee public key', teePublicKey);
-    const encryptionHandler = new SymmetricEncryptionHandler(
-      new SymmetricEncryptionKeyDerivator(this.keyProvider, {
-        getPublicKey: async () => {
-          return new PublicKeyDeserializer().deserialize(teePublicKey);
-        },
-      })
-    );
-    console.log('Decrypting master secret');
     try {
-      const masterSecret = await encryptionHandler.decrypt(
-        decodeBytes(encryptedUserKey.bytes, encryptedUserKey.encoding)
+      const encryptionKey = await this.getEncryptionKey(teePublicKey);
+      const masterSecret = await this.encryptionHandler.decrypt(
+        decodeBytes(encryptedUserKey.bytes, encryptedUserKey.encoding),
+        encryptionKey
       );
 
       console.log('Master secret', masterSecret);
@@ -111,6 +103,14 @@ export class UserKeyManager extends CrossmintFrameService {
       console.error('Error decrypting master secret', error);
       throw error;
     }
+  }
+
+  private async getEncryptionKey(teePublicKey: string): Promise<CryptoKey> {
+    return new ECDHKeyProvider(this.keyProvider, {
+      getPublicKey: async () => {
+        return new PublicKeyDeserializer().deserialize(teePublicKey);
+      },
+    }).getSymmetricKey();
   }
 
   private async verifyHash(

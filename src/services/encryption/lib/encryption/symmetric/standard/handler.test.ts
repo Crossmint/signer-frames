@@ -22,22 +22,22 @@ describe('SymmetricEncryptionHandler', () => {
   });
 
   it('should encrypt and decrypt data successfully', async () => {
-    const handler = new SymmetricEncryptionHandler(mockKeyProvider);
+    const handler = new SymmetricEncryptionHandler();
     const originalData = new TextEncoder().encode('hello world');
 
-    const encryptedData = await handler.encrypt(originalData);
-    const decryptedData = await handler.decrypt(encryptedData);
+    const encryptedData = await handler.encrypt(originalData, key);
+    const decryptedData = await handler.decrypt(encryptedData, key);
 
     expect(decryptedData).toEqual(originalData);
     expect(new TextDecoder().decode(decryptedData)).toBe('hello world');
   });
 
   it('should use a different IV for each encryption', async () => {
-    const handler = new SymmetricEncryptionHandler(mockKeyProvider);
+    const handler = new SymmetricEncryptionHandler();
     const originalData = new TextEncoder().encode('hello world');
 
-    const encryptedData1 = await handler.encrypt(originalData);
-    const encryptedData2 = await handler.encrypt(originalData);
+    const encryptedData1 = await handler.encrypt(originalData, key);
+    const encryptedData2 = await handler.encrypt(originalData, key);
 
     expect(encryptedData1).not.toEqual(encryptedData2);
 

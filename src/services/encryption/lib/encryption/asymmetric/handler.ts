@@ -67,7 +67,7 @@ export class AsymmetricEncryptionHandler {
     ciphertextInput: U,
     encapsulatedKeyInput: U,
     recipientKeyPair: CryptoKeyPair,
-    senderPublicKey: CryptoKey
+    senderPublicKey?: CryptoKey
   ): Promise<T> {
     try {
       const recipient = await this.hpkeSuite.createRecipientContext({

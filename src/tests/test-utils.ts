@@ -7,7 +7,7 @@ import type { AttestationService } from '../services/tee/attestation';
 import type { Ed25519Service } from '../services/crypto/algorithms/ed25519';
 import type { EventsService } from '../services/communications/events';
 import type { EncryptionService } from '../services/encryption';
-import type { FPEService } from '../services/encryption/lib/encryption/symmetric/fpe/fpe';
+import type { FPEService } from '../services/encryption/fpe';
 import type { Secp256k1Service } from '../services/crypto/algorithms/secp256k1';
 import type { CryptoKeyService } from '../services/crypto/crypto-key';
 import type { DeviceService } from '../services/user/device';

@@ -4,16 +4,16 @@ import { AttestationService } from './tee/attestation';
 import { EncryptionService } from './encryption';
 import { Ed25519Service } from './crypto/algorithms/ed25519';
 import type { CrossmintFrameService } from './service';
-import { FPEService } from './encryption/lib/encryption/symmetric/fpe/fpe';
 import { Secp256k1Service } from './crypto/algorithms/secp256k1';
 import { CryptoKeyService } from './crypto/crypto-key';
 import { DeviceService } from './user/device';
 import { IndexedDBAdapter } from './storage';
 import { EncryptionKeyProvider } from './encryption-keys/encryption-key-provider';
 import { TEEKeyProvider } from './encryption-keys/tee-key-provider';
-import { SymmetricEncryptionKeyDerivator } from './encryption/lib/key-management/symmetric-key-derivator';
+import { ECDHKeyProvider } from './encryption/lib/key-management/ecdh-key-provider';
 import { UserKeyManager } from './user/key-manager';
 import { InMemoryCacheService } from './storage/cache';
+import { FPEService } from './encryption/fpe';
 
 /**
  * Services index - Export all services
@@ -51,9 +51,7 @@ export const createCrossmintFrameServices = () => {
   const secp256k1Service = new Secp256k1Service();
   const crossmintApiService = new CrossmintApiService(encryptionService);
   const deviceService = new DeviceService();
-  const fpeService = new FPEService(
-    new SymmetricEncryptionKeyDerivator(keyRepository, teeKeyService)
-  );
+  const fpeService = new FPEService(new ECDHKeyProvider(keyRepository, teeKeyService));
   const cryptoKeyService = new CryptoKeyService(ed25519Service, secp256k1Service);
   const attestationService = new AttestationService(crossmintApiService, EXPECTED_PHALA_APP_ID);
   const userKeyManager = new UserKeyManager(

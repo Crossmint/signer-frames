@@ -1,54 +1,38 @@
-import { CrossmintFrameService } from '../../../../../service';
 import { FF1 } from '@noble/ciphers/ff1';
-import { SymmetricEncryptionKeyDerivator } from '../../../key-management/symmetric-key-derivator';
-import { SymmetricKeyProvider } from '../../../key-management/provider';
 type FPEEncryptionOptions = {
   radix: number;
   tweak?: Uint8Array;
 };
 
-export class FPEService extends CrossmintFrameService {
+export class FPEHandler {
   name = 'Format Preserving Encryption Service';
   log_prefix = '[FPEService]';
-  private encryptionKey: Uint8Array | null = null;
-  private ff1: ReturnType<typeof FF1> | null = null;
 
   constructor(
-    private readonly encryptionKeyProvider: SymmetricKeyProvider,
     private readonly options: FPEEncryptionOptions = {
       radix: 10,
     }
-  ) {
-    super();
+  ) {}
+
+  private async getFf1(key: CryptoKey): Promise<ReturnType<typeof FF1>> {
+    const encryptionKey = await this.exportSymmetricEncryptionKey(key);
+    return FF1(this.options.radix, encryptionKey, this.options.tweak);
   }
 
-  public async init(): Promise<void> {
-    this.encryptionKey = await this.deriveSymmetricEncryptionKey();
-    this.ff1 = FF1(this.options.radix, this.encryptionKey, this.options.tweak);
-  }
-
-  public async encrypt(data: number[]): Promise<number[]> {
+  public async encrypt(data: number[], key: CryptoKey): Promise<number[]> {
+    const ff1 = await this.getFf1(key);
     if (data.some(d => d >= this.options.radix)) {
       throw new Error('Data contains values greater than the radix');
     }
-    this.assertInitialized();
-    const ff1 = this.ff1 as NonNullable<typeof this.ff1>;
     return ff1.encrypt(data);
   }
 
-  public async decrypt(data: number[]): Promise<number[]> {
+  public async decrypt(data: number[], key: CryptoKey): Promise<number[]> {
+    const ff1 = await this.getFf1(key);
     if (data.some(d => d >= this.options.radix)) {
       throw new Error('Data contains values greater than the radix');
     }
-    this.assertInitialized();
-    const ff1 = this.ff1 as NonNullable<typeof this.ff1>;
     return ff1.decrypt(data);
-  }
-
-  private assertInitialized() {
-    if (!this.ff1) {
-      throw new Error('FPEService not initialized');
-    }
   }
 
   /**
@@ -72,8 +56,7 @@ export class FPEService extends CrossmintFrameService {
    * @throws {Error} When AES256 encryption key has not been initialized
    * @throws {Error} When key export operation fails
    */
-  private async deriveSymmetricEncryptionKey() {
-    const symmetricEncryptionKey = await this.encryptionKeyProvider.getSymmetricKey();
-    return new Uint8Array(await crypto.subtle.exportKey('raw', symmetricEncryptionKey));
+  private async exportSymmetricEncryptionKey(key: CryptoKey) {
+    return new Uint8Array(await crypto.subtle.exportKey('raw', key));
   }
 }

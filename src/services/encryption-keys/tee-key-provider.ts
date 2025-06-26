@@ -7,10 +7,7 @@ export class TEEKeyProvider extends CrossmintFrameService {
   name = 'TEE Key Provider';
   log_prefix = '[TEEKeyProvider]';
 
-  constructor(
-    private attestationService?: AttestationService,
-    private readonly kem = new DhkemP256HkdfSha256()
-  ) {
+  constructor(private attestationService?: AttestationService) {
     super();
   }
   async init() {

@@ -1,12 +1,12 @@
-import { FPEService } from './fpe';
-import { SymmetricEncryptionKeyDerivator } from '../../../key-management/symmetric-key-derivator';
+import { FPEHandler } from './fpe';
+import { ECDHKeyProvider } from '../../../key-management/ecdh-key-provider';
 import { mock } from 'vitest-mock-extended';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-describe('FPEService', () => {
-  let fpeService: FPEService;
+describe('FPEHandler', () => {
+  let fpeHandler: FPEHandler;
   let input: number[];
-  const encryptionKeyProviderMock = mock<SymmetricEncryptionKeyDerivator>();
+  const encryptionKeyProviderMock = mock<ECDHKeyProvider>();
 
   // Create a proper mock CryptoKey that can be exported
   const mockCryptoKey = {
@@ -27,14 +27,13 @@ describe('FPEService', () => {
 
     input = Array.from({ length: 6 }, () => Math.floor(Math.random() * 10));
     encryptionKeyProviderMock.getSymmetricKey.mockResolvedValue(mockCryptoKey);
-    fpeService = new FPEService(encryptionKeyProviderMock);
-    await fpeService.init();
+    fpeHandler = new FPEHandler();
   });
 
   describe('encrypt-decrypt', () => {
     it('should encrypt and decrypt a number array', async () => {
-      const encrypted = await fpeService.encrypt(input);
-      const decrypted = await fpeService.decrypt(encrypted);
+      const encrypted = await fpeHandler.encrypt(input, mockCryptoKey);
+      const decrypted = await fpeHandler.decrypt(encrypted, mockCryptoKey);
       expect(decrypted).toEqual(input);
     });
 
@@ -44,8 +43,8 @@ describe('FPEService', () => {
       async () => {
         for (let i = 0; i < 1_000_000; i++) {
           const digits = i.toString().padStart(6, '0').split('').map(Number);
-          const encrypted = await fpeService.encrypt(digits);
-          const decrypted = await fpeService.decrypt(encrypted);
+          const encrypted = await fpeHandler.encrypt(digits, mockCryptoKey);
+          const decrypted = await fpeHandler.decrypt(encrypted, mockCryptoKey);
           expect(encrypted.some(d => d < 0 || d >= 10)).toBe(false);
           expect(decrypted).toEqual(digits);
         }
