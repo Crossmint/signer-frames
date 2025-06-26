@@ -72,7 +72,7 @@ export class FPEService extends CrossmintFrameService {
    * @throws {Error} When key export operation fails
    */
   private async deriveSymmetricEncryptionKey() {
-    const symmetricEncryptionKey = await this.encryptionKeyProvider.getKey();
+    const symmetricEncryptionKey = await this.encryptionKeyProvider.getSymmetricKey();
     return new Uint8Array(await crypto.subtle.exportKey('raw', symmetricEncryptionKey));
   }
 }

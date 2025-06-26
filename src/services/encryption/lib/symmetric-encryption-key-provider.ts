@@ -1,21 +1,21 @@
 import { AES256_KEY_SPEC } from './encryption-consts';
-import { KeyPairProvider, PublicKeyProvider } from './provider';
+import { KeyPairProvider, PublicKeyProvider, SymmetricKeyProvider } from './provider';
 
-export class SymmetricEncryptionKeyProvider {
+export class SymmetricEncryptionKeyProvider implements SymmetricKeyProvider {
   constructor(
-    private readonly privateKeyProvider: KeyPairProvider,
+    private readonly keyPairProvider: KeyPairProvider,
     private readonly publicKeyProvider: PublicKeyProvider
   ) {}
 
-  async getKey(): Promise<CryptoKey> {
-    const { privateKey } = await this.privateKeyProvider.getKeyPair();
+  async getSymmetricKey(): Promise<CryptoKey> {
+    const { privateKey } = await this.keyPairProvider.getKeyPair();
     const publicKey = await this.publicKeyProvider.getPublicKey();
     return await crypto.subtle.deriveKey(
       { name: 'ECDH', public: publicKey },
       privateKey,
       AES256_KEY_SPEC,
       true,
-      ['decrypt']
+      ['decrypt', 'encrypt']
     );
   }
 }

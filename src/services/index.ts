@@ -14,6 +14,7 @@ import { IndexedDBAdapter } from './storage';
 import { EncryptionKeyProvider } from './encryption-keys/encryption-key-provider';
 import { TEEKeyProvider } from './encryption-keys/tee-key-provider';
 import { SymmetricEncryptionKeyProvider } from './encryption/lib/symmetric-encryption-key-provider';
+import { UserKeyManager } from './user/key-manager';
 
 /**
  * Services index - Export all services
@@ -35,6 +36,7 @@ export type CrossmintFrameServices = {
   storage: IndexedDBAdapter;
   teeKey: TEEKeyProvider;
   keyRepository: EncryptionKeyProvider;
+  userKeyManager: UserKeyManager;
 };
 
 const EXPECTED_PHALA_APP_ID = 'df4f0ec61f92a8eec754593da9ea9cd939985e9c';
@@ -59,6 +61,7 @@ export const createCrossmintFrameServices = () => {
   );
   const cryptoKeyService = new CryptoKeyService(ed25519Service, secp256k1Service);
   const attestationService = new AttestationService(crossmintApiService, EXPECTED_PHALA_APP_ID);
+  const userKeyManager = new UserKeyManager(keyRepository);
   teeKeyService.setAttestationService(attestationService);
 
   const services = {
@@ -75,6 +78,7 @@ export const createCrossmintFrameServices = () => {
     fpe: fpeService,
     cryptoKey: cryptoKeyService,
     device: deviceService,
+    userKeyManager: userKeyManager,
   } satisfies Record<string, CrossmintFrameService>;
   return services;
 };

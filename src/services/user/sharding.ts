@@ -74,33 +74,29 @@ export class ShardingService extends CrossmintFrameService {
    * @throws {Error} When cryptographic reconstruction fails
    */
   public async reconstructMasterSecret(authData: { jwt: string; apiKey: string }) {
-    const deviceId = this.deviceService.getId();
-    const authShardData = await this.authShareCache.get(deviceId, authData);
-    if (authShardData == null) {
-      return null;
-    }
+    return null;
 
-    const { authKeyShare, deviceKeyShareHash, signerId } = authShardData;
+    // const { authKeyShare, deviceKeyShareHash, signerId } = authShardData;
 
-    const deviceShare = await this.indexedDB.getItem<string>(
-      SHARDS_STORE_NAME,
-      this.deviceShareStorageKey(signerId)
-    );
-    if (deviceShare == null) {
-      return null;
-    }
+    // const deviceShare = await this.indexedDB.getItem<string>(
+    //   SHARDS_STORE_NAME,
+    //   this.deviceShareStorageKey(signerId)
+    // );
+    // if (deviceShare == null) {
+    //   return null;
+    // }
 
-    const deviceShareBytes = decodeBytes(deviceShare, 'base64');
-    await this.validateDeviceShareConsistency(deviceShareBytes, deviceKeyShareHash, signerId);
+    // const deviceShareBytes = decodeBytes(deviceShare, 'base64');
+    // await this.validateDeviceShareConsistency(deviceShareBytes, deviceKeyShareHash, signerId);
 
-    try {
-      const authShareBytes = decodeBytes(authKeyShare, 'base64');
-      return await combine([deviceShareBytes, authShareBytes]);
-    } catch (error) {
-      throw new Error(
-        `Failed to recombine key shards: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
+    // try {
+    //   const authShareBytes = decodeBytes(authKeyShare, 'base64');
+    //   return await combine([deviceShareBytes, authShareBytes]);
+    // } catch (error) {
+    //   throw new Error(
+    //     `Failed to recombine key shards: ${error instanceof Error ? error.message : String(error)}`
+    //   );
+    // }
   }
 
   private async validateDeviceShareConsistency(

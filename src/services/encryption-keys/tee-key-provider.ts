@@ -24,11 +24,19 @@ export class TEEKeyProvider extends CrossmintFrameService {
       throw new Error('Attestation service not set');
     }
     const attestationPublicKey = await this.attestationService.getAttestedPublicKey();
-    const recipientPublicKeyBuffer = decodeBytes(attestationPublicKey, 'base64').buffer;
-    return await this.kem.deserializePublicKey(recipientPublicKeyBuffer);
+    return new PublicKeyDeserializer().deserialize(attestationPublicKey);
   }
 
   setAttestationService(attestationService: AttestationService) {
     this.attestationService = attestationService;
+  }
+}
+
+export class PublicKeyDeserializer {
+  constructor(private readonly kem = new DhkemP256HkdfSha256()) {}
+
+  async deserialize(serializedPublicKey: string): Promise<CryptoKey> {
+    const recipientPublicKeyBuffer = decodeBytes(serializedPublicKey, 'base64').buffer;
+    return await this.kem.deserializePublicKey(recipientPublicKeyBuffer);
   }
 }

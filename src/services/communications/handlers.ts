@@ -99,22 +99,29 @@ export class CompleteOnboardingEventHandler extends EventHandler<'complete-onboa
     const decryptedOtp = decryptedOtpArray.join('');
     const senderPublicKey = await this.services.keyRepository.getSerializedPublicKey();
 
-    const { deviceKeyShare, signerId } = await this.services.api.completeOnboarding(
-      {
-        publicKey: senderPublicKey,
-        onboardingAuthentication: {
-          otp: decryptedOtp,
+    const { encryptedUserKey, userKeyHash, signature, signerId } =
+      await this.services.api.completeOnboarding(
+        {
+          publicKey: senderPublicKey,
+          onboardingAuthentication: {
+            otp: decryptedOtp,
+          },
+          deviceId,
         },
-        deviceId,
-      },
-      payload.authData
-    );
+        payload.authData
+      );
 
-    this.services.sharding.storeDeviceShare(signerId, deviceKeyShare);
-    const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
-    if (masterSecret == null) {
-      throw new Error('Device share not found');
-    }
+    console.log(
+      'AAAAAAAAAAA',
+      JSON.stringify({ encryptedUserKey, userKeyHash, signature }, null, 2)
+    );
+    const masterSecret = await this.services.userKeyManager.verifyAndReconstructMasterSecret({
+      signerId,
+      deviceId: this.services.device.getId(),
+      encryptedUserKey,
+      userKeyHash,
+      signature,
+    });
 
     return {
       status: 'success',

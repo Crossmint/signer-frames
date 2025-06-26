@@ -144,7 +144,7 @@ export class CrossmintRequest<
     apiResponse: O | z.infer<typeof this.encryptedPayloadSchema>
   ): Promise<O> {
     let response = apiResponse;
-    if (this.encrypted) {
+    if (this.encrypted && this.encryptedPayloadSchema.safeParse(apiResponse).success) {
       this.log('Detected encrypted response. Decrypting...');
       this.log(`[TRACE] Parsing encrypted response ${JSON.stringify(apiResponse, null, 2)}...`);
       const parsedResponseData = this.encryptedPayloadSchema.parse(apiResponse);

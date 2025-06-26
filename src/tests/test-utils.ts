@@ -15,6 +15,7 @@ import type { DeviceService } from '../services/user/device';
 import { IndexedDBAdapter } from '../services/storage';
 import { EncryptionKeyProvider } from '../services/encryption-keys/encryption-key-provider';
 import { TEEKeyProvider } from '../services/encryption-keys/tee-key-provider';
+import { UserKeyManager } from '../services/user/key-manager';
 /**
  * Creates mock services for testing with proper typing
  */
@@ -31,6 +32,7 @@ export function createMockServices(): MockProxy<CrossmintFrameServices> & {
   device: MockProxy<DeviceService>;
   teeKey: MockProxy<TEEKeyProvider>;
   keyRepository: MockProxy<EncryptionKeyProvider>;
+  userKeyManager: MockProxy<UserKeyManager>;
 } {
   return {
     api: mock<CrossmintApiService>(),
@@ -46,6 +48,7 @@ export function createMockServices(): MockProxy<CrossmintFrameServices> & {
     storage: mock<IndexedDBAdapter>(),
     teeKey: mock<TEEKeyProvider>(),
     keyRepository: mock<EncryptionKeyProvider>(),
+    userKeyManager: mock<UserKeyManager>(),
   };
 }
 
