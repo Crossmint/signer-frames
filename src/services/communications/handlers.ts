@@ -53,7 +53,7 @@ export class StartOnboardingEventHandler extends EventHandler<'start-onboarding'
   async handler(
     payload: SignerInputEvent<'start-onboarding'>
   ): Promise<SuccessfulOutputEvent<'start-onboarding'>> {
-    const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
+    const masterSecret = await this.services.userKeyManager.tryGetMasterSecret(payload.authData);
 
     if (masterSecret != null) {
       return {
@@ -142,7 +142,7 @@ export class GetStatusEventHandler extends EventHandler<'get-status'> {
   async handler(
     payload: SignerInputEvent<'get-status'>
   ): Promise<SuccessfulOutputEvent<'get-status'>> {
-    const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
+    const masterSecret = await this.services.userKeyManager.tryGetMasterSecret(payload.authData);
 
     if (masterSecret == null) {
       return {
@@ -164,9 +164,9 @@ export class SignEventHandler extends EventHandler<'sign'> {
   responseEvent = 'response:sign' as const;
 
   async handler(payload: SignerInputEvent<'sign'>): Promise<SuccessfulOutputEvent<'sign'>> {
-    const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
+    const masterSecret = await this.services.userKeyManager.tryGetMasterSecret(payload.authData);
     if (masterSecret == null) {
-      throw new Error('Device share not found');
+      throw new Error('Device is not initialized. Please complete onboarding first.');
     }
 
     const { keyType, bytes, encoding } = payload.data;

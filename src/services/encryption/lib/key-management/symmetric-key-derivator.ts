@@ -1,7 +1,7 @@
-import { AES256_KEY_SPEC } from './encryption-consts';
+import { AES256_KEY_SPEC } from '../encryption/encryption-consts';
 import { KeyPairProvider, PublicKeyProvider, SymmetricKeyProvider } from './provider';
 
-export class SymmetricEncryptionKeyProvider implements SymmetricKeyProvider {
+export class SymmetricEncryptionKeyDerivator implements SymmetricKeyProvider {
   constructor(
     private readonly keyPairProvider: KeyPairProvider,
     private readonly publicKeyProvider: PublicKeyProvider

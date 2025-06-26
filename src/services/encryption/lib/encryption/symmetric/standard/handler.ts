@@ -1,4 +1,4 @@
-import { SymmetricKeyProvider } from './provider';
+import { SymmetricKeyProvider } from '../../../key-management/provider';
 
 const IV_LENGTH = 12;
 

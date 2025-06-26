@@ -1,6 +1,7 @@
-import { CrossmintFrameService } from '../service';
+import { CrossmintFrameService } from '../../../../../service';
 import { FF1 } from '@noble/ciphers/ff1';
-import { SymmetricEncryptionKeyProvider } from './lib/symmetric-encryption-key-provider';
+import { SymmetricEncryptionKeyDerivator } from '../../../key-management/symmetric-key-derivator';
+import { SymmetricKeyProvider } from '../../../key-management/provider';
 type FPEEncryptionOptions = {
   radix: number;
   tweak?: Uint8Array;
@@ -13,7 +14,7 @@ export class FPEService extends CrossmintFrameService {
   private ff1: ReturnType<typeof FF1> | null = null;
 
   constructor(
-    private readonly encryptionKeyProvider: SymmetricEncryptionKeyProvider,
+    private readonly encryptionKeyProvider: SymmetricKeyProvider,
     private readonly options: FPEEncryptionOptions = {
       radix: 10,
     }

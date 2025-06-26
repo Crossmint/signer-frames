@@ -75,14 +75,7 @@ export class CrossmintApiService extends CrossmintFrameService {
   });
   static startOnboardingOutputSchema = z.object({});
 
-  static completeOnboardingInputSchema = z.object({
-    publicKey: z.string(),
-    onboardingAuthentication: z.object({
-      otp: z.string(),
-    }),
-    deviceId: z.string(),
-  });
-  static completeOnboardingOutputSchema = z.object({
+  static encryptedMasterSecretSchema = z.object({
     deviceId: z.string(),
     signerId: z.string(),
     encryptedUserKey: z.object({
@@ -103,12 +96,17 @@ export class CrossmintApiService extends CrossmintFrameService {
     }),
   });
 
-  static getAuthShardInputSchema = z.undefined();
-  static getAuthShardOutputSchema = z.object({
-    signerId: z.string(),
-    authKeyShare: z.string(),
-    deviceKeyShareHash: z.string(),
+  static completeOnboardingInputSchema = z.object({
+    publicKey: z.string(),
+    onboardingAuthentication: z.object({
+      otp: z.string(),
+    }),
+    deviceId: z.string(),
   });
+  static completeOnboardingOutputSchema = CrossmintApiService.encryptedMasterSecretSchema;
+
+  static getEncryptedMasterSecretInputSchema = z.undefined();
+  static getEncryptedMasterSecretOutputSchema = CrossmintApiService.encryptedMasterSecretSchema;
 
   static getAttestationInputSchema = z.undefined();
   static getAttestationOutputSchema = z.object({
@@ -196,19 +194,18 @@ export class CrossmintApiService extends CrossmintFrameService {
     return request.execute(undefined);
   }
 
-  async getAuthShard(
+  async getEncryptedMasterSecret(
     deviceId: string,
-    input: z.infer<typeof CrossmintApiService.getAuthShardInputSchema>,
     authData: AuthData
-  ): Promise<z.infer<typeof CrossmintApiService.getAuthShardOutputSchema>> {
-    CrossmintApiService.getAuthShardInputSchema.parse(input);
+  ): Promise<z.infer<typeof CrossmintApiService.getEncryptedMasterSecretOutputSchema>> {
+    CrossmintApiService.getEncryptedMasterSecretInputSchema.parse(undefined);
     const request = new CrossmintRequest({
-      name: 'getAuthShard',
-      inputSchema: CrossmintApiService.getAuthShardInputSchema,
-      outputSchema: CrossmintApiService.getAuthShardOutputSchema,
+      name: 'getEncryptedMasterSecret',
+      inputSchema: CrossmintApiService.getEncryptedMasterSecretInputSchema,
+      outputSchema: CrossmintApiService.getEncryptedMasterSecretOutputSchema,
       environment: parseApiKey(authData.apiKey).environment,
       authData,
-      endpoint: _input => `/${deviceId}/key-shares`,
+      endpoint: () => `/${deviceId}/encrypted-user-key`,
       method: 'GET',
       encrypted: false,
       encryptionService: this.encryptionService,

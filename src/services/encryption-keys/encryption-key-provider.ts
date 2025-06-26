@@ -1,5 +1,5 @@
 import { CrossmintFrameService } from '../service';
-import { createKEM, ECDH_KEY_SPEC } from '../encryption/lib/encryption-consts';
+import { createKEM, ECDH_KEY_SPEC } from '../encryption/lib/encryption/encryption-consts';
 import { ENCRYPTION_KEYS_STORE_NAME, type IndexedDBAdapter } from '../storage';
 import { encodeBytes } from '../encryption/lib/utils';
 

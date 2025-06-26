@@ -1,12 +1,12 @@
 import { FPEService } from './fpe';
-import { SymmetricEncryptionKeyProvider } from './lib/symmetric-encryption-key-provider';
+import { SymmetricEncryptionKeyDerivator } from '../../../key-management/symmetric-key-derivator';
 import { mock } from 'vitest-mock-extended';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 describe('FPEService', () => {
   let fpeService: FPEService;
   let input: number[];
-  const encryptionKeyProviderMock = mock<SymmetricEncryptionKeyProvider>();
+  const encryptionKeyProviderMock = mock<SymmetricEncryptionKeyDerivator>();
 
   // Create a proper mock CryptoKey that can be exported
   const mockCryptoKey = {
@@ -26,7 +26,7 @@ describe('FPEService', () => {
     vi.spyOn(crypto.subtle, 'exportKey').mockResolvedValue(key.buffer);
 
     input = Array.from({ length: 6 }, () => Math.floor(Math.random() * 10));
-    encryptionKeyProviderMock.getKey.mockResolvedValue(mockCryptoKey);
+    encryptionKeyProviderMock.getSymmetricKey.mockResolvedValue(mockCryptoKey);
     fpeService = new FPEService(encryptionKeyProviderMock);
     await fpeService.init();
   });

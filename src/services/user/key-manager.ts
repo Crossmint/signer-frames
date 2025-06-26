@@ -1,10 +1,14 @@
 import { z } from 'zod';
-import { SymmetricEncryptionHandler } from '../encryption/lib/symmetric-encryption-handler';
+import { SymmetricEncryptionHandler } from '../encryption/lib/encryption/symmetric/standard/handler';
 import { CrossmintFrameService } from '../service';
-import { SymmetricEncryptionKeyProvider } from '../encryption/lib/symmetric-encryption-key-provider';
-import { KeyPairProvider } from '../encryption/lib/provider';
+import { SymmetricEncryptionKeyDerivator } from '../encryption/lib/key-management/symmetric-key-derivator';
+import { KeyPairProvider } from '../encryption/lib/key-management/provider';
 import { PublicKeyDeserializer } from '../encryption-keys/tee-key-provider';
 import { decodeBytes, encodeBytes } from '../encryption/lib/utils';
+import { AuthData } from '../api/request';
+import { CrossmintApiService } from '../api';
+import { DeviceService } from './device';
+import { InMemoryCacheService } from '../storage/cache';
 
 const completeOnboardingOutputSchema = z.object({
   deviceId: z.string(),
@@ -27,12 +31,55 @@ const completeOnboardingOutputSchema = z.object({
   }),
 });
 
+type CompleteOnboardingOutput = z.infer<typeof completeOnboardingOutputSchema>;
+
 export class UserKeyManager extends CrossmintFrameService {
   name = 'User Key Manager';
   log_prefix = '[UserKeyManager]';
 
-  constructor(private readonly keyProvider: KeyPairProvider) {
+  constructor(
+    private readonly api: CrossmintApiService,
+    private readonly keyProvider: KeyPairProvider,
+    private readonly deviceService: DeviceService,
+    private readonly cache: InMemoryCacheService
+  ) {
     super();
+  }
+
+  async tryGetMasterSecret(authData: AuthData): Promise<Uint8Array | null> {
+    let encryptedMasterSecret: CompleteOnboardingOutput | null = await this.tryGetFromCache();
+    encryptedMasterSecret = encryptedMasterSecret ?? (await this.tryGetFromApi(authData));
+    if (encryptedMasterSecret != null) {
+      this.cache.set('encryptedMasterSecret', encryptedMasterSecret);
+      const masterSecret = await this.verifyAndReconstructMasterSecret(encryptedMasterSecret);
+      return masterSecret;
+    }
+    return null;
+  }
+
+  async tryGetFromCache(): Promise<CompleteOnboardingOutput | null> {
+    const encryptedMasterSecret = this.cache.get(
+      'encryptedMasterSecret',
+      completeOnboardingOutputSchema
+    );
+    if (encryptedMasterSecret == null) {
+      return null;
+    }
+    return encryptedMasterSecret as CompleteOnboardingOutput;
+  }
+
+  async tryGetFromApi(authData: AuthData): Promise<CompleteOnboardingOutput | null> {
+    try {
+      const encryptedMasterSecret = await this.api.getEncryptedMasterSecret(
+        this.deviceService.getId(),
+        authData
+      );
+      this.cache.set('encryptedMasterSecret', encryptedMasterSecret);
+      return encryptedMasterSecret;
+    } catch (error) {
+      this.logError('Error getting encrypted master secret from API:', error, '. Continuing...');
+      return null;
+    }
   }
 
   async verifyAndReconstructMasterSecret({
@@ -45,7 +92,7 @@ export class UserKeyManager extends CrossmintFrameService {
     const teePublicKey = encryptedUserKey.encryptionPublicKey;
     console.log('Tee public key', teePublicKey);
     const encryptionHandler = new SymmetricEncryptionHandler(
-      new SymmetricEncryptionKeyProvider(this.keyProvider, {
+      new SymmetricEncryptionKeyDerivator(this.keyProvider, {
         getPublicKey: async () => {
           return new PublicKeyDeserializer().deserialize(teePublicKey);
         },

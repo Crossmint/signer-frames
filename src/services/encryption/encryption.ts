@@ -1,7 +1,7 @@
 import { CrossmintFrameService } from '../service';
-import { type EncryptionResult } from './lib/encryption-consts';
+import { type EncryptionResult } from './lib/encryption/encryption-consts';
 import { type EncryptionKeyProvider } from '../encryption-keys/encryption-key-provider';
-import { AsymmetricEncryptionHandler } from './lib/asymmetric-encryption-handler';
+import { AsymmetricEncryptionHandler } from './lib/encryption/asymmetric/handler';
 
 type EncryptablePayload = Record<string, unknown>;
 

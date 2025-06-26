@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { SymmetricEncryptionHandler } from './symmetric-encryption-handler';
-import { type SymmetricKeyProvider } from './provider';
+import { SymmetricEncryptionHandler } from './handler';
+import { type SymmetricKeyProvider } from '../../../key-management/provider';
 
 describe('SymmetricEncryptionHandler', () => {
   let key: CryptoKey;

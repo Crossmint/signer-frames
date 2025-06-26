@@ -6,7 +6,7 @@ import {
   IDENTITY_STORAGE_KEY,
   type EncryptionKeyProvider,
 } from '../encryption-keys/encryption-key-provider';
-import type { PublicKeyProvider } from './lib/provider';
+import type { PublicKeyProvider } from './lib/key-management/provider';
 
 // Mock types for attestation
 type AttestationDocument = { publicKey: string } & Record<string, unknown>;
