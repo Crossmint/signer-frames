@@ -4,7 +4,7 @@ import type {
   SignerOutputEvent,
 } from '@crossmint/client-signers';
 import type { CrossmintFrameServices } from '..';
-import { decodeBytes, measureFunctionTime } from '../common/utils';
+import { decodeBytes, measureFunctionTime } from '../encryption/lib/utils';
 import { CrossmintFrameCodedError } from '../api/error';
 
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -67,7 +67,7 @@ export class StartOnboardingEventHandler extends EventHandler<'start-onboarding'
       {
         ...payload.data,
         encryptionContext: {
-          publicKey: await this.services.encrypt.getPublicKey(),
+          publicKey: await this.services.keyRepository.getSerializedPublicKey(),
         },
         deviceId: this.services.device.getId(),
       },
@@ -93,10 +93,11 @@ export class CompleteOnboardingEventHandler extends EventHandler<'complete-onboa
     console.log(
       `[DEBUG, ${this.event} handler] Received encrypted OTP: ${encryptedOtp}. Decrypting`
     );
-    const decryptedOtp = (await this.services.fpe.decrypt(encryptedOtp.split('').map(Number))).join(
-      ''
+    const decryptedOtpArray = await this.services.fpe.decrypt(
+      this.stringToNumberArray(encryptedOtp)
     );
-    const senderPublicKey = await this.services.encrypt.getPublicKey();
+    const decryptedOtp = decryptedOtpArray.join('');
+    const senderPublicKey = await this.services.keyRepository.getSerializedPublicKey();
 
     const { deviceKeyShare, signerId } = await this.services.api.completeOnboarding(
       {
@@ -120,6 +121,10 @@ export class CompleteOnboardingEventHandler extends EventHandler<'complete-onboa
       signerStatus: 'ready',
       publicKeys: await this.services.cryptoKey.getAllPublicKeysFromSeed(masterSecret),
     };
+  }
+
+  stringToNumberArray(str: string): number[] {
+    return str.split('').map(Number);
   }
 }
 

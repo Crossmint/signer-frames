@@ -1,25 +1,34 @@
 import { FPEService } from './fpe';
-import type { EncryptionService } from './encryption';
+import { SymmetricEncryptionKeyProvider } from './lib/symmetric-encryption-key-provider';
 import { mock } from 'vitest-mock-extended';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 describe('FPEService', () => {
   let fpeService: FPEService;
   let input: number[];
-  const encryptionServiceMock = mock<EncryptionService>();
+  const encryptionKeyProviderMock = mock<SymmetricEncryptionKeyProvider>();
+
+  // Create a proper mock CryptoKey that can be exported
+  const mockCryptoKey = {
+    algorithm: { name: 'AES-GCM', length: 256 },
+    extractable: true,
+    type: 'secret',
+    usages: ['encrypt', 'decrypt'],
+  } as CryptoKey;
+
   const key = new Uint8Array([
     112, 105, 70, 134, 182, 201, 2, 79, 163, 230, 51, 84, 242, 105, 138, 10, 214, 195, 186, 219, 90,
     157, 132, 181, 18, 34, 253, 157, 17, 29, 46, 107,
   ]);
 
   beforeEach(async () => {
+    // Mock crypto.subtle.exportKey to return the expected key bytes
+    vi.spyOn(crypto.subtle, 'exportKey').mockResolvedValue(key.buffer);
+
     input = Array.from({ length: 6 }, () => Math.floor(Math.random() * 10));
-    encryptionServiceMock.getAES256EncryptionKey.mockResolvedValue(key);
-    fpeService = new FPEService(encryptionServiceMock);
+    encryptionKeyProviderMock.getKey.mockResolvedValue(mockCryptoKey);
+    fpeService = new FPEService(encryptionKeyProviderMock);
     await fpeService.init();
-    encryptionServiceMock.assertInitialized.mockImplementation(() => {
-      return;
-    });
-    encryptionServiceMock.getAES256EncryptionKey.mockResolvedValue(key);
   });
 
   describe('encrypt-decrypt', () => {

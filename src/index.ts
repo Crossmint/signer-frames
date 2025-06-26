@@ -4,7 +4,7 @@
 
 import { initializeHandlers, createCrossmintFrameServices } from './services';
 import type { EventHandler } from './services/communications/handlers';
-import { measureFunctionTime } from './services/common/utils';
+import { measureFunctionTime } from './services/encryption/lib/utils';
 
 // Define window augmentation
 declare global {

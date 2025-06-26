@@ -1,7 +1,7 @@
 import { combine } from 'shamir-secret-sharing';
 import { CrossmintFrameService } from '../service';
 import { CrossmintFrameCodedError } from '../api/error';
-import { decodeBytes, encodeBytes } from '../common/utils';
+import { decodeBytes, encodeBytes } from '../encryption/lib/utils';
 import type { AuthShareCache } from '../storage';
 import type { DeviceService } from './device';
 import { SHARDS_STORE_NAME, type IndexedDBAdapter } from '../storage';
