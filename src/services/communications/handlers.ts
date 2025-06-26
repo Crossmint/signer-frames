@@ -97,7 +97,6 @@ export class CompleteOnboardingEventHandler extends EventHandler<'complete-onboa
       this.stringToNumberArray(encryptedOtp)
     );
     const decryptedOtp = decryptedOtpArray.join('');
-    console.log(`[DEBUG, ${this.event} handler] Decrypted OTP: ${decryptedOtp}`);
     const senderPublicKey = await this.services.keyRepository.getSerializedPublicKey();
 
     const { deviceKeyShare, signerId } = await this.services.api.completeOnboarding(
