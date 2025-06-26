@@ -28,6 +28,13 @@ export class EventsService extends CrossmintFrameService {
       return;
     }
 
+    // For debugging purposes, we can delete this later
+    if (options?.targetOrigin) {
+      console.log('targetOrigin', options.targetOrigin);
+    } else {
+      console.log('targetOrigin not provided');
+    }
+
     EventsService.messenger =
       'ReactNativeWebView' in window && window.ReactNativeWebView != null
         ? new RNWebViewChild({

@@ -49,13 +49,19 @@ class CrossmintFrame {
    * Initialize the Crossmint Signers Frame framework
    * @returns {Promise<CrossmintFrame>} This instance for chaining
    */
-  async init(): Promise<void> {
+  async init(targetOrigin: string | undefined): Promise<void> {
     console.log('Initializing Crossmint Signers Frame framework...');
 
     for (const service of Object.values(this.services)) {
       const serviceName = service.name;
       console.log(`-- Initializing ${serviceName}`);
-      await measureFunctionTime(`[${serviceName} init]`, () => service.init());
+      await measureFunctionTime(`[${serviceName} init]`, async () => {
+        if (serviceName === 'Events Service') {
+          await service.init({ targetOrigin });
+        } else {
+          await service.init();
+        }
+      });
       console.log(`-- ${serviceName} initialized!`);
     }
 
