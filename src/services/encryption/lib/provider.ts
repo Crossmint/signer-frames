@@ -5,3 +5,7 @@ export interface KeyPairProvider {
 export interface PublicKeyProvider {
   getPublicKey(): Promise<CryptoKey>;
 }
+
+export interface SymmetricKeyProvider {
+  getSymmetricKey(): Promise<CryptoKey>;
+}

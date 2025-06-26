@@ -4,7 +4,7 @@ import { CipherSuite } from '@hpke/core';
 
 type EncryptablePayload = Record<string, unknown>;
 
-export class EncryptionHandler {
+export class AsymmetricEncryptionHandler {
   constructor(private readonly hpkeSuite: CipherSuite = createHpkeSuite()) {}
 
   async encrypt<T extends EncryptablePayload>(
