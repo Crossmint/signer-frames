@@ -32,9 +32,6 @@ importers:
       ethereum-cryptography:
         specifier: ^3.2.0
         version: 3.2.0
-      shamir-secret-sharing:
-        specifier: ^0.0.4
-        version: 0.0.4
       zod:
         specifier: 3.22.4
         version: 3.22.4
@@ -2719,9 +2716,6 @@ packages:
 
   setprototypeof@1.2.0:
     resolution: {integrity: sha512-E5LDX7Wrp85Kil5bhZv46j8jOeboKq5JMmYM3gVGdGH8xFpPWXUMsNrlODCrkoxMEeNi/XZIwuRvY4XNwYMJpw==}
-
-  shamir-secret-sharing@0.0.4:
-    resolution: {integrity: sha512-ui8u/cIg2j16b9on/LH3V/glL6wHdwiTo/Iajzqx0STniBvuOzl6VYUxhrow3waF0dggovJfYiBZSWfTAN4XLQ==}
 
   shebang-command@2.0.0:
     resolution: {integrity: sha512-kHxr2zZpYtdmrN1qDjrrX/Z1rR1kG8Dx+gkpK1G4eXmvXswmcE1hTWBWYUzlraYw1/yZp6YuDY77YtvbN0dmDA==}
@@ -6119,8 +6113,6 @@ snapshots:
       - supports-color
 
   setprototypeof@1.2.0: {}
-
-  shamir-secret-sharing@0.0.4: {}
 
   shebang-command@2.0.0:
     dependencies:
