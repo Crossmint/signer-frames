@@ -1,6 +1,12 @@
 import { CrossmintFrameService } from '../service';
 import { z } from 'zod';
 
+export interface CacheService<T extends string | object | number = Record<string, unknown>> {
+  set(key: string, value: T, ttl_ms?: number): void;
+  get(key: string, schema?: z.ZodSchema): T | null;
+  remove(key: string): void;
+}
+
 /**
  * Represents a cache entry with a value and optional expiration time.
  * @template T - The type of the cached value, must be string, object, or number
@@ -17,9 +23,10 @@ interface CacheEntry<T extends string | object | number> {
  * Extends CrossmintFrameService and includes automatic cleanup of expired entries.
  * @template T - The type of values stored in the cache, defaults to Record<string, unknown>
  */
-export class InMemoryCacheService<
-  T extends string | object | number = Record<string, unknown>,
-> extends CrossmintFrameService {
+export class InMemoryCacheService<T extends string | object | number = Record<string, unknown>>
+  extends CrossmintFrameService
+  implements CacheService<T>
+{
   name = 'In Memory Cache Service';
   log_prefix = '[InMemoryCacheService]';
 
@@ -90,6 +97,10 @@ export class InMemoryCacheService<
     }
 
     return entry.value;
+  }
+
+  remove(key: string): void {
+    delete this.cache[key];
   }
 
   /**

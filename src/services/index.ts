@@ -42,18 +42,18 @@ export const createCrossmintFrameServices = () => {
   const ed25519Service = new Ed25519Service();
   const cacheService = new InMemoryCacheService();
   const storageService = new IndexedDBAdapter();
-  const encryptionKeyProvider = new MasterFrameKeyProvider(storageService);
+  const frameKeyProvider = new MasterFrameKeyProvider(storageService);
   const teeKeyService = new TEEKeyProvider();
-  const encryptionService = new HPKEService(encryptionKeyProvider, teeKeyService);
+  const encryptionService = new HPKEService(frameKeyProvider, teeKeyService);
   const secp256k1Service = new Secp256k1Service();
   const crossmintApiService = new CrossmintApiService(encryptionService);
   const deviceService = new DeviceService();
-  const fpeService = new FPEService(encryptionKeyProvider, teeKeyService);
+  const fpeService = new FPEService(frameKeyProvider, teeKeyService);
   const cryptoKeyService = new CryptoKeyService(ed25519Service, secp256k1Service);
   const attestationService = new AttestationService(crossmintApiService, EXPECTED_PHALA_APP_ID);
   const userKeyManager = new UserMasterSecretManager(
     crossmintApiService,
-    encryptionKeyProvider,
+    frameKeyProvider,
     deviceService,
     cacheService
   );
@@ -62,7 +62,7 @@ export const createCrossmintFrameServices = () => {
   const services = {
     cache: cacheService,
     storage: storageService,
-    encryptionKeyProvider: encryptionKeyProvider,
+    encryptionKeyProvider: frameKeyProvider,
     events: eventsService,
     attestation: attestationService,
     teeKey: teeKeyService,

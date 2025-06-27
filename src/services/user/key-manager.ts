@@ -5,7 +5,7 @@ import { PublicKeyDeserializer } from '../encryption-keys/tee-key-provider';
 import { AuthData } from '../api/request';
 import { CrossmintApiService } from '../api';
 import { DeviceService } from './device';
-import { InMemoryCacheService } from '../storage/cache';
+import { CacheService, InMemoryCacheService } from '../storage/cache';
 import { deriveSymmetricKey } from '@crossmint/client-signers-cryptography';
 import {
   HashedEncryptedMasterSecret,
@@ -37,7 +37,7 @@ export class UserMasterSecretManager extends CrossmintFrameService {
     private readonly api: CrossmintApiService,
     private readonly keyProvider: KeyPairProvider,
     private readonly deviceService: DeviceService,
-    private readonly cache: InMemoryCacheService,
+    private readonly cache: CacheService,
     private readonly hkpe = new AesGcm()
   ) {
     super();
@@ -92,7 +92,6 @@ export class UserMasterSecretManager extends CrossmintFrameService {
         this.deviceService.getId(),
         authData
       );
-      this.cache.set('encryptedMasterSecret', encryptedMasterSecret, 1000 * 60 * 5); // 5 minutes
       return encryptedMasterSecret;
     } catch (error) {
       this.logError('Error getting encrypted master secret from API:', error, '. Continuing...');
@@ -114,6 +113,7 @@ export class UserMasterSecretManager extends CrossmintFrameService {
    * @private
    */
   async verifyAndReconstructMasterSecret({
+    deviceId,
     encryptedUserKey,
     userKeyHash,
   }: HashedEncryptedMasterSecret) {
@@ -126,10 +126,28 @@ export class UserMasterSecretManager extends CrossmintFrameService {
       );
 
       this.verifyHash(new Uint8Array(masterSecret), userKeyHash);
+      this.verifyDeviceId(deviceId);
+
+      this.cacheMasterSecret({
+        deviceId,
+        encryptedUserKey,
+        userKeyHash,
+      });
       return masterSecret;
     } catch (error) {
       console.error('Error decrypting master secret', error);
+      this.cache.remove('encryptedMasterSecret');
       throw error;
+    }
+  }
+
+  private async cacheMasterSecret(encryptedMasterSecret: HashedEncryptedMasterSecret) {
+    this.cache.set('encryptedMasterSecret', encryptedMasterSecret, 1000 * 60 * 5); // 5 minutes
+  }
+
+  private verifyDeviceId(deviceId: string) {
+    if (deviceId !== this.deviceService.getId()) {
+      throw new Error('Device ID of decrypted master secret does not match');
     }
   }
 
