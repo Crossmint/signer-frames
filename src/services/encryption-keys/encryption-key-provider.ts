@@ -12,7 +12,7 @@ export const IDENTITY_STORAGE_KEY = 'encryption-key-pair';
  * Cryptographic key permissions required for the master frame key pair
  * Allows deriving bits and keys for encryption/decryption operations
  */
-export const IDENTITY_KEY_PERMISSIONS: KeyUsage[] = ['deriveBits', 'deriveKey'];
+const IDENTITY_KEY_PERMISSIONS: KeyUsage[] = ['deriveBits', 'deriveKey'];
 
 /**
  * Manages the master frame key pair for the frame service.

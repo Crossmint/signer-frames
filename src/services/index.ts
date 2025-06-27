@@ -18,7 +18,7 @@ import { FPEService } from './encryption/fpe';
  * Services index - Export all services
  */
 export { initializeHandlers } from './communications/handlers';
-export { CrossmintFrameService } from './service';
+;
 
 export type CrossmintFrameServices = {
   events: EventsService;

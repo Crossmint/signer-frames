@@ -12,7 +12,7 @@ type EncryptablePayload = Record<string, unknown>;
  * Provider interface for retrieving public keys used in HPKE operations.
  * Implementations should provide the TEE's attested public key for secure communication.
  */
-export interface PublicKeyProvider {
+interface PublicKeyProvider {
   /**
    * Retrieves the public key for HPKE encryption/decryption operations.
    * @returns Promise that resolves to the public key

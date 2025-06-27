@@ -504,14 +504,14 @@ const wNAF = n => {
 }; // !! you can disable precomputes by commenting-out call of the wNAF() inside Point#mul()
 // !! Remove the export to easily use in REPL / browser console
 export {
-  CURVE,
-  etc,
-  Point as ExtendedPoint,
-  getPublicKey,
+  
+  
+  
+  
   getPublicKeyAsync,
-  sign,
+  
   signAsync,
-  utils,
-  verify,
+  
+  
   verifyAsync,
 };

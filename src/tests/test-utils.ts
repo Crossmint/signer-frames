@@ -55,7 +55,7 @@ export function createMockServices(): MockProxy<CrossmintFrameServices> & {
 /**
  * Creates a mock fetch response
  */
-export function createMockResponse<T>(
+function createMockResponse<T>(
   data: T,
   options: { status?: number; statusText?: string; headers?: Record<string, string> } = {}
 ): Response {
@@ -86,7 +86,7 @@ export function createMockResponse<T>(
 /**
  * Mock console methods to prevent test noise
  */
-export function mockConsole(): void {
+function mockConsole(): void {
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -95,7 +95,7 @@ export function mockConsole(): void {
 /**
  * Utility for mocking window.crypto functionality
  */
-export function mockCrypto(): void {
+function mockCrypto(): void {
   const mockRandomValues = (buffer: Uint8Array) => {
     for (let i = 0; i < buffer.length; i++) {
       buffer[i] = Math.floor(Math.random() * 256);

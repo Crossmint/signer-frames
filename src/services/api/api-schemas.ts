@@ -4,7 +4,7 @@ import { z } from 'zod';
 // Common/Shared Schemas
 // ================================
 
-export const base64BytesSchema = z.object({
+const base64BytesSchema = z.object({
   bytes: z.string(),
   encoding: z.literal('base64'),
 });
@@ -15,7 +15,7 @@ export const sha256HashSchema = z.object({
   algorithm: z.literal('SHA-256'),
 });
 
-export const encryptionContextSchema = z.object({
+const encryptionContextSchema = z.object({
   publicKey: z.string(),
 });
 
@@ -25,11 +25,11 @@ export const encryptedUserKeySchema = z.object({
   encryptionPublicKey: z.string(),
 });
 
-export const onboardingAuthenticationSchema = z.object({
+const onboardingAuthenticationSchema = z.object({
   otp: z.string(),
 });
 
-export const encryptedMasterSecretSchema = z.object({
+const encryptedMasterSecretSchema = z.object({
   deviceId: z.string(),
   signerId: z.string(),
   encryptedUserKey: encryptedUserKeySchema,
@@ -40,35 +40,35 @@ export const encryptedMasterSecretSchema = z.object({
 // Onboarding Schemas
 // ================================
 
-export const startOnboardingInputSchema = z.object({
+const startOnboardingInputSchema = z.object({
   authId: z.string(),
   deviceId: z.string(),
   encryptionContext: encryptionContextSchema,
 });
 
-export const startOnboardingOutputSchema = z.object({});
+const startOnboardingOutputSchema = z.object({});
 
-export const completeOnboardingInputSchema = z.object({
+const completeOnboardingInputSchema = z.object({
   publicKey: z.string(),
   onboardingAuthentication: onboardingAuthenticationSchema,
   deviceId: z.string(),
 });
 
-export const completeOnboardingOutputSchema = encryptedMasterSecretSchema;
+const completeOnboardingOutputSchema = encryptedMasterSecretSchema;
 
 // ================================
 // Master Secret Schemas
 // ================================
 
-export const getEncryptedMasterSecretInputSchema = z.undefined();
-export const getEncryptedMasterSecretOutputSchema = encryptedMasterSecretSchema;
+const getEncryptedMasterSecretInputSchema = z.undefined();
+const getEncryptedMasterSecretOutputSchema = encryptedMasterSecretSchema;
 
 // ================================
 // Attestation Schemas
 // ================================
 
-export const getAttestationInputSchema = z.undefined();
-export const getAttestationOutputSchema = z.object({
+const getAttestationInputSchema = z.undefined();
+const getAttestationOutputSchema = z.object({
   publicKey: z.string(),
   quote: z.string(),
   event_log: z.string(),
@@ -76,8 +76,8 @@ export const getAttestationOutputSchema = z.object({
   prefix: z.literal('app-data'),
 });
 
-export const getPublicKeyInputSchema = z.undefined();
-export const getPublicKeyOutputSchema = z.object({
+const getPublicKeyInputSchema = z.undefined();
+const getPublicKeyOutputSchema = z.object({
   publicKey: z.string(),
 });
 
@@ -85,32 +85,32 @@ export const getPublicKeyOutputSchema = z.object({
 // Type Exports
 // ================================
 
-export type Base64Bytes = z.infer<typeof base64BytesSchema>;
-export type SHA256Hash = z.infer<typeof sha256HashSchema>;
-export type EncryptionContext = z.infer<typeof encryptionContextSchema>;
-export type EncryptedUserKey = z.infer<typeof encryptedUserKeySchema>;
-export type OnboardingAuthentication = z.infer<typeof onboardingAuthenticationSchema>;
-export type EncryptedMasterSecret = z.infer<typeof encryptedMasterSecretSchema>;
+type Base64Bytes = z.infer<typeof base64BytesSchema>;
+type SHA256Hash = z.infer<typeof sha256HashSchema>;
+type EncryptionContext = z.infer<typeof encryptionContextSchema>;
+type EncryptedUserKey = z.infer<typeof encryptedUserKeySchema>;
+type OnboardingAuthentication = z.infer<typeof onboardingAuthenticationSchema>;
+type EncryptedMasterSecret = z.infer<typeof encryptedMasterSecretSchema>;
 
 export type StartOnboardingInput = z.infer<typeof startOnboardingInputSchema>;
-export type StartOnboardingOutput = z.infer<typeof startOnboardingOutputSchema>;
+type StartOnboardingOutput = z.infer<typeof startOnboardingOutputSchema>;
 export type CompleteOnboardingInput = z.infer<typeof completeOnboardingInputSchema>;
 export type CompleteOnboardingOutput = z.infer<typeof completeOnboardingOutputSchema>;
 
-export type GetEncryptedMasterSecretInput = z.infer<typeof getEncryptedMasterSecretInputSchema>;
+type GetEncryptedMasterSecretInput = z.infer<typeof getEncryptedMasterSecretInputSchema>;
 export type GetEncryptedMasterSecretOutput = z.infer<typeof getEncryptedMasterSecretOutputSchema>;
 
-export type GetAttestationInput = z.infer<typeof getAttestationInputSchema>;
+type GetAttestationInput = z.infer<typeof getAttestationInputSchema>;
 export type GetAttestationOutput = z.infer<typeof getAttestationOutputSchema>;
 
-export type GetPublicKeyInput = z.infer<typeof getPublicKeyInputSchema>;
+type GetPublicKeyInput = z.infer<typeof getPublicKeyInputSchema>;
 export type GetPublicKeyOutput = z.infer<typeof getPublicKeyOutputSchema>;
 
 // ================================
 // Schema Collections
 // ================================
 
-export const CommonSchemas = {
+const CommonSchemas = {
   base64BytesSchema,
   sha256HashSchema,
   encryptionContextSchema,
@@ -119,7 +119,7 @@ export const CommonSchemas = {
   encryptedMasterSecretSchema,
 } as const;
 
-export const OnboardingSchemas = {
+const OnboardingSchemas = {
   input: {
     start: startOnboardingInputSchema,
     complete: completeOnboardingInputSchema,
@@ -130,7 +130,7 @@ export const OnboardingSchemas = {
   },
 } as const;
 
-export const MasterSecretSchemas = {
+const MasterSecretSchemas = {
   input: {
     get: getEncryptedMasterSecretInputSchema,
   },
@@ -139,7 +139,7 @@ export const MasterSecretSchemas = {
   },
 } as const;
 
-export const AttestationSchemas = {
+const AttestationSchemas = {
   input: {
     attestation: getAttestationInputSchema,
     publicKey: getPublicKeyInputSchema,
@@ -171,7 +171,7 @@ export const CrossmintApiServiceSchemas = {
 // Unified Export
 // ================================
 
-export const ApiSchemas = {
+const ApiSchemas = {
   common: CommonSchemas,
   onboarding: OnboardingSchemas,
   masterSecret: MasterSecretSchemas,

@@ -20,7 +20,7 @@ export class CrossmintHttpError extends Error {
   }
 }
 
-export interface CrossmintRequestOptions<I, O> {
+interface CrossmintRequestOptions<I, O> {
   name?: string;
   inputSchema: ZodSchema<I>;
   outputSchema: ZodSchema<O>;

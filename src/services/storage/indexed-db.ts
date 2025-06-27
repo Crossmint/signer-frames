@@ -14,7 +14,7 @@ const ALL_STORES = [ENCRYPTION_KEYS_STORE_NAME];
  * Interface for data stored with expiration capability.
  * @template T - The type of the actual data being stored
  */
-export interface ExpirableData<T> {
+interface ExpirableData<T> {
   /** The actual data being stored */
   data: T;
   /** Timestamp (in milliseconds) when this data expires */
@@ -26,7 +26,7 @@ export interface ExpirableData<T> {
 /**
  * Options for storing data with expiration.
  */
-export interface ExpirationOptions {
+interface ExpirationOptions {
   /** Time-to-live in milliseconds. If provided, data will expire after this duration */
   ttlMs?: number;
   /** Absolute expiration timestamp in milliseconds. If provided, data will expire at this time */

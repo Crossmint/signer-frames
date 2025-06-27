@@ -132,7 +132,7 @@ export class CompleteOnboardingEventHandler extends EventHandler<'complete-onboa
   }
 }
 
-export class GetStatusEventHandler extends EventHandler<'get-status'> {
+class GetStatusEventHandler extends EventHandler<'get-status'> {
   event = 'request:get-status' as const;
   responseEvent = 'response:get-status' as const;
 
