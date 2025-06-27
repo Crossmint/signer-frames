@@ -116,7 +116,7 @@ export class CrossmintRequest<
     }
 
     const json = await response.json();
-    return this.constructResponse(json);
+    return this.outputSchema.parse(json);
   }
 
   private async constructBody(
@@ -138,24 +138,6 @@ export class CrossmintRequest<
       return encryptedPayload;
     }
     return parsedInput;
-  }
-
-  private async constructResponse(
-    apiResponse: O | z.infer<typeof this.encryptedPayloadSchema>
-  ): Promise<O> {
-    let response = apiResponse;
-    if (this.encrypted && this.encryptedPayloadSchema.safeParse(apiResponse).success) {
-      this.log('Detected encrypted response. Decrypting...');
-      this.log(`[TRACE] Parsing encrypted response ${JSON.stringify(apiResponse, null, 2)}...`);
-      const parsedResponseData = this.encryptedPayloadSchema.parse(apiResponse);
-      response = await this.encryptionService.decrypt(
-        parsedResponseData.ciphertext,
-        parsedResponseData.encapsulatedKey
-      );
-      this.log('Decryption successful!');
-      this.log(`[TRACE] Decrypted response: ${JSON.stringify(response, null, 2)}`);
-    }
-    return this.outputSchema.parse(response);
   }
 
   private getUrlFromEnvironment(environment: Environment) {

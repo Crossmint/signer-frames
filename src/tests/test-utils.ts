@@ -30,7 +30,7 @@ export function createMockServices(): MockProxy<CrossmintFrameServices> & {
   cryptoKey: MockProxy<CryptoKeyService>;
   device: MockProxy<DeviceService>;
   teeKey: MockProxy<TEEKeyProvider>;
-  keyRepository: MockProxy<EncryptionKeyProvider>;
+  encryptionKeyProvider: MockProxy<EncryptionKeyProvider>;
   userKeyManager: MockProxy<UserKeyManager>;
   cache: MockProxy<InMemoryCacheService>;
 } {
@@ -46,7 +46,7 @@ export function createMockServices(): MockProxy<CrossmintFrameServices> & {
     device: mock<DeviceService>(),
     storage: mock<IndexedDBAdapter>(),
     teeKey: mock<TEEKeyProvider>(),
-    keyRepository: mock<EncryptionKeyProvider>(),
+    encryptionKeyProvider: mock<EncryptionKeyProvider>(),
     userKeyManager: mock<UserKeyManager>(),
     cache: mock<InMemoryCacheService>(),
   };

@@ -54,7 +54,9 @@ export class StartOnboardingEventHandler extends EventHandler<'start-onboarding'
   async handler(
     payload: SignerInputEvent<'start-onboarding'>
   ): Promise<SuccessfulOutputEvent<'start-onboarding'>> {
-    const masterSecret = await this.services.userKeyManager.tryGetMasterSecret(payload.authData);
+    const masterSecret = await this.services.userKeyManager.tryGetAndDecryptMasterSecret(
+      payload.authData
+    );
 
     if (masterSecret != null) {
       return {
@@ -68,7 +70,7 @@ export class StartOnboardingEventHandler extends EventHandler<'start-onboarding'
       {
         ...payload.data,
         encryptionContext: {
-          publicKey: await this.services.keyRepository.getSerializedPublicKey(),
+          publicKey: await this.services.encryptionKeyProvider.getSerializedPublicKey(),
         },
         deviceId: this.services.device.getId(),
       },
@@ -91,37 +93,24 @@ export class CompleteOnboardingEventHandler extends EventHandler<'complete-onboa
   ): Promise<SuccessfulOutputEvent<'complete-onboarding'>> {
     const deviceId = this.services.device.getId();
     const encryptedOtp = payload.data.onboardingAuthentication.encryptedOtp;
-    console.log(
-      `[DEBUG, ${this.event} handler] Received encrypted OTP: ${encryptedOtp}. Decrypting`
-    );
-    const decryptedOtpArray = await this.services.fpe.decrypt(
-      this.stringToNumberArray(encryptedOtp)
-    );
-    const decryptedOtp = decryptedOtpArray.join('');
-    const senderPublicKey = await this.services.keyRepository.getSerializedPublicKey();
+    const otp = await this.decryptOtp(encryptedOtp);
+    const senderPublicKey = await this.services.encryptionKeyProvider.getSerializedPublicKey();
 
-    const { encryptedUserKey, userKeyHash, signature, signerId } =
-      await this.services.api.completeOnboarding(
-        {
-          publicKey: senderPublicKey,
-          onboardingAuthentication: {
-            otp: decryptedOtp,
-          },
-          deviceId,
+    const { encryptedUserKey, userKeyHash } = await this.services.api.completeOnboarding(
+      {
+        publicKey: senderPublicKey,
+        onboardingAuthentication: {
+          otp,
         },
-        payload.authData
-      );
-
-    console.log(
-      'AAAAAAAAAAA',
-      JSON.stringify({ encryptedUserKey, userKeyHash, signature }, null, 2)
+        deviceId,
+      },
+      payload.authData
     );
+
     const masterSecret = await this.services.userKeyManager.verifyAndReconstructMasterSecret({
-      signerId,
-      deviceId: this.services.device.getId(),
+      deviceId,
       encryptedUserKey,
       userKeyHash,
-      signature,
     });
 
     return {
@@ -133,7 +122,12 @@ export class CompleteOnboardingEventHandler extends EventHandler<'complete-onboa
     };
   }
 
-  stringToNumberArray(str: string): number[] {
+  private async decryptOtp(encrypted: string): Promise<string> {
+    const decryptedOtpArray = await this.services.fpe.decrypt(this.stringToNumberArray(encrypted));
+    return decryptedOtpArray.join('');
+  }
+
+  private stringToNumberArray(str: string): number[] {
     return str.split('').map(Number);
   }
 }
@@ -145,7 +139,9 @@ export class GetStatusEventHandler extends EventHandler<'get-status'> {
   async handler(
     payload: SignerInputEvent<'get-status'>
   ): Promise<SuccessfulOutputEvent<'get-status'>> {
-    const masterSecret = await this.services.userKeyManager.tryGetMasterSecret(payload.authData);
+    const masterSecret = await this.services.userKeyManager.tryGetAndDecryptMasterSecret(
+      payload.authData
+    );
 
     if (masterSecret == null) {
       return {
@@ -167,7 +163,9 @@ export class SignEventHandler extends EventHandler<'sign'> {
   responseEvent = 'response:sign' as const;
 
   async handler(payload: SignerInputEvent<'sign'>): Promise<SuccessfulOutputEvent<'sign'>> {
-    const masterSecret = await this.services.userKeyManager.tryGetMasterSecret(payload.authData);
+    const masterSecret = await this.services.userKeyManager.tryGetAndDecryptMasterSecret(
+      payload.authData
+    );
     if (masterSecret == null) {
       throw new Error('Device is not initialized. Please complete onboarding first.');
     }

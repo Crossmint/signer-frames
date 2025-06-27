@@ -88,12 +88,6 @@ export class CrossmintApiService extends CrossmintFrameService {
       encoding: z.literal('base64'),
       algorithm: z.literal('SHA-256'),
     }),
-    signature: z.object({
-      bytes: z.string(),
-      encoding: z.literal('base64'),
-      algorithm: z.literal('ECDSA'),
-      signingPublicKey: z.string(),
-    }),
   });
 
   static completeOnboardingInputSchema = z.object({

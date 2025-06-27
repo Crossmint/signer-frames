@@ -14,7 +14,7 @@ export class HPKEService extends CrossmintFrameService {
   log_prefix = '[HPKEService]';
 
   constructor(
-    private readonly keyRepository: EncryptionKeyProvider,
+    private readonly encryptionKeyProvider: EncryptionKeyProvider,
     private readonly teePublicKeyProvider: PublicKeyProvider,
     private readonly encryptionHandler: HPKE = new HPKE()
   ) {
@@ -47,7 +47,7 @@ export class HPKEService extends CrossmintFrameService {
   async encrypt<T extends EncryptablePayload>(data: T): Promise<EncryptionResult<ArrayBuffer>> {
     try {
       const recipientPublicKey = await this.teePublicKeyProvider.getPublicKey();
-      const senderKeyPair = await this.keyRepository.getKeyPair();
+      const senderKeyPair = await this.encryptionKeyProvider.getKeyPair();
       return await this.encryptionHandler.encrypt(data, recipientPublicKey, senderKeyPair);
     } catch (error) {
       this.logError(`Encryption failed: ${error}`);
@@ -70,7 +70,7 @@ export class HPKEService extends CrossmintFrameService {
   ): Promise<EncryptionResult<string>> {
     try {
       const recipientPublicKey = await this.teePublicKeyProvider.getPublicKey();
-      const senderKeyPair = await this.keyRepository.getKeyPair();
+      const senderKeyPair = await this.encryptionKeyProvider.getKeyPair();
       return await this.encryptionHandler.encryptBase64(data, recipientPublicKey, senderKeyPair);
     } catch (error) {
       this.logError(`Encryption failed: ${error}`);
@@ -99,7 +99,7 @@ export class HPKEService extends CrossmintFrameService {
     encapsulatedKeyInput: U
   ): Promise<T> {
     try {
-      const keyPair = await this.keyRepository.getKeyPair();
+      const keyPair = await this.encryptionKeyProvider.getKeyPair();
       const senderPublicKey = await this.teePublicKeyProvider.getPublicKey();
       return await this.encryptionHandler.decrypt(
         ciphertextInput,
