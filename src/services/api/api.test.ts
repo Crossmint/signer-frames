@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { CrossmintApiService, parseApiKey } from './api';
+import { CrossmintApiService } from './api';
 import { CrossmintHttpError, CrossmintRequest } from './request';
 import { mock } from 'vitest-mock-extended';
 import type { HPKEService } from '../encryption/hpke';
@@ -70,30 +70,6 @@ describe('CrossmintApiService', () => {
         onboardingAuthentication: { otp: '123456' },
       });
       expect(result).toEqual(mockResponse);
-    });
-  });
-
-  describe('parseApiKey function', () => {
-    it('should correctly parse different types of API keys', () => {
-      // Server-side keys
-      expect(parseApiKey('sk_development_123')).toEqual({
-        origin: 'server',
-        environment: 'development',
-      });
-      expect(parseApiKey('sk_staging_123')).toEqual({ origin: 'server', environment: 'staging' });
-      expect(parseApiKey('sk_production_123')).toEqual({
-        origin: 'server',
-        environment: 'production',
-      });
-
-      // Client-side keys
-      expect(parseApiKey('ck_production_123')).toEqual({
-        origin: 'client',
-        environment: 'production',
-      });
-
-      // Invalid keys
-      expect(() => parseApiKey('invalid123')).toThrow('Invalid API key');
     });
   });
 });

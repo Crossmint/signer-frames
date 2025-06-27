@@ -22,12 +22,12 @@ export class FPEService extends CrossmintFrameService {
   /**
    * Creates a new FPE service instance.
    *
-   * @param {KeyPairProvider} encryptionKeyProvider - Provider for the local frame master key pair
+   * @param {KeyPairProvider} frameKeyProvider - Provider for the local frame master key pair
    * @param {PublicKeyProvider} teeKeyProvider - Provider for the TEE's public key
    * @param {FPE} fpe - The FPE handler implementing FF1 algorithm (defaults to new FPE instance)
    */
   constructor(
-    private readonly encryptionKeyProvider: KeyPairProvider,
+    private readonly frameKeyProvider: KeyPairProvider,
     private readonly teeKeyProvider: PublicKeyProvider,
     private readonly fpe: FPE = new FPE()
   ) {
@@ -59,7 +59,7 @@ export class FPEService extends CrossmintFrameService {
    * @returns {Promise<CryptoKey>} A promise that resolves to the derived symmetric encryption key
    */
   private async getEncryptionKey(): Promise<CryptoKey> {
-    const keyPair = await this.encryptionKeyProvider.getKeyPair();
+    const keyPair = await this.frameKeyProvider.getKeyPair();
     const publicKey = await this.teeKeyProvider.getPublicKey();
     return deriveSymmetricKey(keyPair.privateKey, publicKey);
   }
