@@ -1,1 +1,1 @@
-export { AsymmetricEncryptionService as EncryptionService } from './encryption';
+export { HPKEService as EncryptionService } from './encryption';

@@ -1,5 +1,5 @@
 import { expect, describe, it, beforeEach, vi } from 'vitest';
-import { AsymmetricEncryptionService as EncryptionService } from './encryption';
+import { HPKEService as EncryptionService } from './encryption';
 import type { AttestationService } from '../tee/attestation';
 import { mock } from 'vitest-mock-extended';
 import {

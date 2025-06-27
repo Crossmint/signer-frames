@@ -9,9 +9,9 @@ export interface PublicKeyProvider {
   getPublicKey(): Promise<CryptoKey>;
 }
 
-export class AsymmetricEncryptionService extends CrossmintFrameService {
-  name = 'Asymmetric Encryption Service';
-  log_prefix = '[AsymmetricEncryptionService]';
+export class HPKEService extends CrossmintFrameService {
+  name = 'HPKE Service';
+  log_prefix = '[HPKEService]';
 
   constructor(
     private readonly keyRepository: EncryptionKeyProvider,
