@@ -16,7 +16,7 @@ export class HPKEService extends CrossmintFrameService {
   constructor(
     private readonly encryptionKeyProvider: EncryptionKeyProvider,
     private readonly teePublicKeyProvider: PublicKeyProvider,
-    private readonly encryptionHandler: HPKE = new HPKE()
+    private readonly hkpe: HPKE = new HPKE()
   ) {
     super();
   }
@@ -48,7 +48,7 @@ export class HPKEService extends CrossmintFrameService {
     try {
       const recipientPublicKey = await this.teePublicKeyProvider.getPublicKey();
       const senderKeyPair = await this.encryptionKeyProvider.getKeyPair();
-      return await this.encryptionHandler.encrypt(data, recipientPublicKey, senderKeyPair);
+      return await this.hkpe.encrypt(data, recipientPublicKey, senderKeyPair);
     } catch (error) {
       this.logError(`Encryption failed: ${error}`);
       throw new Error('Failed to encrypt data');
@@ -58,7 +58,7 @@ export class HPKEService extends CrossmintFrameService {
   async encryptRaw(data: ArrayBuffer): Promise<EncryptionResult<ArrayBuffer>> {
     try {
       const recipientPublicKey = await this.teePublicKeyProvider.getPublicKey();
-      return await this.encryptionHandler.encryptRaw(data, recipientPublicKey);
+      return await this.hkpe.encryptRaw(data, recipientPublicKey);
     } catch (error) {
       this.logError(`Encryption failed: ${error}`);
       throw new Error('Failed to encrypt data');
@@ -71,7 +71,7 @@ export class HPKEService extends CrossmintFrameService {
     try {
       const recipientPublicKey = await this.teePublicKeyProvider.getPublicKey();
       const senderKeyPair = await this.encryptionKeyProvider.getKeyPair();
-      return await this.encryptionHandler.encryptBase64(data, recipientPublicKey, senderKeyPair);
+      return await this.hkpe.encryptBase64(data, recipientPublicKey, senderKeyPair);
     } catch (error) {
       this.logError(`Encryption failed: ${error}`);
       throw new Error('Failed to encrypt data');
@@ -101,7 +101,7 @@ export class HPKEService extends CrossmintFrameService {
     try {
       const keyPair = await this.encryptionKeyProvider.getKeyPair();
       const senderPublicKey = await this.teePublicKeyProvider.getPublicKey();
-      return await this.encryptionHandler.decrypt(
+      return await this.hkpe.decrypt(
         ciphertextInput,
         encapsulatedKeyInput,
         keyPair,

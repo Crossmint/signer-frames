@@ -31,14 +31,14 @@ export class UserMasterSecretManager extends CrossmintFrameService {
    * @param keyProvider - Provider for cryptographic key pairs used in encryption/decryption
    * @param deviceService - Service for managing device information
    * @param cache - In-memory cache service for storing encrypted master secrets locally
-   * @param encryptionHandler - AES-GCM encryption handler for encrypting/decrypting the master secret
+   * @param hkpe - AES-GCM encryption handler for encrypting/decrypting the master secret
    */
   constructor(
     private readonly api: CrossmintApiService,
     private readonly keyProvider: KeyPairProvider,
     private readonly deviceService: DeviceService,
     private readonly cache: InMemoryCacheService,
-    private readonly encryptionHandler = new AesGcm()
+    private readonly hkpe = new AesGcm()
   ) {
     super();
   }
@@ -120,7 +120,7 @@ export class UserMasterSecretManager extends CrossmintFrameService {
     const teePublicKey = encryptedUserKey.encryptionPublicKey;
     try {
       const encryptionKey = await this.deriveSymmetricEncryptionKey(teePublicKey);
-      const masterSecret = await this.encryptionHandler.decrypt(
+      const masterSecret = await this.hkpe.decrypt(
         decodeBytes(encryptedUserKey.bytes, encryptedUserKey.encoding),
         encryptionKey
       );
