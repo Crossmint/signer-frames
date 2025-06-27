@@ -28,8 +28,6 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const targetOrigin = urlParams.get('targetOrigin') ?? undefined;
             const isStandalone = window.self === window.top;
             const cleanupBtn = document.getElementById('storage-cleanup-btn');
             if (isStandalone) {
@@ -54,7 +52,7 @@
 
             // Initialize Crossmint Signers Frame
             if (window.CrossmintFrame) {
-                window.CrossmintFrame.init(targetOrigin)
+                window.CrossmintFrame.init()
                     .then(() => {
                         console.log('Crossmint Signers Frame framework initialized');
                         document.getElementById('status').textContent = 'Ready';
