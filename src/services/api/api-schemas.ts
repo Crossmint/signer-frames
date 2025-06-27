@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { hashedEncryptedMasterSecretSchema } from '../user/schemas';
 
 // ================================
 // Common/Shared Schemas
@@ -19,7 +20,7 @@ const encryptionContextSchema = z.object({
   publicKey: z.string(),
 });
 
-export const encryptedUserKeySchema = z.object({
+export const encryptedMasterSecretSchema = z.object({
   bytes: z.string(),
   encoding: z.literal('base64'),
   encryptionPublicKey: z.string(),
@@ -27,13 +28,6 @@ export const encryptedUserKeySchema = z.object({
 
 const onboardingAuthenticationSchema = z.object({
   otp: z.string(),
-});
-
-const encryptedMasterSecretSchema = z.object({
-  deviceId: z.string(),
-  signerId: z.string(),
-  encryptedUserKey: encryptedUserKeySchema,
-  userKeyHash: sha256HashSchema,
 });
 
 // ================================
@@ -54,14 +48,14 @@ const completeOnboardingInputSchema = z.object({
   deviceId: z.string(),
 });
 
-const completeOnboardingOutputSchema = encryptedMasterSecretSchema;
+const completeOnboardingOutputSchema = hashedEncryptedMasterSecretSchema;
 
 // ================================
 // Master Secret Schemas
 // ================================
 
 const getEncryptedMasterSecretInputSchema = z.undefined();
-const getEncryptedMasterSecretOutputSchema = encryptedMasterSecretSchema;
+const getEncryptedMasterSecretOutputSchema = hashedEncryptedMasterSecretSchema;
 
 // ================================
 // Attestation Schemas
@@ -86,11 +80,10 @@ const getPublicKeyOutputSchema = z.object({
 // ================================
 
 type Base64Bytes = z.infer<typeof base64BytesSchema>;
-type SHA256Hash = z.infer<typeof sha256HashSchema>;
+export type SHA256Hash = z.infer<typeof sha256HashSchema>;
 type EncryptionContext = z.infer<typeof encryptionContextSchema>;
-type EncryptedUserKey = z.infer<typeof encryptedUserKeySchema>;
 type OnboardingAuthentication = z.infer<typeof onboardingAuthenticationSchema>;
-type EncryptedMasterSecret = z.infer<typeof encryptedMasterSecretSchema>;
+export type EncryptedMasterSecret = z.infer<typeof encryptedMasterSecretSchema>;
 
 export type StartOnboardingInput = z.infer<typeof startOnboardingInputSchema>;
 type StartOnboardingOutput = z.infer<typeof startOnboardingOutputSchema>;
@@ -114,9 +107,8 @@ const CommonSchemas = {
   base64BytesSchema,
   sha256HashSchema,
   encryptionContextSchema,
-  encryptedUserKeySchema,
-  onboardingAuthenticationSchema,
   encryptedMasterSecretSchema,
+  onboardingAuthenticationSchema,
 } as const;
 
 const OnboardingSchemas = {

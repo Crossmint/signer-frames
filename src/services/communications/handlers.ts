@@ -96,7 +96,7 @@ export class CompleteOnboardingEventHandler extends EventHandler<'complete-onboa
     const otp = await this.decryptOtp(encryptedOtp);
     const senderPublicKey = await this.services.encryptionKeyProvider.getSerializedPublicKey();
 
-    const { encryptedUserKey, userKeyHash } = await this.services.api.completeOnboarding(
+    const { encryptedMasterSecret, masterSecretHash } = await this.services.api.completeOnboarding(
       {
         publicKey: senderPublicKey,
         onboardingAuthentication: {
@@ -109,8 +109,8 @@ export class CompleteOnboardingEventHandler extends EventHandler<'complete-onboa
 
     const masterSecret = await this.services.userKeyManager.verifyAndReconstructMasterSecret({
       deviceId,
-      encryptedUserKey,
-      userKeyHash,
+      encryptedMasterSecret,
+      masterSecretHash,
     });
 
     return {

@@ -80,12 +80,12 @@ describe('EventHandlers', () => {
       mockServices.api.completeOnboarding.mockResolvedValue({
         deviceId: TEST_FIXTURES.deviceId,
         signerId: 'test-signer-id',
-        encryptedUserKey: {
+        encryptedMasterSecret: {
           bytes: 'encrypted-key-bytes',
           encoding: 'base64',
           encryptionPublicKey: 'test-encryption-public-key',
         },
-        userKeyHash: {
+        masterSecretHash: {
           bytes: 'user-key-hash-bytes',
           encoding: 'base64',
           algorithm: 'SHA-256',

@@ -7,11 +7,8 @@ import { CrossmintApiService } from '../api';
 import { DeviceService } from './device';
 import { CacheService, InMemoryCacheService } from '../storage/cache';
 import { deriveSymmetricKey } from '@crossmint/client-signers-cryptography';
-import {
-  HashedEncryptedMasterSecret,
-  hashedEncryptedMasterSecretSchema,
-  UserMasterSecretHash,
-} from './schemas';
+import { HashedEncryptedMasterSecret, hashedEncryptedMasterSecretSchema } from './schemas';
+import { EncryptedMasterSecret, SHA256Hash } from '../api/api-schemas';
 
 /**
  * Manages user master secrets with secure storage and retrieval.
@@ -106,32 +103,32 @@ export class UserMasterSecretManager extends CrossmintFrameService {
    * It then verifies the integrity of the decrypted master secret by comparing its hash.
    *
    * @param hashedEncryptedMasterSecret - Object containing the encrypted user master secret and its hash
-   * @param hashedEncryptedMasterSecret.encryptedUserKey - The encrypted user master secret data
-   * @param hashedEncryptedMasterSecret.userKeyHash - Hash of the original master secret for verification
+   * @param hashedEncryptedMasterSecret.encryptedMasterSecret - The encrypted user master secret data
+   * @param hashedEncryptedMasterSecret.masterSecretHash - Hash of the original master secret for verification
    * @returns Promise that resolves to the decrypted master secret
    * @throws Error if decryption fails or hash verification fails
    * @private
    */
   async verifyAndReconstructMasterSecret({
     deviceId,
-    encryptedUserKey,
-    userKeyHash,
+    encryptedMasterSecret,
+    masterSecretHash,
   }: HashedEncryptedMasterSecret) {
-    const teePublicKey = encryptedUserKey.encryptionPublicKey;
+    const teePublicKey = encryptedMasterSecret.encryptionPublicKey;
     try {
       const encryptionKey = await this.deriveSymmetricEncryptionKey(teePublicKey);
       const masterSecret = await this.hkpe.decrypt(
-        decodeBytes(encryptedUserKey.bytes, encryptedUserKey.encoding),
+        decodeBytes(encryptedMasterSecret.bytes, encryptedMasterSecret.encoding),
         encryptionKey
       );
 
-      this.verifyHash(new Uint8Array(masterSecret), userKeyHash);
+      this.verifyHash(new Uint8Array(masterSecret), masterSecretHash);
       this.verifyDeviceId(deviceId);
 
       this.cacheMasterSecret({
         deviceId,
-        encryptedUserKey,
-        userKeyHash,
+        encryptedMasterSecret,
+        masterSecretHash,
       });
       return masterSecret;
     } catch (error) {
@@ -158,14 +155,17 @@ export class UserMasterSecretManager extends CrossmintFrameService {
    * hash to ensure data integrity.
    *
    * @param userKey - The user key to verify
-   * @param userKeyHash - Expected hash information including algorithm and encoded bytes
+   * @param masterSecretHash - Expected hash information including algorithm and encoded bytes
    * @throws Error if the computed hash does not match the expected hash
    * @private
    */
-  private async verifyHash(userKey: Uint8Array, userKeyHash: UserMasterSecretHash) {
-    const hash = await crypto.subtle.digest(userKeyHash.algorithm, userKey);
-    const reconstructedUserKeyHash = encodeBytes(new Uint8Array(hash), userKeyHash.encoding);
-    if (reconstructedUserKeyHash !== userKeyHash.bytes) {
+  private async verifyHash(userKey: Uint8Array, masterSecretHash: SHA256Hash) {
+    const hash = await crypto.subtle.digest(masterSecretHash.algorithm, userKey);
+    const reconstructedMasterSecretHash = encodeBytes(
+      new Uint8Array(hash),
+      masterSecretHash.encoding
+    );
+    if (reconstructedMasterSecretHash !== masterSecretHash.bytes) {
       throw new Error('User key hash does not match');
     }
     console.log('User key hash verified');
