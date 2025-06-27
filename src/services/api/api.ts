@@ -5,10 +5,18 @@
 import { calculateBackoff, defaultRetryConfig, shouldRetry } from './backoff';
 import { CrossmintFrameService } from '../service';
 import type { RetryConfig } from './backoff';
-import { z } from 'zod';
 import type { EncryptionService } from '../encryption';
 import { type AuthData, CrossmintRequest } from './request';
 import { type Environment, getEnvironment } from './environment';
+import {
+  StartOnboardingInputSchema,
+  CompleteOnboardingInputSchema,
+  CompleteOnboardingOutputSchema,
+  GetEncryptedMasterSecretOutputSchema,
+  GetAttestationOutputSchema,
+  GetPublicKeyOutputSchema,
+  CrossmintApiServiceSchemas,
+} from './api-schemas';
 
 function getHeaders(authData?: AuthData) {
   return {
@@ -65,66 +73,12 @@ export class CrossmintApiService extends CrossmintFrameService {
 
   async init() {}
 
-  // Zod schemas
-  static startOnboardingInputSchema = z.object({
-    authId: z.string(),
-    deviceId: z.string(),
-    encryptionContext: z.object({
-      publicKey: z.string(),
-    }),
-  });
-  static startOnboardingOutputSchema = z.object({});
-
-  static encryptedMasterSecretSchema = z.object({
-    deviceId: z.string(),
-    signerId: z.string(),
-    encryptedUserKey: z.object({
-      bytes: z.string(),
-      encoding: z.literal('base64'),
-      encryptionPublicKey: z.string(),
-    }),
-    userKeyHash: z.object({
-      bytes: z.string(),
-      encoding: z.literal('base64'),
-      algorithm: z.literal('SHA-256'),
-    }),
-  });
-
-  static completeOnboardingInputSchema = z.object({
-    publicKey: z.string(),
-    onboardingAuthentication: z.object({
-      otp: z.string(),
-    }),
-    deviceId: z.string(),
-  });
-  static completeOnboardingOutputSchema = CrossmintApiService.encryptedMasterSecretSchema;
-
-  static getEncryptedMasterSecretInputSchema = z.undefined();
-  static getEncryptedMasterSecretOutputSchema = CrossmintApiService.encryptedMasterSecretSchema;
-
-  static getAttestationInputSchema = z.undefined();
-  static getAttestationOutputSchema = z.object({
-    publicKey: z.string(),
-    quote: z.string(),
-    event_log: z.string(),
-    hash_algorithm: z.literal('sha512'),
-    prefix: z.literal('app-data'),
-  });
-
-  static getPublicKeyInputSchema = z.undefined();
-  static getPublicKeyOutputSchema = z.object({
-    publicKey: z.string(),
-  });
-
-  async startOnboarding(
-    input: z.infer<typeof CrossmintApiService.startOnboardingInputSchema>,
-    authData: AuthData
-  ) {
-    CrossmintApiService.startOnboardingInputSchema.parse(input);
+  async startOnboarding(input: StartOnboardingInputSchema, authData: AuthData) {
+    CrossmintApiServiceSchemas.startOnboardingInputSchema.parse(input);
     const request = new CrossmintRequest({
       name: 'startOnboarding',
-      inputSchema: CrossmintApiService.startOnboardingInputSchema,
-      outputSchema: CrossmintApiService.startOnboardingOutputSchema,
+      inputSchema: CrossmintApiServiceSchemas.startOnboardingInputSchema,
+      outputSchema: CrossmintApiServiceSchemas.startOnboardingOutputSchema,
       environment: parseApiKey(authData.apiKey).environment,
       authData,
       endpoint: () => '/start-onboarding',
@@ -139,15 +93,15 @@ export class CrossmintApiService extends CrossmintFrameService {
   }
 
   async completeOnboarding(
-    input: z.infer<typeof CrossmintApiService.completeOnboardingInputSchema>,
+    input: CompleteOnboardingInputSchema,
     authData: AuthData
-  ): Promise<z.infer<typeof CrossmintApiService.completeOnboardingOutputSchema>> {
-    CrossmintApiService.completeOnboardingInputSchema.parse(input);
+  ): Promise<CompleteOnboardingOutputSchema> {
+    CrossmintApiServiceSchemas.completeOnboardingInputSchema.parse(input);
     const request = new CrossmintRequest({
       name: 'completeOnboarding',
       authData,
-      inputSchema: CrossmintApiService.completeOnboardingInputSchema,
-      outputSchema: CrossmintApiService.completeOnboardingOutputSchema,
+      inputSchema: CrossmintApiServiceSchemas.completeOnboardingInputSchema,
+      outputSchema: CrossmintApiServiceSchemas.completeOnboardingOutputSchema,
       environment: parseApiKey(authData.apiKey).environment,
       endpoint: () => '/complete-onboarding',
       method: 'POST',
@@ -158,11 +112,11 @@ export class CrossmintApiService extends CrossmintFrameService {
     return request.execute(input);
   }
 
-  async getAttestation(): Promise<z.infer<typeof CrossmintApiService.getAttestationOutputSchema>> {
+  async getAttestation(): Promise<GetAttestationOutputSchema> {
     const request = new CrossmintRequest({
       name: 'getAttestation',
-      inputSchema: CrossmintApiService.getAttestationInputSchema,
-      outputSchema: CrossmintApiService.getAttestationOutputSchema,
+      inputSchema: CrossmintApiServiceSchemas.getAttestationInputSchema,
+      outputSchema: CrossmintApiServiceSchemas.getAttestationOutputSchema,
       environment: getEnvironment(),
       endpoint: () => '/attestation',
       method: 'GET',
@@ -173,11 +127,11 @@ export class CrossmintApiService extends CrossmintFrameService {
     return request.execute(undefined);
   }
 
-  async getPublicKey(): Promise<z.infer<typeof CrossmintApiService.getPublicKeyOutputSchema>> {
+  async getPublicKey(): Promise<GetPublicKeyOutputSchema> {
     const request = new CrossmintRequest({
       name: 'getPublicKey',
-      inputSchema: CrossmintApiService.getPublicKeyInputSchema,
-      outputSchema: CrossmintApiService.getPublicKeyOutputSchema,
+      inputSchema: CrossmintApiServiceSchemas.getPublicKeyInputSchema,
+      outputSchema: CrossmintApiServiceSchemas.getPublicKeyOutputSchema,
       environment: getEnvironment(),
       endpoint: () => '/attestation/public-key',
       method: 'GET',
@@ -191,12 +145,12 @@ export class CrossmintApiService extends CrossmintFrameService {
   async getEncryptedMasterSecret(
     deviceId: string,
     authData: AuthData
-  ): Promise<z.infer<typeof CrossmintApiService.getEncryptedMasterSecretOutputSchema>> {
-    CrossmintApiService.getEncryptedMasterSecretInputSchema.parse(undefined);
+  ): Promise<GetEncryptedMasterSecretOutputSchema> {
+    CrossmintApiServiceSchemas.getEncryptedMasterSecretInputSchema.parse(undefined);
     const request = new CrossmintRequest({
       name: 'getEncryptedMasterSecret',
-      inputSchema: CrossmintApiService.getEncryptedMasterSecretInputSchema,
-      outputSchema: CrossmintApiService.getEncryptedMasterSecretOutputSchema,
+      inputSchema: CrossmintApiServiceSchemas.getEncryptedMasterSecretInputSchema,
+      outputSchema: CrossmintApiServiceSchemas.getEncryptedMasterSecretOutputSchema,
       environment: parseApiKey(authData.apiKey).environment,
       authData,
       endpoint: () => `/${deviceId}/encrypted-user-key`,

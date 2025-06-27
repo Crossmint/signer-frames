@@ -3,9 +3,8 @@ import { CrossmintFrameService } from '../service';
 const DB_NAME = 'CrossmintFrameDB';
 const DB_VERSION = 1;
 
-export const SHARDS_STORE_NAME = 'shardsStore';
 export const ENCRYPTION_KEYS_STORE_NAME = 'encryptionKeysStore';
-const ALL_STORES = [SHARDS_STORE_NAME, ENCRYPTION_KEYS_STORE_NAME];
+const ALL_STORES = [ENCRYPTION_KEYS_STORE_NAME];
 
 export class IndexedDBAdapter extends CrossmintFrameService {
   name = 'IndexedDB service';

@@ -41,7 +41,9 @@ describe('EventHandlers', () => {
         data: { authId: 'test-auth-id' },
       };
 
-      mockServices.userKeyManager.tryGetMasterSecret.mockResolvedValue(TEST_FIXTURES.masterSecret);
+      mockServices.userKeyManager.tryGetAndDecryptMasterSecret.mockResolvedValue(
+        TEST_FIXTURES.masterSecret
+      );
       mockServices.cryptoKey.getAllPublicKeysFromSeed.mockResolvedValue({
         ed25519: {
           bytes: TEST_FIXTURES.publicKey,
@@ -62,7 +64,7 @@ describe('EventHandlers', () => {
   });
 
   describe('CompleteOnboardingEventHandler', () => {
-    it('should process OTP flow correctly and store key shards', async () => {
+    it('should process OTP flow correctly and store encrypted master secret', async () => {
       const handler = new CompleteOnboardingEventHandler(mockServices);
       const testInput: SignerInputEvent<'complete-onboarding'> = {
         authData: TEST_FIXTURES.authData,
@@ -87,12 +89,6 @@ describe('EventHandlers', () => {
           bytes: 'user-key-hash-bytes',
           encoding: 'base64',
           algorithm: 'SHA-256',
-        },
-        signature: {
-          bytes: 'signature-bytes',
-          encoding: 'base64',
-          algorithm: 'ECDSA',
-          signingPublicKey: 'test-signing-public-key',
         },
       });
 
@@ -152,12 +148,12 @@ describe('EventHandlers', () => {
         'Key share stored on this device does not match Crossmint held authentication share.',
         'invalid-device-share'
       );
-      mockServices.userKeyManager.tryGetMasterSecret.mockRejectedValue(mockError);
+      mockServices.userKeyManager.tryGetAndDecryptMasterSecret.mockRejectedValue(mockError);
 
       // Test the whole event handler flow including error handling
       const result = await handler.callback(testInput);
 
-      expect(mockServices.userKeyManager.tryGetMasterSecret).toHaveBeenCalledWith(
+      expect(mockServices.userKeyManager.tryGetAndDecryptMasterSecret).toHaveBeenCalledWith(
         testInput.authData
       );
       expect(result).toEqual({
