@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { ZodSchema } from 'zod';
-import type { EncryptionService } from '../encryption';
+import type { HPKEService } from '../encryption/hpke';
 import type { Environment } from './environment';
 
 export type AuthData = {
@@ -20,7 +20,7 @@ export class CrossmintHttpError extends Error {
   }
 }
 
-export interface CrossmintRequestOptions<I, O> {
+interface CrossmintRequestOptions<I, O> {
   name?: string;
   inputSchema: ZodSchema<I>;
   outputSchema: ZodSchema<O>;
@@ -29,7 +29,7 @@ export interface CrossmintRequestOptions<I, O> {
   endpoint: (input: I) => string;
   method: 'GET' | 'POST' | 'PUT' | 'DELETE';
   encrypted?: boolean;
-  encryptionService: EncryptionService;
+  encryptionService: HPKEService;
   getHeaders: (authData?: AuthData) => Record<string, string>;
   fetchImpl?: typeof fetch;
 }
@@ -51,11 +51,10 @@ export class CrossmintRequest<
   private outputSchema: ZodSchema<O>;
   private method: string;
   private encrypted: boolean;
-  private encryptionService: EncryptionService;
+  private encryptionService: HPKEService;
   private encryptedPayloadSchema = z.object({
     ciphertext: base64StringSchema,
     encapsulatedKey: base64StringSchema,
-    publicKey: base64StringSchema,
   });
   private log = (...args: unknown[]) => {
     console.log(`[Request${this.name ? `: ${this.name}` : ''}]`, ...args);
@@ -117,7 +116,7 @@ export class CrossmintRequest<
     }
 
     const json = await response.json();
-    return this.constructResponse(json);
+    return this.outputSchema.parse(json);
   }
 
   private async constructBody(
@@ -128,7 +127,7 @@ export class CrossmintRequest<
     }
     if (this.encrypted) {
       this.log('Encrypting request. Encrypting body...');
-      if (!this.encryptionService) throw new Error('EncryptionService not provided');
+      if (!this.encryptionService) throw new Error('HPKEService not provided');
       const encryptedPayload = this.encryptedPayloadSchema.parse(
         await this.encryptionService.encryptBase64(parsedInput)
       );
@@ -139,24 +138,6 @@ export class CrossmintRequest<
       return encryptedPayload;
     }
     return parsedInput;
-  }
-
-  private async constructResponse(
-    apiResponse: O | z.infer<typeof this.encryptedPayloadSchema>
-  ): Promise<O> {
-    let response = apiResponse;
-    if (this.encrypted) {
-      this.log('Detected encrypted response. Decrypting...');
-      this.log(`[TRACE] Parsing encrypted response ${JSON.stringify(apiResponse, null, 2)}...`);
-      const parsedResponseData = this.encryptedPayloadSchema.parse(apiResponse);
-      response = await this.encryptionService.decrypt(
-        parsedResponseData.ciphertext,
-        parsedResponseData.encapsulatedKey
-      );
-      this.log('Decryption successful!');
-      this.log(`[TRACE] Decrypted response: ${JSON.stringify(response, null, 2)}`);
-    }
-    return this.outputSchema.parse(response);
   }
 
   private getUrlFromEnvironment(environment: Environment) {

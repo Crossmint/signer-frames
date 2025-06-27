@@ -4,7 +4,8 @@ import type {
   SignerOutputEvent,
 } from '@crossmint/client-signers';
 import type { CrossmintFrameServices } from '..';
-import { decodeBytes, measureFunctionTime } from '../common/utils';
+import { decodeBytes } from '@crossmint/client-signers-cryptography';
+import { measureFunctionTime } from '@crossmint/client-signers-cryptography';
 import { CrossmintFrameCodedError } from '../api/error';
 
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -53,7 +54,9 @@ export class StartOnboardingEventHandler extends EventHandler<'start-onboarding'
   async handler(
     payload: SignerInputEvent<'start-onboarding'>
   ): Promise<SuccessfulOutputEvent<'start-onboarding'>> {
-    const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
+    const masterSecret = await this.services.userKeyManager.tryGetAndDecryptMasterSecret(
+      payload.authData
+    );
 
     if (masterSecret != null) {
       return {
@@ -67,7 +70,7 @@ export class StartOnboardingEventHandler extends EventHandler<'start-onboarding'
       {
         ...payload.data,
         encryptionContext: {
-          publicKey: await this.services.encrypt.getPublicKey(),
+          publicKey: await this.services.encryptionKeyProvider.getSerializedPublicKey(),
         },
         deviceId: this.services.device.getId(),
       },
@@ -90,47 +93,55 @@ export class CompleteOnboardingEventHandler extends EventHandler<'complete-onboa
   ): Promise<SuccessfulOutputEvent<'complete-onboarding'>> {
     const deviceId = this.services.device.getId();
     const encryptedOtp = payload.data.onboardingAuthentication.encryptedOtp;
-    console.log(
-      `[DEBUG, ${this.event} handler] Received encrypted OTP: ${encryptedOtp}. Decrypting`
-    );
-    const decryptedOtp = (await this.services.fpe.decrypt(encryptedOtp.split('').map(Number))).join(
-      ''
-    );
-    const senderPublicKey = await this.services.encrypt.getPublicKey();
+    const otp = await this.decryptOtp(encryptedOtp);
+    const senderPublicKey = await this.services.encryptionKeyProvider.getSerializedPublicKey();
 
-    const { deviceKeyShare, signerId } = await this.services.api.completeOnboarding(
+    const { encryptedMasterSecret, masterSecretHash } = await this.services.api.completeOnboarding(
       {
         publicKey: senderPublicKey,
         onboardingAuthentication: {
-          otp: decryptedOtp,
+          otp,
         },
         deviceId,
       },
       payload.authData
     );
 
-    this.services.sharding.storeDeviceShare(signerId, deviceKeyShare);
-    const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
-    if (masterSecret == null) {
-      throw new Error('Device share not found');
-    }
+    const masterSecret = await this.services.userKeyManager.verifyAndReconstructMasterSecret({
+      deviceId,
+      encryptedMasterSecret,
+      masterSecretHash,
+    });
 
     return {
       status: 'success',
       signerStatus: 'ready',
-      publicKeys: await this.services.cryptoKey.getAllPublicKeysFromSeed(masterSecret),
+      publicKeys: await this.services.cryptoKey.getAllPublicKeysFromSeed(
+        new Uint8Array(masterSecret)
+      ),
     };
+  }
+
+  private async decryptOtp(encrypted: string): Promise<string> {
+    const decryptedOtpArray = await this.services.fpe.decrypt(this.stringToNumberArray(encrypted));
+    return decryptedOtpArray.join('');
+  }
+
+  private stringToNumberArray(str: string): number[] {
+    return str.split('').map(Number);
   }
 }
 
-export class GetStatusEventHandler extends EventHandler<'get-status'> {
+class GetStatusEventHandler extends EventHandler<'get-status'> {
   event = 'request:get-status' as const;
   responseEvent = 'response:get-status' as const;
 
   async handler(
     payload: SignerInputEvent<'get-status'>
   ): Promise<SuccessfulOutputEvent<'get-status'>> {
-    const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
+    const masterSecret = await this.services.userKeyManager.tryGetAndDecryptMasterSecret(
+      payload.authData
+    );
 
     if (masterSecret == null) {
       return {
@@ -152,9 +163,11 @@ export class SignEventHandler extends EventHandler<'sign'> {
   responseEvent = 'response:sign' as const;
 
   async handler(payload: SignerInputEvent<'sign'>): Promise<SuccessfulOutputEvent<'sign'>> {
-    const masterSecret = await this.services.sharding.reconstructMasterSecret(payload.authData);
+    const masterSecret = await this.services.userKeyManager.tryGetAndDecryptMasterSecret(
+      payload.authData
+    );
     if (masterSecret == null) {
-      throw new Error('Device share not found');
+      throw new Error('Device is not initialized. Please complete onboarding first.');
     }
 
     const { keyType, bytes, encoding } = payload.data;
