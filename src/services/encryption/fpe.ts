@@ -1,19 +1,16 @@
 import { CrossmintFrameService } from '../service';
-import { FF1 } from '@noble/ciphers/ff1';
-import { FPEHandler } from './lib/encryption/symmetric/fpe/fpe';
-import { SymmetricKeyProvider } from './lib/key-management/provider';
-type FPEEncryptionOptions = {
-  radix: number;
-  tweak?: Uint8Array;
-};
+import { FPE } from './lib';
+import { KeyPairProvider, PublicKeyProvider } from './lib/providers';
+import { deriveSymmetricKey } from './lib/primitives/keys';
 
 export class FPEService extends CrossmintFrameService {
   name = 'Format Preserving Encryption Service';
   log_prefix = '[FPEService]';
 
   constructor(
-    private readonly encryptionKeyProvider: SymmetricKeyProvider,
-    private readonly fpeHandler: FPEHandler = new FPEHandler()
+    private readonly encryptionKeyProvider: KeyPairProvider,
+    private readonly teeKeyProvider: PublicKeyProvider,
+    private readonly fpeHandler: FPE = new FPE()
   ) {
     super();
   }
@@ -29,6 +26,8 @@ export class FPEService extends CrossmintFrameService {
   }
 
   private async getEncryptionKey(): Promise<CryptoKey> {
-    return this.encryptionKeyProvider.getSymmetricKey();
+    const keyPair = await this.encryptionKeyProvider.getKeyPair();
+    const publicKey = await this.teeKeyProvider.getPublicKey();
+    return deriveSymmetricKey(keyPair.privateKey, publicKey);
   }
 }

@@ -1,7 +1,7 @@
 import { CrossmintFrameService } from '../service';
-import { type EncryptionResult } from './lib/encryption/encryption-consts';
+import { type EncryptionResult } from './lib';
 import { type EncryptionKeyProvider } from '../encryption-keys/encryption-key-provider';
-import { AsymmetricEncryptionHandler } from './lib/encryption/asymmetric/handler';
+import { HPKE } from './lib';
 
 type EncryptablePayload = Record<string, unknown>;
 
@@ -16,7 +16,7 @@ export class AsymmetricEncryptionService extends CrossmintFrameService {
   constructor(
     private readonly keyRepository: EncryptionKeyProvider,
     private readonly teePublicKeyProvider: PublicKeyProvider,
-    private readonly encryptionHandler: AsymmetricEncryptionHandler = new AsymmetricEncryptionHandler()
+    private readonly encryptionHandler: HPKE = new HPKE()
   ) {
     super();
   }

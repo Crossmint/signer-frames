@@ -1,14 +1,13 @@
 import { z } from 'zod';
-import { SymmetricEncryptionHandler } from '../encryption/lib/encryption/symmetric/standard/handler';
 import { CrossmintFrameService } from '../service';
-import { ECDHKeyProvider } from '../encryption/lib/key-management/ecdh-key-provider';
-import { KeyPairProvider } from '../encryption/lib/key-management/provider';
+import { KeyPairProvider, AesGcm } from '../encryption/lib';
+import { decodeBytes, encodeBytes } from '../encryption/lib/primitives/encoding';
 import { PublicKeyDeserializer } from '../encryption-keys/tee-key-provider';
-import { decodeBytes, encodeBytes } from '../encryption/lib/utils';
 import { AuthData } from '../api/request';
 import { CrossmintApiService } from '../api';
 import { DeviceService } from './device';
 import { InMemoryCacheService } from '../storage/cache';
+import { deriveSymmetricKey, generateECDHKeyPair } from '../encryption/lib/primitives/keys';
 
 const completeOnboardingOutputSchema = z.object({
   deviceId: z.string(),
@@ -42,7 +41,7 @@ export class UserKeyManager extends CrossmintFrameService {
     private readonly keyProvider: KeyPairProvider,
     private readonly deviceService: DeviceService,
     private readonly cache: InMemoryCacheService,
-    private readonly encryptionHandler = new SymmetricEncryptionHandler()
+    private readonly encryptionHandler = new AesGcm()
   ) {
     super();
   }
@@ -53,7 +52,7 @@ export class UserKeyManager extends CrossmintFrameService {
     if (encryptedMasterSecret != null) {
       this.cache.set('encryptedMasterSecret', encryptedMasterSecret);
       const masterSecret = await this.verifyAndReconstructMasterSecret(encryptedMasterSecret);
-      return masterSecret;
+      return new Uint8Array(masterSecret);
     }
     return null;
   }
@@ -97,7 +96,7 @@ export class UserKeyManager extends CrossmintFrameService {
       );
 
       console.log('Master secret', masterSecret);
-      this.verifyHash(masterSecret, userKeyHash);
+      this.verifyHash(new Uint8Array(masterSecret), userKeyHash);
       return masterSecret;
     } catch (error) {
       console.error('Error decrypting master secret', error);
@@ -106,11 +105,10 @@ export class UserKeyManager extends CrossmintFrameService {
   }
 
   private async getEncryptionKey(teePublicKey: string): Promise<CryptoKey> {
-    return new ECDHKeyProvider(this.keyProvider, {
-      getPublicKey: async () => {
-        return new PublicKeyDeserializer().deserialize(teePublicKey);
-      },
-    }).getSymmetricKey();
+    const keyPair = await this.keyProvider.getKeyPair();
+    const publicKey = await new PublicKeyDeserializer().deserialize(teePublicKey);
+    const encryptionKey = await deriveSymmetricKey(keyPair.privateKey, publicKey);
+    return encryptionKey;
   }
 
   private async verifyHash(

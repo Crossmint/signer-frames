@@ -2,7 +2,7 @@ import type { CrossmintApiService } from '../api';
 import { CrossmintFrameService } from '../service';
 import init, { js_get_collateral, js_verify } from '@phala/dcap-qvl-web';
 import wasm from '@phala/dcap-qvl-web/dcap-qvl-web_bg.wasm';
-import { decodeBytes, encodeBytes } from '../encryption/lib/utils';
+import { decodeBytes, encodeBytes } from '../encryption/lib/primitives/encoding';
 import { z } from 'zod';
 import { isDevelopment } from '../api';
 

@@ -10,7 +10,7 @@ import { DeviceService } from './user/device';
 import { IndexedDBAdapter } from './storage';
 import { EncryptionKeyProvider } from './encryption-keys/encryption-key-provider';
 import { TEEKeyProvider } from './encryption-keys/tee-key-provider';
-import { ECDHKeyProvider } from './encryption/lib/key-management/ecdh-key-provider';
+import { ECDHKeyProvider } from './encryption/lib';
 import { UserKeyManager } from './user/key-manager';
 import { InMemoryCacheService } from './storage/cache';
 import { FPEService } from './encryption/fpe';
@@ -51,7 +51,7 @@ export const createCrossmintFrameServices = () => {
   const secp256k1Service = new Secp256k1Service();
   const crossmintApiService = new CrossmintApiService(encryptionService);
   const deviceService = new DeviceService();
-  const fpeService = new FPEService(new ECDHKeyProvider(keyRepository, teeKeyService));
+  const fpeService = new FPEService(keyRepository, teeKeyService);
   const cryptoKeyService = new CryptoKeyService(ed25519Service, secp256k1Service);
   const attestationService = new AttestationService(crossmintApiService, EXPECTED_PHALA_APP_ID);
   const userKeyManager = new UserKeyManager(

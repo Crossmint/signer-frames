@@ -4,7 +4,8 @@ import type {
   SignerOutputEvent,
 } from '@crossmint/client-signers';
 import type { CrossmintFrameServices } from '..';
-import { decodeBytes, measureFunctionTime } from '../encryption/lib/utils';
+import { decodeBytes } from '../encryption/lib/primitives/encoding';
+import { measureFunctionTime } from '../encryption/lib';
 import { CrossmintFrameCodedError } from '../api/error';
 
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -126,7 +127,9 @@ export class CompleteOnboardingEventHandler extends EventHandler<'complete-onboa
     return {
       status: 'success',
       signerStatus: 'ready',
-      publicKeys: await this.services.cryptoKey.getAllPublicKeysFromSeed(masterSecret),
+      publicKeys: await this.services.cryptoKey.getAllPublicKeysFromSeed(
+        new Uint8Array(masterSecret)
+      ),
     };
   }
 
