@@ -78,7 +78,6 @@ export class InMemoryCacheService<
     }
 
     if (entry.expiresAt != null && entry.expiresAt < Date.now()) {
-      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
       delete this.cache[key];
       return null;
     }
@@ -103,7 +102,6 @@ export class InMemoryCacheService<
     for (const key in this.cache) {
       const entry = this.cache[key];
       if (entry.expiresAt != null && entry.expiresAt < now) {
-        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
         delete this.cache[key];
       }
     }
