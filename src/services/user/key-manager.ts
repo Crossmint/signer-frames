@@ -92,7 +92,7 @@ export class UserMasterSecretManager extends CrossmintFrameService {
         this.deviceService.getId(),
         authData
       );
-      this.cache.set('encryptedMasterSecret', encryptedMasterSecret);
+      this.cache.set('encryptedMasterSecret', encryptedMasterSecret, 1000 * 60 * 5); // 5 minutes
       return encryptedMasterSecret;
     } catch (error) {
       this.logError('Error getting encrypted master secret from API:', error, '. Continuing...');
