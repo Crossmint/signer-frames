@@ -6,15 +6,15 @@ import type { CrossmintApiService } from '../services/api';
 import type { AttestationService } from '../services/tee/attestation';
 import type { Ed25519Service } from '../services/crypto/algorithms/ed25519';
 import type { EventsService } from '../services/communications/events';
-import type { EncryptionService } from '../services/encryption';
+import type { HPKEService } from '../services/encryption/hpke';
 import type { FPEService } from '../services/encryption/fpe';
 import type { Secp256k1Service } from '../services/crypto/algorithms/secp256k1';
 import type { CryptoKeyService } from '../services/crypto/crypto-key';
 import type { DeviceService } from '../services/user/device';
 import { IndexedDBAdapter } from '../services/storage';
-import { EncryptionKeyProvider } from '../services/encryption-keys/encryption-key-provider';
+import { MasterFrameKeyProvider } from '../services/encryption-keys/encryption-key-provider';
 import { TEEKeyProvider } from '../services/encryption-keys/tee-key-provider';
-import { UserMasterKeyManager } from '../services/user/key-manager';
+import { UserMasterSecretManager } from '../services/user/key-manager';
 import { InMemoryCacheService } from '../services/storage/cache';
 /**
  * Creates mock services for testing with proper typing
@@ -24,14 +24,14 @@ export function createMockServices(): MockProxy<CrossmintFrameServices> & {
   attestation: MockProxy<AttestationService>;
   ed25519: MockProxy<Ed25519Service>;
   events: MockProxy<EventsService>;
-  encrypt: MockProxy<EncryptionService>;
+  encrypt: MockProxy<HPKEService>;
   fpe: MockProxy<FPEService>;
   secp256k1: MockProxy<Secp256k1Service>;
   cryptoKey: MockProxy<CryptoKeyService>;
   device: MockProxy<DeviceService>;
   teeKey: MockProxy<TEEKeyProvider>;
-  encryptionKeyProvider: MockProxy<EncryptionKeyProvider>;
-  userKeyManager: MockProxy<UserMasterKeyManager>;
+  encryptionKeyProvider: MockProxy<MasterFrameKeyProvider>;
+  userKeyManager: MockProxy<UserMasterSecretManager>;
   cache: MockProxy<InMemoryCacheService>;
 } {
   return {
@@ -39,15 +39,15 @@ export function createMockServices(): MockProxy<CrossmintFrameServices> & {
     attestation: mock<AttestationService>(),
     ed25519: mock<Ed25519Service>(),
     events: mock<EventsService>(),
-    encrypt: mock<EncryptionService>(),
+    encrypt: mock<HPKEService>(),
     fpe: mock<FPEService>(),
     secp256k1: mock<Secp256k1Service>(),
     cryptoKey: mock<CryptoKeyService>(),
     device: mock<DeviceService>(),
     storage: mock<IndexedDBAdapter>(),
     teeKey: mock<TEEKeyProvider>(),
-    encryptionKeyProvider: mock<EncryptionKeyProvider>(),
-    userKeyManager: mock<UserMasterKeyManager>(),
+    encryptionKeyProvider: mock<MasterFrameKeyProvider>(),
+    userKeyManager: mock<UserMasterSecretManager>(),
     cache: mock<InMemoryCacheService>(),
   };
 }

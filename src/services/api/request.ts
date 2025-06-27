@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { ZodSchema } from 'zod';
-import type { EncryptionService } from '../encryption';
+import type { HPKEService } from '../encryption/hpke';
 import type { Environment } from './environment';
 
 export type AuthData = {
@@ -29,7 +29,7 @@ export interface CrossmintRequestOptions<I, O> {
   endpoint: (input: I) => string;
   method: 'GET' | 'POST' | 'PUT' | 'DELETE';
   encrypted?: boolean;
-  encryptionService: EncryptionService;
+  encryptionService: HPKEService;
   getHeaders: (authData?: AuthData) => Record<string, string>;
   fetchImpl?: typeof fetch;
 }
@@ -51,7 +51,7 @@ export class CrossmintRequest<
   private outputSchema: ZodSchema<O>;
   private method: string;
   private encrypted: boolean;
-  private encryptionService: EncryptionService;
+  private encryptionService: HPKEService;
   private encryptedPayloadSchema = z.object({
     ciphertext: base64StringSchema,
     encapsulatedKey: base64StringSchema,
@@ -127,7 +127,7 @@ export class CrossmintRequest<
     }
     if (this.encrypted) {
       this.log('Encrypting request. Encrypting body...');
-      if (!this.encryptionService) throw new Error('EncryptionService not provided');
+      if (!this.encryptionService) throw new Error('HPKEService not provided');
       const encryptedPayload = this.encryptedPayloadSchema.parse(
         await this.encryptionService.encryptBase64(parsedInput)
       );

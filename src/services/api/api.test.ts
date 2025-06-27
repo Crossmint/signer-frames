@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { CrossmintApiService, parseApiKey } from './api';
 import { CrossmintHttpError, CrossmintRequest } from './request';
 import { mock } from 'vitest-mock-extended';
-import type { EncryptionService } from '../encryption';
+import type { HPKEService } from '../encryption/hpke';
 import { z } from 'zod';
 
 const executeSpy = vi.fn().mockResolvedValue({ success: true });
@@ -12,11 +12,11 @@ CrossmintRequest.prototype.execute = executeSpy;
 
 describe('CrossmintApiService', () => {
   let apiService: CrossmintApiService;
-  let mockEncryptionService: EncryptionService;
+  let mockHPKEService: HPKEService;
 
   beforeEach(() => {
-    mockEncryptionService = mock<EncryptionService>();
-    apiService = new CrossmintApiService(mockEncryptionService);
+    mockHPKEService = mock<HPKEService>();
+    apiService = new CrossmintApiService(mockHPKEService);
     executeSpy.mockClear();
   });
 
@@ -99,10 +99,10 @@ describe('CrossmintApiService', () => {
 });
 
 describe('CrossmintHttpError e2e', () => {
-  let mockEncryptionService: EncryptionService;
+  let mockHPKEService: HPKEService;
 
   beforeEach(() => {
-    mockEncryptionService = mock<EncryptionService>();
+    mockHPKEService = mock<HPKEService>();
   });
 
   it('should throw CrossmintHttpError when request.execute() encounters non-2xx response', async () => {
@@ -120,7 +120,7 @@ describe('CrossmintHttpError e2e', () => {
       environment: 'development',
       endpoint: () => '/test-endpoint',
       method: 'GET',
-      encryptionService: mockEncryptionService,
+      encryptionService: mockHPKEService,
       getHeaders: () => ({}),
       fetchImpl: mockFetch,
     });

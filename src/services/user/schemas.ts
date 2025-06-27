@@ -1,23 +1,18 @@
 import { z } from 'zod';
+import { encryptedUserKeySchema, sha256HashSchema } from '../api/api-schemas';
 
-export const encryptedMasterSecretSchema = z.object({
-  bytes: z.string(),
-  encoding: z.literal('base64'),
-  encryptionPublicKey: z.string(),
-});
+// Re-export commonly used schemas for backward compatibility
+export const encryptedMasterSecretSchema = encryptedUserKeySchema;
+export const userMasterSecretHashSchema = sha256HashSchema;
 
-export const userMasterSecretHashSchema = z.object({
-  bytes: z.string(),
-  encoding: z.literal('base64'),
-  algorithm: z.literal('SHA-256'),
-});
-
+// User-specific schemas that extend the API schemas
 export const hashedEncryptedMasterSecretSchema = z.object({
   deviceId: z.string(),
-  encryptedUserKey: encryptedMasterSecretSchema,
-  userKeyHash: userMasterSecretHashSchema,
+  encryptedUserKey: encryptedUserKeySchema,
+  userKeyHash: sha256HashSchema,
 });
 
+// Type exports
 export type EncryptedMasterSecret = z.infer<typeof encryptedMasterSecretSchema>;
 export type UserMasterSecretHash = z.infer<typeof userMasterSecretHashSchema>;
 export type HashedEncryptedMasterSecret = z.infer<typeof hashedEncryptedMasterSecretSchema>;

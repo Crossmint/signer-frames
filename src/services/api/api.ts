@@ -5,18 +5,18 @@
 import { calculateBackoff, defaultRetryConfig, shouldRetry } from './backoff';
 import { CrossmintFrameService } from '../service';
 import type { RetryConfig } from './backoff';
-import type { EncryptionService } from '../encryption';
 import { type AuthData, CrossmintRequest } from './request';
 import { type Environment, getEnvironment } from './environment';
 import {
-  StartOnboardingInputSchema,
-  CompleteOnboardingInputSchema,
-  CompleteOnboardingOutputSchema,
-  GetEncryptedMasterSecretOutputSchema,
-  GetAttestationOutputSchema,
-  GetPublicKeyOutputSchema,
+  StartOnboardingInput,
+  CompleteOnboardingInput,
+  CompleteOnboardingOutput,
+  GetEncryptedMasterSecretOutput,
+  GetAttestationOutput,
+  GetPublicKeyOutput,
   CrossmintApiServiceSchemas,
 } from './api-schemas';
+import { HPKEService } from '../encryption/hpke';
 
 function getHeaders(authData?: AuthData) {
   return {
@@ -66,14 +66,14 @@ export class CrossmintApiService extends CrossmintFrameService {
   log_prefix = '[CrossmintApiService]';
   private retryConfig: RetryConfig;
 
-  constructor(private readonly encryptionService: EncryptionService) {
+  constructor(private readonly hpke: HPKEService) {
     super();
     this.retryConfig = defaultRetryConfig;
   }
 
   async init() {}
 
-  async startOnboarding(input: StartOnboardingInputSchema, authData: AuthData) {
+  async startOnboarding(input: StartOnboardingInput, authData: AuthData) {
     CrossmintApiServiceSchemas.startOnboardingInputSchema.parse(input);
     const request = new CrossmintRequest({
       name: 'startOnboarding',
@@ -84,7 +84,7 @@ export class CrossmintApiService extends CrossmintFrameService {
       endpoint: () => '/start-onboarding',
       method: 'POST',
       encrypted: false,
-      encryptionService: this.encryptionService,
+      encryptionService: this.hpke,
       getHeaders,
     });
     return request.execute({
@@ -93,9 +93,9 @@ export class CrossmintApiService extends CrossmintFrameService {
   }
 
   async completeOnboarding(
-    input: CompleteOnboardingInputSchema,
+    input: CompleteOnboardingInput,
     authData: AuthData
-  ): Promise<CompleteOnboardingOutputSchema> {
+  ): Promise<CompleteOnboardingOutput> {
     CrossmintApiServiceSchemas.completeOnboardingInputSchema.parse(input);
     const request = new CrossmintRequest({
       name: 'completeOnboarding',
@@ -106,13 +106,13 @@ export class CrossmintApiService extends CrossmintFrameService {
       endpoint: () => '/complete-onboarding',
       method: 'POST',
       encrypted: true,
-      encryptionService: this.encryptionService,
+      encryptionService: this.hpke,
       getHeaders,
     });
     return request.execute(input);
   }
 
-  async getAttestation(): Promise<GetAttestationOutputSchema> {
+  async getAttestation(): Promise<GetAttestationOutput> {
     const request = new CrossmintRequest({
       name: 'getAttestation',
       inputSchema: CrossmintApiServiceSchemas.getAttestationInputSchema,
@@ -121,13 +121,13 @@ export class CrossmintApiService extends CrossmintFrameService {
       endpoint: () => '/attestation',
       method: 'GET',
       encrypted: false,
-      encryptionService: this.encryptionService,
+      encryptionService: this.hpke,
       getHeaders,
     });
     return request.execute(undefined);
   }
 
-  async getPublicKey(): Promise<GetPublicKeyOutputSchema> {
+  async getPublicKey(): Promise<GetPublicKeyOutput> {
     const request = new CrossmintRequest({
       name: 'getPublicKey',
       inputSchema: CrossmintApiServiceSchemas.getPublicKeyInputSchema,
@@ -136,7 +136,7 @@ export class CrossmintApiService extends CrossmintFrameService {
       endpoint: () => '/attestation/public-key',
       method: 'GET',
       encrypted: false,
-      encryptionService: this.encryptionService,
+      encryptionService: this.hpke,
       getHeaders,
     });
     return request.execute(undefined);
@@ -145,7 +145,7 @@ export class CrossmintApiService extends CrossmintFrameService {
   async getEncryptedMasterSecret(
     deviceId: string,
     authData: AuthData
-  ): Promise<GetEncryptedMasterSecretOutputSchema> {
+  ): Promise<GetEncryptedMasterSecretOutput> {
     CrossmintApiServiceSchemas.getEncryptedMasterSecretInputSchema.parse(undefined);
     const request = new CrossmintRequest({
       name: 'getEncryptedMasterSecret',
@@ -156,7 +156,7 @@ export class CrossmintApiService extends CrossmintFrameService {
       endpoint: () => `/${deviceId}/encrypted-user-key`,
       method: 'GET',
       encrypted: false,
-      encryptionService: this.encryptionService,
+      encryptionService: this.hpke,
       getHeaders,
     });
     return request.execute(undefined);

@@ -1,10 +1,10 @@
 import { expect, describe, it, beforeEach, vi } from 'vitest';
-import { HPKEService as EncryptionService } from './hpke';
+import { HPKEService } from './hpke';
 import type { AttestationService } from '../tee/attestation';
 import { mock } from 'vitest-mock-extended';
 import {
   IDENTITY_STORAGE_KEY,
-  type EncryptionKeyProvider,
+  type MasterFrameKeyProvider,
 } from '../encryption-keys/encryption-key-provider';
 import type { PublicKeyProvider } from '@crossmint/client-signers-cryptography';
 
@@ -155,7 +155,7 @@ const mockAttestationService: AttestationService = {
 } as unknown as AttestationService;
 
 // Mock KeyRepository and TeePublicKeyProvider
-const mockKeyRepository = mock<EncryptionKeyProvider>();
+const mockKeyRepository = mock<MasterFrameKeyProvider>();
 const mockTeePublicKeyProvider = mock<PublicKeyProvider>();
 
 // Mock global methods
@@ -169,8 +169,8 @@ vi.stubGlobal(
 );
 vi.stubGlobal('localStorage', localStorageMock);
 
-// Create a test version of the EncryptionService to avoid initialization issues
-class TestEncryptionService extends EncryptionService {
+// Create a test version of the HPKEService to avoid initialization issues
+class TestHPKEService extends HPKEService {
   constructor() {
     super(mockKeyRepository, mockTeePublicKeyProvider);
     // Mock internal methods
@@ -212,8 +212,8 @@ class TestEncryptionService extends EncryptionService {
   }
 }
 
-describe('EncryptionService', () => {
-  let encryptionService: TestEncryptionService;
+describe('HPKEService', () => {
+  let encryptionService: TestHPKEService;
 
   beforeEach(() => {
     // Clear mock storage
@@ -223,7 +223,7 @@ describe('EncryptionService', () => {
     vi.clearAllMocks();
 
     // Create a new instance for each test
-    encryptionService = new TestEncryptionService();
+    encryptionService = new TestHPKEService();
 
     // Spy on the methods
     vi.spyOn(encryptionService, 'init');
