@@ -10,7 +10,6 @@ import { DeviceService } from './user/device';
 import { IndexedDBAdapter } from './storage';
 import { EncryptionKeyProvider } from './encryption-keys/encryption-key-provider';
 import { TEEKeyProvider } from './encryption-keys/tee-key-provider';
-import { ECDHKeyProvider } from './encryption/lib';
 import { UserKeyManager } from './user/key-manager';
 import { InMemoryCacheService } from './storage/cache';
 import { FPEService } from './encryption/fpe';

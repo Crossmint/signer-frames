@@ -1,7 +1,7 @@
 import { DhkemP256HkdfSha256 } from '@hpke/core';
 import { CrossmintFrameService } from '../service';
 import type { AttestationService } from '../tee/attestation';
-import { decodeBytes } from '../encryption/lib/primitives/encoding';
+import { decodeBytes } from '@crossmint/client-signers-cryptography';
 
 export class TEEKeyProvider extends CrossmintFrameService {
   name = 'TEE Key Provider';

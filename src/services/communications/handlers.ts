@@ -4,8 +4,8 @@ import type {
   SignerOutputEvent,
 } from '@crossmint/client-signers';
 import type { CrossmintFrameServices } from '..';
-import { decodeBytes } from '../encryption/lib/primitives/encoding';
-import { measureFunctionTime } from '../encryption/lib';
+import { decodeBytes } from '@crossmint/client-signers-cryptography';
+import { measureFunctionTime } from '@crossmint/client-signers-cryptography';
 import { CrossmintFrameCodedError } from '../api/error';
 
 const DEFAULT_TIMEOUT_MS = 30_000;

@@ -1,7 +1,7 @@
 import { CrossmintFrameService } from '../service';
-import { createKEM, ECDH_KEY_SPEC } from '../encryption/lib';
+import { createKEM, ECDH_KEY_SPEC } from '@crossmint/client-signers-cryptography';
 import { ENCRYPTION_KEYS_STORE_NAME, type IndexedDBAdapter } from '../storage';
-import { encodeBytes } from '../encryption/lib/primitives/encoding';
+import { encodeBytes } from '@crossmint/client-signers-cryptography';
 
 export const IDENTITY_STORAGE_KEY = 'encryption-key-pair';
 export const IDENTITY_KEY_PERMISSIONS: KeyUsage[] = ['deriveBits', 'deriveKey'];

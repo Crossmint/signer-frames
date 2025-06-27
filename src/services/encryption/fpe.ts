@@ -1,7 +1,7 @@
 import { CrossmintFrameService } from '../service';
-import { FPE } from './lib';
-import { KeyPairProvider, PublicKeyProvider } from './lib/providers';
-import { deriveSymmetricKey } from './lib/primitives/keys';
+import { FPE } from '@crossmint/client-signers-cryptography';
+import { KeyPairProvider, PublicKeyProvider } from '@crossmint/client-signers-cryptography';
+import { deriveSymmetricKey } from '@crossmint/client-signers-cryptography';
 
 export class FPEService extends CrossmintFrameService {
   name = 'Format Preserving Encryption Service';

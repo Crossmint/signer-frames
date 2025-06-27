@@ -1,7 +1,7 @@
 import { CrossmintFrameService } from '../service';
-import { type EncryptionResult } from './lib';
+import { type EncryptionResult } from '@crossmint/client-signers-cryptography';
 import { type EncryptionKeyProvider } from '../encryption-keys/encryption-key-provider';
-import { HPKE } from './lib';
+import { HPKE } from '@crossmint/client-signers-cryptography';
 
 type EncryptablePayload = Record<string, unknown>;
 

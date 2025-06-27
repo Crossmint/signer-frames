@@ -1,13 +1,13 @@
 import { z } from 'zod';
 import { CrossmintFrameService } from '../service';
-import { KeyPairProvider, AesGcm } from '../encryption/lib';
-import { decodeBytes, encodeBytes } from '../encryption/lib/primitives/encoding';
+import { KeyPairProvider, AesGcm } from '@crossmint/client-signers-cryptography';
+import { decodeBytes, encodeBytes } from '@crossmint/client-signers-cryptography';
 import { PublicKeyDeserializer } from '../encryption-keys/tee-key-provider';
 import { AuthData } from '../api/request';
 import { CrossmintApiService } from '../api';
 import { DeviceService } from './device';
 import { InMemoryCacheService } from '../storage/cache';
-import { deriveSymmetricKey, generateECDHKeyPair } from '../encryption/lib/primitives/keys';
+import { deriveSymmetricKey, generateECDHKeyPair } from '@crossmint/client-signers-cryptography';
 
 const completeOnboardingOutputSchema = z.object({
   deviceId: z.string(),

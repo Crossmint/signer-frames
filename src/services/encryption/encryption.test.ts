@@ -1,12 +1,12 @@
 import { expect, describe, it, beforeEach, vi } from 'vitest';
-import { HPKEService as EncryptionService } from './encryption';
+import { HPKEService as EncryptionService } from './hpke';
 import type { AttestationService } from '../tee/attestation';
 import { mock } from 'vitest-mock-extended';
 import {
   IDENTITY_STORAGE_KEY,
   type EncryptionKeyProvider,
 } from '../encryption-keys/encryption-key-provider';
-import type { PublicKeyProvider } from './lib';
+import type { PublicKeyProvider } from '@crossmint/client-signers-cryptography';
 
 // Mock types for attestation
 type AttestationDocument = { publicKey: string } & Record<string, unknown>;

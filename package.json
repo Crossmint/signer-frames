@@ -66,6 +66,7 @@
     "@phala/dcap-qvl-web": "^0.2.7",
     "bs58": "^6.0.0",
     "ethereum-cryptography": "^3.2.0",
-    "zod": "3.22.4"
+    "zod": "3.22.4",
+    "@crossmint/client-signers-cryptography": "0.0.2"
   }
 }
