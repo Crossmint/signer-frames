@@ -167,7 +167,7 @@ export class CrossmintApiService extends CrossmintFrameService {
       outputSchema: CrossmintApiServiceSchemas.getEncryptedMasterSecretOutputSchema,
       environment: parseApiKey(authData.apiKey).environment,
       authData,
-      endpoint: `/${deviceId}/encrypted-user-key`,
+      endpoint: `/${deviceId}/encrypted-master-secret`,
       method: 'GET' as const,
       encrypted: false,
     });
