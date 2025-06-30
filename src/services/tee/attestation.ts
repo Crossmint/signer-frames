@@ -59,11 +59,16 @@ const EventLogEntrySchema = z.object({
 
 const EventLogSchema = z.array(EventLogEntrySchema);
 
+const KeyProviderSchema = z.object({
+  name: z.literal('kms'),
+  id: z.string(),
+});
+
 const ApplicationInfoSchema = z.object({
   app_id: z.string(),
   compose_hash: z.string(),
   instance_id: z.string(),
-  key_provider: z.string().optional(),
+  key_provider: KeyProviderSchema,
 });
 
 type EventLogEntry = z.infer<typeof EventLogEntrySchema>;
@@ -208,9 +213,6 @@ export class AttestationService extends CrossmintFrameService {
     const eventLog = this.parseEventLog(eventLogJson);
     await this.validateAllEvents(eventLog);
     const appInfo = this.extractApplicationInfo(eventLog);
-
-    console.log("Here's the app info");
-    console.log(appInfo);
     const replayedRtmr3 = await this.replayRtmr3(eventLog);
 
     if (replayedRtmr3 !== reportedRtmr3) {
@@ -410,10 +412,15 @@ export class AttestationService extends CrossmintFrameService {
           try {
             // Key provider might be stored as hex-encoded string
             const keyProviderBytes = decodeBytes(event.event_payload, 'hex');
-            appInfo.key_provider = new TextDecoder().decode(keyProviderBytes);
+            const keyProviderJson = new TextDecoder().decode(keyProviderBytes);
+            appInfo.key_provider = JSON.parse(keyProviderJson);
           } catch {
-            // If not hex, treat as regular string
-            appInfo.key_provider = event.event_payload;
+            // If not hex, treat as regular string and parse JSON
+            try {
+              appInfo.key_provider = JSON.parse(event.event_payload);
+            } catch {
+              throw new Error(`Invalid key_provider JSON format: ${event.event_payload}`);
+            }
           }
           break;
       }
