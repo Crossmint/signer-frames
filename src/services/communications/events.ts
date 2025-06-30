@@ -28,13 +28,23 @@ export class EventsService extends CrossmintFrameService {
       return;
     }
 
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetOrigin = urlParams.get('targetOrigin');
+
+    // For debugging purposes, we can delete this later
+    if (targetOrigin) {
+      console.log('targetOrigin', targetOrigin);
+    } else {
+      console.log('targetOrigin not provided');
+    }
+
     EventsService.messenger =
       'ReactNativeWebView' in window && window.ReactNativeWebView != null
         ? new RNWebViewChild({
             incomingEvents: signerInboundEvents,
             outgoingEvents: signerOutboundEvents,
           })
-        : new ChildWindow(window.parent, options?.targetOrigin ?? '*', {
+        : new ChildWindow(window.parent, targetOrigin ?? '*', {
             incomingEvents: signerInboundEvents,
             outgoingEvents: signerOutboundEvents,
             handshakeOptions: options?.handshakeOptions,
