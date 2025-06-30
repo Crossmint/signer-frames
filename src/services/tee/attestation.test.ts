@@ -21,9 +21,13 @@ vi.mock('@phala/dcap-qvl-web/dcap-qvl-web_bg.wasm', () => ({
   default: 'mock-wasm-buffer',
 }));
 
-vi.mock('./environment', () => ({
-  isDevelopment: () => false,
-}));
+vi.mock('../api', async () => {
+  const actual = await vi.importActual('../api');
+  return {
+    ...actual,
+    isDevelopment: () => false,
+  };
+});
 
 const VALID_PUBLIC_KEY =
   'BMbRE3oZ8rxCzkPYntr/gApxZO2nO1T44HCwLDokZOy/y3/3NW/VhVFLrUSKjohgAQFk6wckzs50HGmn+IAwVEk=';

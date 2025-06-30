@@ -105,10 +105,10 @@ export class AttestationService extends CrossmintFrameService {
 
   async init() {
     try {
-      // if (isDevelopment()) {
-      //   this.publicKey = await this.getPublicKeyDevMode();
-      //   return;
-      // }
+      if (isDevelopment()) {
+        this.publicKey = await this.getPublicKeyDevMode();
+        return;
+      }
 
       const attestation = await this.api.getAttestation();
       this.log('TEE attestation document fetched');
@@ -189,7 +189,7 @@ export class AttestationService extends CrossmintFrameService {
    * 4. Comparing replayed RTMR3 against the value reported by the TEE hardware
    * 5. Validating that the application ID matches the expected authorized application
    *
-   * The validation approach follows the reference implementation provided by the Phala team:
+   * The validation approach follows the reference implementation provided by the Dstack authors
    * https://github.com/Dstack-TEE/dstack-examples/blob/main/attestation/rtmr3-based/verify.py
    *
    * Only RTMR3 events are validated, as other IMR registers may have different validation rules.
