@@ -1,13 +1,9 @@
 /**
  * SECURITY CRITICAL: AttestationService Test Suite
  *
- * This service validates Intel TDX TEE attestations for cryptographic key access.
- * Security properties tested:
- * 1. TEE authenticity validation (hardware attestation verification)
- * 2. Public key attestation integrity (cryptographic proof validation)
- * 3. RTMR3 measurement verification (calculated vs reported values)
- * 4. Application identity enforcement (prevents unauthorized app access)
- * 5. Secure failure modes (proper error handling without data leakage)
+ * Tests validation of Intel TDX TEE attestations for cryptographic key access.
+ * Security properties: TEE authenticity, public key attestation integrity,
+ * RTMR3 measurement verification, application identity enforcement, secure failure modes.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -15,7 +11,6 @@ import { mock, type MockProxy } from 'vitest-mock-extended';
 import { AttestationService } from './attestation';
 import type { CrossmintApiService } from '../api';
 
-// Mock WASM functions - minimal mocking just for imports
 vi.mock('@phala/dcap-qvl-web', () => ({
   default: vi.fn(),
   js_get_collateral: vi.fn(),
@@ -31,64 +26,119 @@ vi.mock('./environment', () => ({
 }));
 
 const VALID_PUBLIC_KEY =
-  'BE2tK2+EUljfdSAvTy9qR7Osk1roVfsB+FDdmz5lfl6ZBLXUUa5I/FQwwh/Hh5QLUwpqAW+EyMDN/X0Ikd4eROuBTCyMNc9gGVmRKKZpCtUv24O5uvRINvswGOZ1ibiYjQ==';
-const VALID_APP_ID = '0ade7b12204222a684b6e8e26aa5223f38e90725';
+  'BMbRE3oZ8rxCzkPYntr/gApxZO2nO1T44HCwLDokZOy/y3/3NW/VhVFLrUSKjohgAQFk6wckzs50HGmn+IAwVEk=';
+const VALID_APP_ID = 'df4f0ec61f92a8eec754593da9ea9cd939985e9c';
+
+const VALID_EVENT_LOG = [
+  {
+    imr: 3,
+    event_type: 134217729,
+    digest:
+      'f9974020ef507068183313d0ca808e0d1ca9b2d1ad0c61f5784e7157c362c06536f5ddacdad4451693f48fcc72fff624',
+    event: 'system-preparing',
+    event_payload: '',
+  },
+  {
+    imr: 3,
+    event_type: 134217729,
+    digest:
+      '8fb0fe5adbb3a5038e382aa1c4f5878ffa22b0671b3fba3ca9181c5a3e3b5fb47a33ed4fc8f63fcaf1a949a53acef0fa',
+    event: 'app-id',
+    event_payload: VALID_APP_ID,
+  },
+  {
+    imr: 3,
+    event_type: 134217729,
+    digest:
+      'ba99db40bbcf5a0c855ee6233f2bb0581d408cf430a98cea5233daf8e21e6483419c1bb9d2c0057f5e9185a5a2bc0e2f',
+    event: 'compose-hash',
+    event_payload: '1b41d549eeb909955c5753df9064b2db28b99b70c1adc00a14c49825f104ea75',
+  },
+  {
+    imr: 3,
+    event_type: 134217729,
+    digest:
+      'fdea52c2b3479345247a2d0a05a8e36caee77d6a35aa896d86c5724f75147541966dcebbafa7724af04ce8d855aef2b5',
+    event: 'instance-id',
+    event_payload: '396554b3487ed9549b2e57435574b1cc0f959aef',
+  },
+  {
+    imr: 3,
+    event_type: 134217729,
+    digest:
+      '98bd7e6bd3952720b65027fd494834045d06b4a714bf737a06b874638b3ea00ff402f7f583e3e3b05e921c8570433ac6',
+    event: 'boot-mr-done',
+    event_payload: '',
+  },
+  {
+    imr: 3,
+    event_type: 134217729,
+    digest:
+      'eb6508fe194b5dfa04efad892f507ef92bc24fa1988c00b8a7ec0476b80acce80b197fb44073e3753d2fc523fce912b7',
+    event: 'mr-kms',
+    event_payload: 'c6d0cc8008a564760ccb0ca63f574f000fce4ae2fa1a9265e7522f6889e82aab',
+  },
+  {
+    imr: 3,
+    event_type: 134217729,
+    digest:
+      'da7226c6addbb7a3d244191bab7b190ec16854158e4534abbf1d017826060ee4a10d71f4d45c08129f1020f42e07bf85',
+    event: 'os-image-hash',
+    event_payload: '4ed916a047daceeba658948c7a249d0faf26dd82608ff028bd3e9b4b67ff8cae',
+  },
+  {
+    imr: 3,
+    event_type: 134217729,
+    digest:
+      'a7179594e816a60a9caa0f8c6dcd25e86459b99ec8733767c81f106768b42cfe2215fab852adf53687215afd950ab749',
+    event: 'key-provider',
+    event_payload:
+      '7b226e616d65223a226b6d73222c226964223a223330353933303133303630373261383634386365336430323031303630383261383634386365336430333031303730333432303030346161366639616564343239306231323061626461323933373136303638393835373534343835303234636435306263306236376331383032626466306536323530656464663333613164353931633161323537633734353938636536633437353666393664633335393736323564656365313834313930386663306438616339227d',
+  },
+  {
+    imr: 3,
+    event_type: 134217729,
+    digest:
+      '1a76b2a80a0be71eae59f80945d876351a7a3fb8e9fd1ff1cede5734aa84ea11fd72b4edfbb6f04e5a85edd114c751bd',
+    event: 'system-ready',
+    event_payload: '',
+  },
+];
+
+const VALID_RTMR3 =
+  'edfa1b4966b651678509dd241ab2be85caceeb8be663f79bfc27b5a189a9fe403522c39a080d8f3f750aa037a37d606d';
 
 describe('AttestationService - Security Critical Tests', () => {
   let service: AttestationService;
   let mockApiService: MockProxy<CrossmintApiService>;
+  // biome-ignore lint/suspicious/noExplicitAny: WASM mocks require any type
+  let mockWasmInit: any;
+  // biome-ignore lint/suspicious/noExplicitAny: WASM mocks require any type
+  let mockJsGetCollateral: any;
+  // biome-ignore lint/suspicious/noExplicitAny: WASM mocks require any type
+  let mockJsVerify: any;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
     mockApiService = mock<CrossmintApiService>();
     service = new AttestationService(mockApiService, VALID_APP_ID);
+
+    const wasmModule = await import('@phala/dcap-qvl-web');
+    mockWasmInit = vi.mocked(wasmModule.default);
+    mockJsGetCollateral = vi.mocked(wasmModule.js_get_collateral);
+    mockJsVerify = vi.mocked(wasmModule.js_verify);
+
+    // Reset to secure defaults - require explicit override for each test
+    mockWasmInit.mockResolvedValue(undefined);
+    mockJsGetCollateral.mockRejectedValue(new Error('Mock not configured'));
+    mockJsVerify.mockRejectedValue(new Error('Mock not configured'));
   });
 
-  describe('TEE Authenticity Validation - Core Security Function', () => {
-    // These tests require WASM mocking since they test the verifyTEEReport method
-    // biome-ignore lint/suspicious/noExplicitAny: WASM mock functions require any for testing
-    let mockWasmInit: any;
-    // biome-ignore lint/suspicious/noExplicitAny: WASM mock functions require any for testing
-    let mockJsGetCollateral: any;
-    // biome-ignore lint/suspicious/noExplicitAny: WASM mock functions require any for testing
-    let mockJsVerify: any;
-
-    beforeEach(async () => {
-      // Setup WASM mocks for TEE report verification tests
-      const wasmModule = await import('@phala/dcap-qvl-web');
-      mockWasmInit = vi.mocked(wasmModule.default);
-      mockJsGetCollateral = vi.mocked(wasmModule.js_get_collateral);
-      mockJsVerify = vi.mocked(wasmModule.js_verify);
-
-      // Default successful WASM operations
-      mockWasmInit.mockResolvedValue(undefined);
+  describe('TEE Authenticity Validation', () => {
+    beforeEach(() => {
       mockJsGetCollateral.mockResolvedValue('mock-collateral');
       mockJsVerify.mockResolvedValue({
         status: 'UpToDate',
-        report: {
-          TD10: {
-            report_data: 'a'.repeat(128), // 64 bytes in hex
-            rt_mr3: 'b'.repeat(96), // 48 bytes in hex
-          },
-        },
-      });
-    });
-
-    it('SECURITY: Should successfully validate authentic TEE attestation', async () => {
-      const validQuote = 'valid-quote-hex';
-
-      const report = await service.verifyTEEReport(validQuote);
-
-      expect(report.status).toBe('UpToDate');
-      expect(mockWasmInit).toHaveBeenCalledWith('mock-wasm-buffer');
-      expect(mockJsGetCollateral).toHaveBeenCalled();
-      expect(mockJsVerify).toHaveBeenCalled();
-    });
-
-    it('SECURITY: Should reject attestation with invalid TEE status', async () => {
-      const validQuote = 'valid-quote-hex';
-      mockJsVerify.mockResolvedValue({
-        status: 'OutOfDate', // Invalid status
         report: {
           TD10: {
             report_data: 'a'.repeat(128),
@@ -96,26 +146,63 @@ describe('AttestationService - Security Critical Tests', () => {
           },
         },
       });
+    });
 
-      await expect(service.verifyTEEReport(validQuote)).rejects.toThrow(
+    it('SECURITY: Should validate authentic TEE attestation', async () => {
+      const report = await service.verifyTEEReport('valid-quote-hex');
+
+      expect(report.status).toBe('UpToDate');
+      expect(mockWasmInit).toHaveBeenCalledWith('mock-wasm-buffer');
+      expect(mockJsGetCollateral).toHaveBeenCalled();
+      expect(mockJsVerify).toHaveBeenCalled();
+    });
+
+    it('SECURITY: Should reject invalid TEE status', async () => {
+      mockJsVerify.mockResolvedValue({
+        status: 'OutOfDate',
+        report: { TD10: { report_data: 'a'.repeat(128), rt_mr3: 'b'.repeat(96) } },
+      });
+
+      await expect(service.verifyTEEReport('valid-quote-hex')).rejects.toThrow(
         'TEE attestation is invalid'
       );
     });
 
-    it('SECURITY: Should handle malformed TEE report structure', async () => {
-      const validQuote = 'valid-quote-hex';
+    it('SECURITY: Should reject malformed TEE report', async () => {
+      mockJsVerify.mockResolvedValue({ invalid: 'structure' });
+
+      await expect(service.verifyTEEReport('valid-quote-hex')).rejects.toThrow();
+    });
+
+    it('SECURITY: Should support TD15 report format', async () => {
       mockJsVerify.mockResolvedValue({
-        // Missing required fields
-        invalid: 'structure',
+        status: 'UpToDate',
+        report: { TD15: { report_data: 'a'.repeat(128), rt_mr3: 'b'.repeat(96) } },
       });
 
-      await expect(service.verifyTEEReport(validQuote)).rejects.toThrow();
+      const report = await service.verifyTEEReport('valid-quote-hex');
+      expect(report.status).toBe('UpToDate');
+    });
+
+    it('SECURITY: Should handle WASM verification failures', async () => {
+      mockJsVerify.mockRejectedValue(new Error('WASM verification failed'));
+
+      await expect(service.verifyTEEReport('invalid-quote')).rejects.toThrow(
+        'WASM verification failed'
+      );
+    });
+
+    it('SECURITY: Should handle collateral retrieval failures', async () => {
+      mockJsGetCollateral.mockRejectedValue(new Error('Collateral unavailable'));
+
+      await expect(service.verifyTEEReport('valid-quote-hex')).rejects.toThrow(
+        'Collateral unavailable'
+      );
     });
   });
 
-  describe('Public Key Attestation Integrity - Cryptographic Proof Validation', () => {
+  describe('Public Key Attestation Integrity', () => {
     it('SECURITY: Should validate authentic public key attestation', async () => {
-      // Create valid report data that matches the public key
       const prefixBytes = new TextEncoder().encode('app-data:');
       const publicKeyBytes = new Uint8Array(Buffer.from(VALID_PUBLIC_KEY, 'base64'));
       const combined = new Uint8Array(prefixBytes.length + publicKeyBytes.length);
@@ -130,180 +217,141 @@ describe('AttestationService - Security Critical Tests', () => {
       await expect(service.verifyTEEPublicKey(reportData, VALID_PUBLIC_KEY)).resolves.not.toThrow();
     });
 
-    it('SECURITY: Should reject invalid report data hash length', async () => {
-      const invalidReportData = 'a'.repeat(126); // Not 64 bytes
-      const validPublicKey = VALID_PUBLIC_KEY;
-
-      await expect(service.verifyTEEPublicKey(invalidReportData, validPublicKey)).rejects.toThrow(
+    it('SECURITY: Should reject invalid hash length', async () => {
+      await expect(service.verifyTEEPublicKey('a'.repeat(126), VALID_PUBLIC_KEY)).rejects.toThrow(
         'TEE reported public key does not match attestation report'
       );
     });
 
-    it('SECURITY: Should detect public key hash tampering', async () => {
-      const tamperedReportData = 'f'.repeat(128); // Valid length but wrong hash
-      const validPublicKey = VALID_PUBLIC_KEY;
-
-      await expect(service.verifyTEEPublicKey(tamperedReportData, validPublicKey)).rejects.toThrow(
+    it('SECURITY: Should detect hash tampering', async () => {
+      await expect(service.verifyTEEPublicKey('f'.repeat(128), VALID_PUBLIC_KEY)).rejects.toThrow(
         'TEE reported public key does not match attestation report'
       );
     });
 
-    it('SECURITY: Should handle malformed hex data', async () => {
-      const invalidReportData = 'xyz'.repeat(43); // Invalid hex characters
-      const validPublicKey = VALID_PUBLIC_KEY;
-
-      await expect(service.verifyTEEPublicKey(invalidReportData, validPublicKey)).rejects.toThrow(
+    it('SECURITY: Should reject malformed hex data', async () => {
+      await expect(service.verifyTEEPublicKey('xyz'.repeat(43), VALID_PUBLIC_KEY)).rejects.toThrow(
         'TEE reported public key does not match attestation report'
       );
     });
 
-    it('SECURITY: Should handle invalid base64 public key', async () => {
-      const validReportData = 'a'.repeat(128);
-      const invalidPublicKey = 'invalid-base64!@#';
-
-      await expect(service.verifyTEEPublicKey(validReportData, invalidPublicKey)).rejects.toThrow(
-        'TEE reported public key does not match attestation report'
-      );
+    it('SECURITY: Should reject invalid base64 public key', async () => {
+      await expect(
+        service.verifyTEEPublicKey('a'.repeat(128), 'invalid-base64!@#')
+      ).rejects.toThrow('TEE reported public key does not match attestation report');
     });
   });
 
   describe('TEE Application Integrity', () => {
-    const validAppId = '0ade7b12204222a684b6e8e26aa5223f38e90725';
-    const validEventLog = [
-      {
-        imr: 3,
-        event_type: 134217729,
-        digest:
-          '738ae348dbf674b3399300c0b9416c203e9b645c6ffee233035d09003cccad12f71becc805ad8d97575bc790c6819216',
-        event: 'rootfs-hash',
-        event_payload: '4a89dadfa8c6be6d312beb51e24ef5bd4b3aeb695f11f4e2ff9c87eac907389b',
-      },
-      {
-        imr: 3,
-        event_type: 134217729,
-        digest:
-          '993d41d02e173811ebc95ea58382e53f2cd9ec3d10a2b4a710b88b4c56468b311ae17d4578761c8b4befcae28f19f72c',
-        event: 'app-id',
-        event_payload: validAppId,
-      },
-      {
-        imr: 3,
-        event_type: 134217729,
-        digest:
-          'acff145946a80cd74ddffe5739043ac80340518e0bbe2fe348ffdee8608a6d9c7869b492c7165ef3ea1b551c81685d47',
-        event: 'compose-hash',
-        event_payload: '8796c5e1f01e94c8e24ff61043a5595eb63b89f6178ca9f0bf9fb91808a8d517',
-      },
-      {
-        imr: 3,
-        event_type: 134217729,
-        digest:
-          '958707e22602f4cd46c08709835e6a376db40d03334b4f778155e7905a002903b8a0ea12b89e8ada3b39ee0f2aeabe68',
-        event: 'ca-cert-hash',
-        event_payload: 'd09ae26bfa93155e53aa5b7c66a6471e464ddae6ccc8d887e937b71e6c215ba0',
-      },
-      {
-        imr: 3,
-        event_type: 134217729,
-        digest:
-          'b42765eacf83068159cf09338283e6fd99d78d904daaddd7508690e59a634b1cb0351084f17ef2504a52eb910e43af24',
-        event: 'instance-id',
-        event_payload: '8d358c810ce640f72d56570a1ccb6c9cf9773fce',
-      },
-    ];
-
-    const validRtmr3 =
-      '443010407d16e1884fe159614e71b03d7f6640a3726079821e62a995704527464777cdf3f753bb38d82c1d012f5ecb1d';
-
     describe('RTMR3 Measurement Verification', () => {
-      it('SECURITY: happy path :)', async () => {
+      it('SECURITY: Should validate authentic RTMR3 calculation', async () => {
         await expect(
-          service.verifyTEEApplicationIntegrity(JSON.stringify(validEventLog), validRtmr3)
+          service.verifyTEEApplicationIntegrity(JSON.stringify(VALID_EVENT_LOG), VALID_RTMR3)
         ).resolves.not.toThrow();
       });
 
-      it('SECURITY: Should detect RTMR3 value tampering', async () => {
-        const wrongRtmr3 =
-          '1aef4999a3fbdb9957cbebe37bc60ef6a77024063dc97c9be6718fb4fdabf45e555f08d06023ae3ee48b9baf27b60c39';
+      it('SECURITY: Should skip non-RTMR3 events during validation', async () => {
+        const mixedEventLog = [
+          {
+            imr: 0,
+            event_type: 2147483659,
+            digest: 'any-digest',
+            event: '',
+            event_payload: 'data',
+          },
+          {
+            imr: 1,
+            event_type: 2147483651,
+            digest: 'any-digest',
+            event: '',
+            event_payload: 'data',
+          },
+          ...VALID_EVENT_LOG,
+        ];
 
         await expect(
-          service.verifyTEEApplicationIntegrity(JSON.stringify(validEventLog), wrongRtmr3)
-        ).rejects.toThrow(`RTMR3 mismatch: calculated ${validRtmr3} != reported ${wrongRtmr3}`);
+          service.verifyTEEApplicationIntegrity(JSON.stringify(mixedEventLog), VALID_RTMR3)
+        ).resolves.not.toThrow();
+      });
+
+      it('SECURITY: Should detect RTMR3 tampering', async () => {
+        const wrongRtmr3 =
+          '11fa1b4966b651678509dd241ab2be85caceeb8be663f79bfc27b5a189a9fe403522c39a080d8f3f750aa037a37d606d';
+
+        await expect(
+          service.verifyTEEApplicationIntegrity(JSON.stringify(VALID_EVENT_LOG), wrongRtmr3)
+        ).rejects.toThrow(`RTMR3 mismatch: replayed ${VALID_RTMR3} != reported ${wrongRtmr3}`);
+      });
+
+      it('SECURITY: Should handle empty RTMR3 history', async () => {
+        const emptyLog = [
+          { imr: 0, event_type: 2147483659, digest: 'digest', event: '', event_payload: 'data' },
+        ];
+        const initMr =
+          '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
+
+        await expect(
+          service.verifyTEEApplicationIntegrity(JSON.stringify(emptyLog), initMr)
+        ).rejects.toThrow('Missing required application events');
+      });
+    });
+
+    describe('Event Validation Logic', () => {
+      it('SECURITY: Should skip validation for non-RTMR3 events', async () => {
+        const mixedLog = [
+          {
+            imr: 0,
+            event_type: 2147483659,
+            digest: 'invalid-digest',
+            event: '',
+            event_payload: 'data',
+          },
+          ...VALID_EVENT_LOG,
+        ];
+
+        await expect(
+          service.verifyTEEApplicationIntegrity(JSON.stringify(mixedLog), VALID_RTMR3)
+        ).resolves.not.toThrow();
+      });
+
+      it('SECURITY: Should reject invalid RTMR3 event digest', async () => {
+        const invalidLog = [...VALID_EVENT_LOG];
+        invalidLog[1] = { ...invalidLog[1], digest: 'invalid-digest' };
+
+        await expect(
+          service.verifyTEEApplicationIntegrity(JSON.stringify(invalidLog), VALID_RTMR3)
+        ).rejects.toThrow('Invalid event digest found for event: app-id in IMR 3');
       });
     });
 
     describe('Application Identity Enforcement', () => {
       it('SECURITY: Should reject unauthorized application IDs', async () => {
-        const eventLogWithWrongAppId = validEventLog.filter(log => log.event !== 'app-id');
-
-        const invalidAppId = '0dae7b21204222a684b6e8e26aa5223f38e90728';
-        eventLogWithWrongAppId.push({
-          imr: 3,
-          event_type: 134217729,
-          digest:
-            '993d41d02e173811ebc95ea58382e53f2cd9ec3d10a2b4a710b88b4c56468b311ae17d4578761c8b4befcae28f19f72c',
-          event: 'app-id',
-          event_payload: invalidAppId,
-        });
-
-        const preCalculatedRTMR3Value =
-          '1aef4999a3fbdb9957cbebe37bc60ef6a77024063dc97c9be6718fb4fdabf45e555f08d06023ae3ee48b9baf27b60c39';
-
-        // Now test with the correct RTMR3 - this should fail on app ID validation
-        await expect(
-          service.verifyTEEApplicationIntegrity(
-            JSON.stringify(eventLogWithWrongAppId),
-            preCalculatedRTMR3Value
-          )
-        ).rejects.toThrow(`Invalid app ID: expected ${validAppId}, got ${invalidAppId}`);
-      });
-
-      it('SECURITY: Should reject malformed event log structure', async () => {
-        const invalidJson = 'not-valid-json';
-
-        await expect(
-          service.verifyTEEApplicationIntegrity(invalidJson, 'any-rtmr3')
-        ).rejects.toThrow();
-      });
-
-      it('SECURITY: Should reject incomplete event logs', async () => {
-        const incompleteEventLog = JSON.stringify([
-          {
-            imr: 3,
-            event_type: 134217729,
-            digest: 'digest1',
-            event: 'rootfs-hash',
-            event_payload: 'a'.repeat(64),
-          },
-          // Missing other required events: app-id, compose-hash, ca-cert-hash, instance-id
-        ]);
-
-        await expect(
-          service.verifyTEEApplicationIntegrity(incompleteEventLog, 'any-rtmr3')
-        ).rejects.toThrow();
-      });
-
-      it('SECURITY: Should reject event logs with wrong IMR', async () => {
-        const wrongImrEventLog = JSON.stringify(validEventLog.map(log => ({ ...log, imr: 2 })));
-
-        await expect(
-          service.verifyTEEApplicationIntegrity(wrongImrEventLog, validRtmr3)
-        ).rejects.toThrow();
-      });
-
-      it('SECURITY: Should reject event logs with wrong event type', async () => {
-        const wrongTypeEventLog = JSON.stringify(
-          validEventLog.map(log => ({ ...log, event_type: 125217729 }))
+        const wrongAppLog = VALID_EVENT_LOG.map(event =>
+          event.event === 'app-id' ? { ...event, event_payload: 'unauthorized-app-id' } : event
         );
 
         await expect(
-          service.verifyTEEApplicationIntegrity(wrongTypeEventLog, validRtmr3)
-        ).rejects.toThrow();
+          service.verifyTEEApplicationIntegrity(JSON.stringify(wrongAppLog), 'any-rtmr3')
+        ).rejects.toThrow('Invalid event digest');
+      });
+
+      it('SECURITY: Should reject malformed JSON', async () => {
+        await expect(
+          service.verifyTEEApplicationIntegrity('invalid-json', 'any-rtmr3')
+        ).rejects.toThrow('Failed to parse event log JSON');
+      });
+
+      it('SECURITY: Should reject incomplete event logs', async () => {
+        const incompleteLog = JSON.stringify([VALID_EVENT_LOG[0]]);
+
+        await expect(
+          service.verifyTEEApplicationIntegrity(incompleteLog, 'any-rtmr3')
+        ).rejects.toThrow('Missing required application events');
       });
     });
   });
 
-  describe('Secure Failure Modes - Error Handling Security', () => {
+  describe('Secure Failure Modes', () => {
     it('SECURITY: Should prevent access to uninitialized service', async () => {
       await expect(service.getAttestedPublicKey()).rejects.toThrow(
         'Attestation service has not been initialized!'
@@ -321,29 +369,104 @@ describe('AttestationService - Security Critical Tests', () => {
 
       await expect(service.init()).rejects.toThrow();
     });
+
+    it('SECURITY: Should handle missing TD10/TD15 report', async () => {
+      mockJsGetCollateral.mockResolvedValue('mock-collateral');
+      mockJsVerify.mockResolvedValue({ status: 'UpToDate', report: {} });
+
+      const validEventLogForTest = [
+        {
+          imr: 3,
+          event_type: 134217729,
+          digest: 'valid-digest',
+          event: 'app-id',
+          event_payload: VALID_APP_ID,
+        },
+        {
+          imr: 3,
+          event_type: 134217729,
+          digest: 'valid-digest',
+          event: 'compose-hash',
+          event_payload: 'hash',
+        },
+        {
+          imr: 3,
+          event_type: 134217729,
+          digest: 'valid-digest',
+          event: 'instance-id',
+          event_payload: 'id',
+        },
+      ];
+
+      mockApiService.getAttestation.mockResolvedValue({
+        quote: 'valid-quote',
+        publicKey: VALID_PUBLIC_KEY,
+        event_log: JSON.stringify(validEventLogForTest),
+        hash_algorithm: 'sha512',
+        prefix: 'app-data',
+      });
+
+      await expect(service.init()).rejects.toThrow('No TD10 or TD15 report found in the quote');
+    });
   });
 
   describe('Edge Cases and Robustness', () => {
-    it('should handle empty event log array', async () => {
-      const emptyEventLog = JSON.stringify([]);
-
-      await expect(
-        service.verifyTEEApplicationIntegrity(emptyEventLog, 'any-rtmr3')
-      ).rejects.toThrow();
+    it('should handle empty event log', async () => {
+      await expect(service.verifyTEEApplicationIntegrity('[]', 'any-rtmr3')).rejects.toThrow(
+        'Missing required application events'
+      );
     });
 
-    it('should handle null/undefined inputs gracefully', async () => {
+    it('should handle null/undefined inputs', async () => {
       await expect(service.verifyTEEPublicKey('', '')).rejects.toThrow(
         'TEE reported public key does not match attestation report'
       );
-      await expect(service.verifyTEEApplicationIntegrity('{}', '')).rejects.toThrow();
+      await expect(service.verifyTEEApplicationIntegrity('{}', '')).rejects.toThrow(
+        'Failed to parse event log JSON'
+      );
     });
 
-    it('should handle very large hex values', async () => {
-      const largeHex = 'f'.repeat(10000);
-      await expect(service.verifyTEEPublicKey(largeHex, VALID_PUBLIC_KEY)).rejects.toThrow(
+    it('should handle oversized hex values', async () => {
+      await expect(service.verifyTEEPublicKey('f'.repeat(10000), VALID_PUBLIC_KEY)).rejects.toThrow(
         'TEE reported public key does not match attestation report'
       );
+    });
+
+    it('should handle hex-encoded key provider payload', async () => {
+      const keyProviderLog = [
+        {
+          imr: 3,
+          event_type: 134217729,
+          digest: 'digest1',
+          event: 'app-id',
+          event_payload: VALID_APP_ID,
+        },
+        {
+          imr: 3,
+          event_type: 134217729,
+          digest: 'digest2',
+          event: 'compose-hash',
+          event_payload: 'hash',
+        },
+        {
+          imr: 3,
+          event_type: 134217729,
+          digest: 'digest3',
+          event: 'instance-id',
+          event_payload: 'id',
+        },
+        {
+          imr: 3,
+          event_type: 134217729,
+          digest: 'digest4',
+          event: 'key-provider',
+          event_payload: '7b226e616d65223a226b6d73227d',
+        },
+      ];
+
+      await expect(
+        service.verifyTEEApplicationIntegrity(JSON.stringify(keyProviderLog), VALID_RTMR3)
+      ).rejects.toThrow('Invalid event digest');
     });
   });
 });

@@ -12,42 +12,39 @@ const ATTESTATION_VERIFIED_STATUS = 'UpToDate';
 const TEE_REPORT_DATA_PREFIX = 'app-data:';
 const TEE_REPORT_DATA_HASH = 'SHA-512' as const;
 
-// RTMR3 calculation constants - Based on DStack TEE implementations
-const INIT_MR = '0'.repeat(96);
-const DSTACK_EVENT_TAG = 0x08000001; // Event type, taken from DStack source code
+// RTMR calculation constants - Based on DStack TEE implementations
+const INIT_MR =
+  '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
 
-// Event log filtering constants
-const EVENT_LOG_IMR = 3;
-const EVENT_LOG_TYPE = 134217729;
+// Event log filtering constants for RTMR3
+const RTMR3_IMR_INDEX = 3;
 const RTMR3_HASH_ALGORITHM = 'SHA-384';
 const SHA512_HASH_LENGTH = 64;
 const SHA384_HASH_LENGTH = 48;
 
-// Event name mappings for RTMR3 calculation
+// Event name mappings for application info extraction
 const EVENT_NAMES = {
-  ROOTFS_HASH: 'rootfs-hash',
   APP_ID: 'app-id',
   COMPOSE_HASH: 'compose-hash',
-  CA_CERT_HASH: 'ca-cert-hash',
   INSTANCE_ID: 'instance-id',
+  KEY_PROVIDER: 'key-provider',
 } as const;
-
-// Event to property mapping for efficient parsing
-const EVENT_PROPERTY_MAP: Record<string, keyof HashEvent> = {
-  [EVENT_NAMES.ROOTFS_HASH]: 'rootfs_hash',
-  [EVENT_NAMES.APP_ID]: 'app_id',
-  [EVENT_NAMES.COMPOSE_HASH]: 'compose_hash',
-  [EVENT_NAMES.CA_CERT_HASH]: 'ca_cert_hash',
-  [EVENT_NAMES.INSTANCE_ID]: 'instance_id',
-};
 
 const AttestationReportSchema = z.object({
   status: z.string(),
   report: z.object({
-    TD10: z.object({
-      report_data: z.string(),
-      rt_mr3: z.string(),
-    }),
+    TD10: z
+      .object({
+        report_data: z.string(),
+        rt_mr3: z.string(),
+      })
+      .optional(),
+    TD15: z
+      .object({
+        report_data: z.string(),
+        rt_mr3: z.string(),
+      })
+      .optional(),
   }),
 });
 
@@ -62,16 +59,31 @@ const EventLogEntrySchema = z.object({
 
 const EventLogSchema = z.array(EventLogEntrySchema);
 
-const HashEventSchema = z.object({
-  rootfs_hash: z.string(),
+const ApplicationInfoSchema = z.object({
   app_id: z.string(),
   compose_hash: z.string(),
-  ca_cert_hash: z.string(),
   instance_id: z.string(),
+  key_provider: z.string().optional(),
 });
 
-type HashEvent = z.infer<typeof HashEventSchema>;
+type EventLogEntry = z.infer<typeof EventLogEntrySchema>;
+type ApplicationInfo = z.infer<typeof ApplicationInfoSchema>;
 
+/**
+ * TEE Attestation Service for DStack Applications
+ *
+ * This service performs remote attestation for DStack TEE applications by:
+ * 1. Verifying Intel TDX quotes using Phala's DCAP QVL library
+ * 2. Validating application integrity through RTMR3 measurement replay
+ * 3. Ensuring cryptographic commitment to the TEE's public key
+ *
+ * The implementation is based on the reference attestation verification code
+ * provided by the Phala team for DStack applications:
+ * https://github.com/Dstack-TEE/dstack-examples/blob/main/attestation/rtmr3-based/verify.py
+ *
+ * This approach ensures that only authorized, unmodified applications can
+ * execute within the trusted execution environment.
+ */
 export class AttestationService extends CrossmintFrameService {
   name = 'Attestation Service';
   log_prefix = '[AttestationService]';
@@ -88,10 +100,10 @@ export class AttestationService extends CrossmintFrameService {
 
   async init() {
     try {
-      if (isDevelopment()) {
-        this.publicKey = await this.getPublicKeyDevMode();
-        return;
-      }
+      // if (isDevelopment()) {
+      //   this.publicKey = await this.getPublicKeyDevMode();
+      //   return;
+      // }
 
       const attestation = await this.api.getAttestation();
       this.log('TEE attestation document fetched');
@@ -99,16 +111,13 @@ export class AttestationService extends CrossmintFrameService {
       this.log('Verifying intel TDX quote');
       const validatedReport = await this.verifyTEEReport(attestation.quote);
 
-      this.log(
-        'Temporarily skipping TEE application integrity check due to dstack 0.3 => 0.5 migration issues'
-      );
-      // await this.verifyTEEApplicationIntegrity(
-      //   attestation.event_log,
-      //   validatedReport.report.TD10.rt_mr3
-      // );
+      this.log('Extracting TD report data and RTMR3');
+      const { report_data, rt_mr3 } = this.extractTD(validatedReport);
+
+      await this.verifyTEEApplicationIntegrity(attestation.event_log, rt_mr3);
 
       this.log('Verifying relay reported public key');
-      await this.verifyTEEPublicKey(validatedReport.report.TD10.report_data, attestation.publicKey);
+      await this.verifyTEEPublicKey(report_data, attestation.publicKey);
 
       this.publicKey = attestation.publicKey;
       this.log('TEE attestation document fully validated! Continuing...');
@@ -168,42 +177,47 @@ export class AttestationService extends CrossmintFrameService {
   /**
    * Verifies TEE application integrity through RTMR3 measurement validation and application identity enforcement.
    *
-   * This method ensures that the specific application running in the TEE is authorized and unmodified by:
-   * 1. Parsing the TEE event log to extract cryptographic hashes of system components
-   * 2. Calculating the expected RTMR3 (Runtime Measurement Register 3) value from event history
-   * 3. Comparing calculated RTMR3 against the value reported by the TEE hardware
-   * 4. Validating that the application ID matches the expected authorized application
+   * This method implements the DStack attestation approach by:
+   * 1. Parsing and validating the TEE event log to ensure integrity of RTMR3 events
+   * 2. Extracting application information (app ID, compose hash, instance ID) from validated events
+   * 3. Replaying RTMR3 calculation from validated event digests
+   * 4. Comparing replayed RTMR3 against the value reported by the TEE hardware
+   * 5. Validating that the application ID matches the expected authorized application
    *
-   * RTMR3 provides a cryptographic chain of trust by measuring:
-   * - Root filesystem integrity (rootfs-hash)
-   * - Application identity and version (app-id)
-   * - Docker composition configuration (compose-hash)
-   * - Certificate authority trust chain (ca-cert-hash)
-   * - Unique instance identifier (instance-id)
+   * The validation approach follows the reference implementation provided by the Phala team:
+   * https://github.com/Dstack-TEE/dstack-examples/blob/main/attestation/rtmr3-based/verify.py
    *
-   * Any modification to these components will result in a different RTMR3 value,
-   * preventing execution of unauthorized or tampered applications.
+   * Only RTMR3 events are validated, as other IMR registers may have different validation rules.
+   * Event validation uses the format: sha384(event_type:event_name:event_payload)
+   *
+   * Any modification to application components or tampering with event logs will result in
+   * validation failures, preventing execution of unauthorized or tampered applications.
    *
    * @param eventLogJson - JSON string containing TEE event log with component measurements
    * @param reportedRtmr3 - RTMR3 value reported by TEE hardware for comparison
    * @returns Promise that resolves if integrity validation passes
-   * @throws {Error} When event log JSON is malformed or missing required events
-   * @throws {Error} When calculated RTMR3 doesn't match reported value (indicates tampering)
+   * @throws {Error} When event log JSON is malformed or contains invalid RTMR3 events
+   * @throws {Error} When replayed RTMR3 doesn't match reported value (indicates tampering)
    * @throws {Error} When application ID doesn't match expected authorized application
-   * @throws {Error} When cryptographic hash calculation fails
+   * @throws {Error} When required application events are missing from the log
    */
   public async verifyTEEApplicationIntegrity(
     eventLogJson: string,
     reportedRtmr3: string
   ): Promise<void> {
-    const eventLogHashes = this.parseEventLogHashes(eventLogJson);
-    const calculatedRtmr3 = await this.calculateRtmr3FromHashes(eventLogHashes);
+    const eventLog = this.parseEventLog(eventLogJson);
+    await this.validateAllEvents(eventLog);
+    const appInfo = this.extractApplicationInfo(eventLog);
 
-    if (calculatedRtmr3 !== reportedRtmr3) {
-      throw new Error(`RTMR3 mismatch: calculated ${calculatedRtmr3} != reported ${reportedRtmr3}`);
+    console.log("Here's the app info");
+    console.log(appInfo);
+    const replayedRtmr3 = await this.replayRtmr3(eventLog);
+
+    if (replayedRtmr3 !== reportedRtmr3) {
+      throw new Error(`RTMR3 mismatch: replayed ${replayedRtmr3} != reported ${reportedRtmr3}`);
     }
 
-    this.validateEventLogValues(eventLogHashes);
+    this.validateApplicationInfo(appInfo);
   }
 
   /**
@@ -240,6 +254,15 @@ export class AttestationService extends CrossmintFrameService {
     return response.publicKey;
   }
 
+  private extractTD(validatedReport: z.infer<typeof AttestationReportSchema>) {
+    const td = validatedReport.report.TD10 ?? validatedReport.report.TD15;
+    if (td == null) {
+      throw new Error('No TD10 or TD15 report found in the quote');
+    }
+
+    return td;
+  }
+
   private async verifyReportAttestsPublicKey(
     reportData: string,
     publicKey: string
@@ -264,113 +287,183 @@ export class AttestationService extends CrossmintFrameService {
     }
   }
 
-  private parseEventLogHashes(eventLogJson: string): HashEvent {
-    const eventLog = EventLogSchema.parse(JSON.parse(eventLogJson));
+  private parseEventLog(eventLogJson: string): EventLogEntry[] {
+    try {
+      const parsedLog = JSON.parse(eventLogJson);
+      return EventLogSchema.parse(parsedLog);
+    } catch (error) {
+      throw new Error(`Failed to parse event log JSON: ${error}`);
+    }
+  }
 
-    const hashEvents = eventLog.filter(
-      entry =>
-        entry.imr === EVENT_LOG_IMR &&
-        entry.event_type === EVENT_LOG_TYPE &&
-        Object.prototype.hasOwnProperty.call(EVENT_PROPERTY_MAP, entry.event)
-    );
+  /**
+   * Validates all events in the event log by verifying their digest values.
+   *
+   * Following the Phala team's reference implementation, only RTMR3 events are validated
+   * as other IMR registers may have different validation requirements.
+   *
+   * @param eventLog - Array of event log entries to validate
+   * @throws {Error} When any RTMR3 event has an invalid digest
+   */
+  private async validateAllEvents(eventLog: EventLogEntry[]): Promise<void> {
+    for (const event of eventLog) {
+      const isValid = await this.validateEvent(event);
+      if (!isValid) {
+        throw new Error(`Invalid event digest found for event: ${event.event} in IMR ${event.imr}`);
+      }
+    }
+  }
 
-    const hashes: Partial<HashEvent> = {};
+  /**
+   * Validates an individual event's digest according to the DStack format.
+   *
+   * Implementation based on the Phala team's reference code:
+   * https://github.com/Dstack-TEE/dstack-examples/blob/main/attestation/rtmr3-based/verify.py
+   *
+   * Only validates IMR3 events - other events are skipped as they may have different
+   * validation requirements. For RTMR3 events, calculates:
+   * sha384(event_type:event_name:event_payload) and compares to stored digest.
+   *
+   * @param event - Event log entry to validate
+   * @returns Promise resolving to true if the event is valid, false otherwise
+   */
+  private async validateEvent(event: EventLogEntry): Promise<boolean> {
+    try {
+      // Skip validation for non-IMR3 events, following Phala team's reference implementation
+      if (event.imr !== RTMR3_IMR_INDEX) {
+        return true;
+      }
 
-    for (const entry of hashEvents) {
-      const property = EVENT_PROPERTY_MAP[entry.event];
-      if (property) {
-        hashes[property] = entry.event_payload;
+      // Convert event payload from hex to bytes for validation
+      let eventPayloadBytes: Uint8Array;
+      try {
+        eventPayloadBytes = decodeBytes(event.event_payload, 'hex');
+      } catch {
+        // If hex decoding fails, treat as UTF-8 string
+        eventPayloadBytes = new TextEncoder().encode(event.event_payload);
+      }
+
+      // Build the validation string: event_type:event_name:event_payload
+      const eventTypeBytes = new Uint8Array(4);
+      eventTypeBytes[0] = event.event_type & 0xff;
+      eventTypeBytes[1] = (event.event_type >> 8) & 0xff;
+      eventTypeBytes[2] = (event.event_type >> 16) & 0xff;
+      eventTypeBytes[3] = (event.event_type >> 24) & 0xff;
+
+      const colonBytes = new TextEncoder().encode(':');
+      const eventNameBytes = new TextEncoder().encode(event.event);
+
+      const totalLength =
+        eventTypeBytes.length +
+        colonBytes.length +
+        eventNameBytes.length +
+        colonBytes.length +
+        eventPayloadBytes.length;
+
+      const buffer = new Uint8Array(totalLength);
+
+      let offset = 0;
+      buffer.set(eventTypeBytes, offset);
+      offset += eventTypeBytes.length;
+      buffer.set(colonBytes, offset);
+      offset += colonBytes.length;
+      buffer.set(eventNameBytes, offset);
+      offset += eventNameBytes.length;
+      buffer.set(colonBytes, offset);
+      offset += colonBytes.length;
+      buffer.set(eventPayloadBytes, offset);
+
+      const calculatedHash = await crypto.subtle.digest(RTMR3_HASH_ALGORITHM, buffer);
+      const calculatedDigest = encodeBytes(new Uint8Array(calculatedHash), 'hex');
+
+      return calculatedDigest === event.digest;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Extracts application information from validated event log entries.
+   *
+   * Looks for specific events (app-id, compose-hash, instance-id, key-provider)
+   * and extracts their payload values for application validation.
+   *
+   * @param eventLog - Array of validated event log entries
+   * @returns Object containing extracted application information
+   * @throws {Error} When required application events are missing
+   */
+  private extractApplicationInfo(eventLog: EventLogEntry[]): ApplicationInfo {
+    const appInfo: Partial<ApplicationInfo> = {};
+
+    for (const event of eventLog) {
+      switch (event.event) {
+        case EVENT_NAMES.APP_ID:
+          appInfo.app_id = event.event_payload;
+          break;
+        case EVENT_NAMES.COMPOSE_HASH:
+          appInfo.compose_hash = event.event_payload;
+          break;
+        case EVENT_NAMES.INSTANCE_ID:
+          appInfo.instance_id = event.event_payload;
+          break;
+        case EVENT_NAMES.KEY_PROVIDER:
+          try {
+            // Key provider might be stored as hex-encoded string
+            const keyProviderBytes = decodeBytes(event.event_payload, 'hex');
+            appInfo.key_provider = new TextDecoder().decode(keyProviderBytes);
+          } catch {
+            // If not hex, treat as regular string
+            appInfo.key_provider = event.event_payload;
+          }
+          break;
       }
     }
 
-    return HashEventSchema.parse(hashes);
-  }
-
-  private validateEventLogValues(hashes: HashEvent): void {
-    if (hashes.app_id !== this.expectedAppId) {
-      throw new Error(`Invalid app ID: expected ${this.expectedAppId}, got ${hashes.app_id}`);
+    try {
+      return ApplicationInfoSchema.parse(appInfo);
+    } catch (error) {
+      throw new Error(`Missing required application events in log: ${error}`);
     }
   }
 
   /**
-   * Calculate the RTMR3 value from the given hash values.
+   * Validates that the extracted application information matches expected values.
    *
-   * Replicates this code from DStack:
-   * https://github.com/Dstack-TEE/dstack/blob/master/tdxctl/src/fde_setup.rs#L437
+   * @param appInfo - Application information extracted from event log
+   * @throws {Error} When application ID doesn't match expected value
+   */
+  private validateApplicationInfo(appInfo: ApplicationInfo): void {
+    if (appInfo.app_id !== this.expectedAppId) {
+      throw new Error(`Invalid app ID: expected ${this.expectedAppId}, got ${appInfo.app_id}`);
+    }
+  }
+
+  /**
+   * Replays RTMR3 calculation from validated event log entries.
    *
-   * @param hashes - Object containing all required hash values for RTMR3 calculation
+   * Filters events for IMR index 3 and replays the RTMR calculation using
+   * the validated digest values directly, following the DStack approach.
+   *
+   * @param eventLog - Array of validated event log entries
    * @returns Promise resolving to the calculated RTMR3 value as a hexadecimal string
    */
-  private async calculateRtmr3FromHashes(hashes: HashEvent): Promise<string> {
-    const rootfsDigest = await this.calculateDigest(EVENT_NAMES.ROOTFS_HASH, hashes.rootfs_hash);
-    const appIdDigest = await this.calculateDigest(EVENT_NAMES.APP_ID, hashes.app_id);
-    const composeDigest = await this.calculateDigest(EVENT_NAMES.COMPOSE_HASH, hashes.compose_hash);
-    const caCertDigest = await this.calculateDigest(EVENT_NAMES.CA_CERT_HASH, hashes.ca_cert_hash);
-    const instanceIdDigest = await this.calculateDigest(
-      EVENT_NAMES.INSTANCE_ID,
-      hashes.instance_id
-    );
+  private async replayRtmr3(eventLog: EventLogEntry[]): Promise<string> {
+    const rtmr3Events = eventLog.filter(event => event.imr === RTMR3_IMR_INDEX);
+    const digestHistory = rtmr3Events.map(event => event.digest);
 
-    return await this.replayRtmrHistory([
-      rootfsDigest,
-      appIdDigest,
-      composeDigest,
-      caCertDigest,
-      instanceIdDigest,
-    ]);
+    return await this.replayRtmrHistory(digestHistory);
   }
 
   /**
-   * Calculate the digest for a given event name and value.
+   * Replay the RTMR history to calculate the final RTMR value.
    *
-   * Replicates this code from DStack:
-   * https://github.com/Dstack-TEE/dstack/blob/master/cc-eventlog/src/lib.rs#L54-L63
+   * Implementation based on the Phala team's reference code:
+   * https://github.com/Dstack-TEE/dstack-examples/blob/main/attestation/rtmr3-based/verify.py
    *
-   * @param eventName - Name of the event (e.g., 'rootfs-hash', 'app-id')
-   * @param eventValue - Hexadecimal value of the event
-   * @returns Promise resolving to the calculated digest as a hexadecimal string
-   */
-  private async calculateDigest(eventName: string, eventValue: string): Promise<string> {
-    const eventNameBytes = new TextEncoder().encode(eventName);
-    const eventValueBytes = decodeBytes(eventValue, 'hex');
-    const colonByte = new TextEncoder().encode(':');
-
-    const totalLength = 4 + 1 + eventNameBytes.length + 1 + eventValueBytes.length;
-    const buffer = new ArrayBuffer(totalLength);
-    const view = new Uint8Array(buffer);
-
-    let offset = 0;
-
-    const tagBytes = new Uint8Array(4);
-    tagBytes[0] = DSTACK_EVENT_TAG & 0xff;
-    tagBytes[1] = (DSTACK_EVENT_TAG >> 8) & 0xff;
-    tagBytes[2] = (DSTACK_EVENT_TAG >> 16) & 0xff;
-    tagBytes[3] = (DSTACK_EVENT_TAG >> 24) & 0xff;
-    view.set(tagBytes, offset);
-    offset += 4;
-
-    view.set(colonByte, offset);
-    offset += 1;
-
-    view.set(eventNameBytes, offset);
-    offset += eventNameBytes.length;
-
-    view.set(colonByte, offset);
-    offset += 1;
-
-    view.set(eventValueBytes, offset);
-
-    const hashBuffer = await crypto.subtle.digest(RTMR3_HASH_ALGORITHM, buffer);
-    return encodeBytes(new Uint8Array(hashBuffer), 'hex');
-  }
-
-  /**
-   * Replay the event history to calculate the current RTMR value.
+   * Uses SHA-384 to iteratively hash the measurement register with each digest:
+   * mr = sha384(mr + digest) for each digest in history
    *
-   * Taken from DStack Python SDK:
-   * https://github.com/Dstack-TEE/dstack/blob/master/python/tappd_client/tappd_client.py#L49
-   *
-   * @param history - List of digest values to be used to calculate RTMR value
+   * @param history - List of digest values to replay
    * @returns Promise resolving to the calculated RTMR value as a hexadecimal string
    */
   private async replayRtmrHistory(history: string[]): Promise<string> {
@@ -380,18 +473,20 @@ export class AttestationService extends CrossmintFrameService {
 
     let mr = decodeBytes(INIT_MR, 'hex');
 
-    for (const content of history) {
-      let contentBytes = decodeBytes(content, 'hex');
+    for (const digest of history) {
+      let digestBytes = decodeBytes(digest, 'hex');
 
-      if (contentBytes.length < SHA384_HASH_LENGTH) {
+      // Pad digest to 48 bytes (SHA-384 length) if shorter
+      if (digestBytes.length < SHA384_HASH_LENGTH) {
         const paddedBytes = new Uint8Array(SHA384_HASH_LENGTH);
-        paddedBytes.set(contentBytes, 0);
-        contentBytes = paddedBytes;
+        paddedBytes.set(digestBytes, 0);
+        digestBytes = paddedBytes;
       }
 
-      const combined = new Uint8Array(mr.length + contentBytes.length);
+      // Calculate mr = sha384(mr + digest)
+      const combined = new Uint8Array(mr.length + digestBytes.length);
       combined.set(mr, 0);
-      combined.set(contentBytes, mr.length);
+      combined.set(digestBytes, mr.length);
 
       const hashBuffer = await crypto.subtle.digest(RTMR3_HASH_ALGORITHM, combined);
       mr = new Uint8Array(hashBuffer);
