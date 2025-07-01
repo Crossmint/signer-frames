@@ -82,12 +82,14 @@ type ApplicationInfo = z.infer<typeof ApplicationInfoSchema>;
  * 2. Validating application integrity through RTMR3 measurement replay
  * 3. Ensuring cryptographic commitment to the TEE's public key
  *
+ * By doing so it ensures this iframe only interacts with and encrypts
+ * sensitive data to a TEE running the authorized application code that
+ * completes this system.
+ *
  * The implementation is based on the reference attestation verification code
  * provided by the Phala team for DStack applications:
  * https://github.com/Dstack-TEE/dstack-examples/blob/main/attestation/rtmr3-based/verify.py
  *
- * This approach ensures that only authorized, unmodified applications can
- * execute within the trusted execution environment.
  */
 export class AttestationService extends CrossmintFrameService {
   name = 'Attestation Service';
@@ -148,7 +150,7 @@ export class AttestationService extends CrossmintFrameService {
    * This method performs the core hardware attestation validation by:
    * 1. Initializing the Intel DCAP Quote Verification Library (WASM)
    * 2. Decoding the attestation quote from hexadecimal format
-   * 3. Retrieving cryptographic collateral from Intel's PCCS service
+   * 3. Retrieving cryptographic collateral from Phala's PCCS service
    * 4. Verifying the quote authenticity and recency using Intel's verification logic
    * 5. Validating that the TEE attestation status is current and trusted
    *
