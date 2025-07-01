@@ -127,8 +127,8 @@ export default function OTPDialog({
   };
 
   const handleSubmitOtp = async () => {
-    if (otp.length !== 6) {
-      setError('Please enter a 6-digit code');
+    if (otp.length !== 9) {
+      setError('Please enter a 9-digit code');
       setHasError(true);
       return;
     }
@@ -194,13 +194,13 @@ export default function OTPDialog({
         ) : (
           <div className="flex flex-col items-center">
             <p className="text-cm-text-secondary text-center mb-6">
-              Please enter the 6-digit verification code
+              Please enter the 9-digit verification code
             </p>
 
             <div className="py-4">
               <input
                 type="text"
-                maxLength={6}
+                maxLength={9}
                 value={otp}
                 onChange={e => {
                   setOtp(e.target.value);
@@ -220,7 +220,7 @@ export default function OTPDialog({
                   color: defaultTheme.colors?.textPrimary ?? '#909ca3',
                   border: `1px solid ${hasError ? (defaultTheme.colors?.danger ?? '#f44336') : (defaultTheme.colors?.border ?? '#E5E7EB')}`,
                 }}
-                placeholder="Enter 6-digit code"
+                placeholder="Enter 9-digit code"
               />
             </div>
 
@@ -238,7 +238,7 @@ export default function OTPDialog({
             <button
               type="button"
               onClick={handleSubmitOtp}
-              disabled={loading || otp.length !== 6}
+              disabled={loading || otp.length !== 9}
               className="relative flex text-base p-4 bg-cm-muted-primary text-cm-text-primary items-center w-full rounded-xl justify-center hover:bg-cm-hover focus:bg-cm-hover outline-none mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 borderRadius: defaultTheme.borderRadius,

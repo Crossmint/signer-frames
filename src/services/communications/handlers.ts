@@ -67,7 +67,7 @@ export class StartOnboardingEventHandler extends EventHandler<'start-onboarding'
       {
         ...payload.data,
         encryptionContext: {
-          publicKey: await this.services.encrypt.getPublicKey(),
+          publicKey: await this.services.keyRepository.getSerializedPublicKey(),
         },
         deviceId: this.services.device.getId(),
       },
@@ -93,10 +93,12 @@ export class CompleteOnboardingEventHandler extends EventHandler<'complete-onboa
     console.log(
       `[DEBUG, ${this.event} handler] Received encrypted OTP: ${encryptedOtp}. Decrypting`
     );
-    const decryptedOtp = (await this.services.fpe.decrypt(encryptedOtp.split('').map(Number))).join(
-      ''
+    const decryptedOtpArray = await this.services.fpe.decrypt(
+      this.stringToNumberArray(encryptedOtp)
     );
-    const senderPublicKey = await this.services.encrypt.getPublicKey();
+    const decryptedOtp = decryptedOtpArray.join('');
+    console.log(`[DEBUG, ${this.event} handler] Decrypted OTP: ${decryptedOtp}`);
+    const senderPublicKey = await this.services.keyRepository.getSerializedPublicKey();
 
     const { deviceKeyShare, signerId } = await this.services.api.completeOnboarding(
       {
@@ -120,6 +122,10 @@ export class CompleteOnboardingEventHandler extends EventHandler<'complete-onboa
       signerStatus: 'ready',
       publicKeys: await this.services.cryptoKey.getAllPublicKeysFromSeed(masterSecret),
     };
+  }
+
+  stringToNumberArray(str: string): number[] {
+    return str.split('').map(Number);
   }
 }
 
