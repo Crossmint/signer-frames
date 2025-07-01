@@ -1,4 +1,4 @@
-export type CrossmintFrameErrorCode = 'invalid-device-share';
+type CrossmintFrameErrorCode = 'invalid-device-share';
 
 export class CrossmintFrameCodedError extends Error {
   public readonly code: CrossmintFrameErrorCode;

@@ -41,11 +41,20 @@ describe('EventHandlers', () => {
         data: { authId: 'test-auth-id' },
       };
 
-      mockServices.sharding.reconstructMasterSecret.mockResolvedValue(TEST_FIXTURES.masterSecret);
-      mockServices.cryptoKey.getPublicKeyFromSeed.mockResolvedValue({
-        bytes: TEST_FIXTURES.publicKey,
-        encoding: 'base58',
-        keyType: 'ed25519',
+      mockServices.userKeyManager.tryGetAndDecryptMasterSecret.mockResolvedValue(
+        TEST_FIXTURES.masterSecret
+      );
+      mockServices.cryptoKey.getAllPublicKeysFromSeed.mockResolvedValue({
+        ed25519: {
+          bytes: TEST_FIXTURES.publicKey,
+          encoding: 'base58',
+          keyType: 'ed25519',
+        },
+        secp256k1: {
+          bytes: 'test-secp256k1-public-key',
+          encoding: 'hex',
+          keyType: 'secp256k1',
+        },
       });
 
       await handler.handler(testInput);
@@ -55,7 +64,7 @@ describe('EventHandlers', () => {
   });
 
   describe('CompleteOnboardingEventHandler', () => {
-    it('should process OTP flow correctly and store key shards', async () => {
+    it('should process OTP flow correctly and store encrypted master secret', async () => {
       const handler = new CompleteOnboardingEventHandler(mockServices);
       const testInput: SignerInputEvent<'complete-onboarding'> = {
         authData: TEST_FIXTURES.authData,
@@ -69,11 +78,23 @@ describe('EventHandlers', () => {
       mockServices.fpe.decrypt.mockResolvedValue([1, 2, 3, 4, 5, 6]);
 
       mockServices.api.completeOnboarding.mockResolvedValue({
-        deviceKeyShare: TEST_FIXTURES.shares.device,
+        deviceId: TEST_FIXTURES.deviceId,
         signerId: 'test-signer-id',
+        encryptedMasterSecret: {
+          bytes: 'encrypted-key-bytes',
+          encoding: 'base64',
+          encryptionPublicKey: 'test-encryption-public-key',
+        },
+        masterSecretHash: {
+          bytes: 'user-key-hash-bytes',
+          encoding: 'base64',
+          algorithm: 'SHA-256',
+        },
       });
 
-      mockServices.sharding.reconstructMasterSecret.mockResolvedValue(TEST_FIXTURES.masterSecret);
+      mockServices.userKeyManager.verifyAndReconstructMasterSecret.mockResolvedValue(
+        TEST_FIXTURES.masterSecret
+      );
       mockServices.ed25519.secretKeyFromSeed.mockResolvedValue(TEST_FIXTURES.secretKey);
       mockServices.ed25519.getPublicKey.mockResolvedValue(
         bs58.encode(TEST_FIXTURES.secretKey.slice(32))
@@ -101,10 +122,6 @@ describe('EventHandlers', () => {
         testInput.authData
       );
 
-      expect(mockServices.sharding.storeDeviceShare).toHaveBeenCalledWith(
-        'test-signer-id',
-        TEST_FIXTURES.shares.device
-      );
       expect(result).toHaveProperty('publicKeys');
     });
   });
@@ -131,12 +148,12 @@ describe('EventHandlers', () => {
         'Key share stored on this device does not match Crossmint held authentication share.',
         'invalid-device-share'
       );
-      mockServices.sharding.reconstructMasterSecret.mockRejectedValue(mockError);
+      mockServices.userKeyManager.tryGetAndDecryptMasterSecret.mockRejectedValue(mockError);
 
       // Test the whole event handler flow including error handling
       const result = await handler.callback(testInput);
 
-      expect(mockServices.sharding.reconstructMasterSecret).toHaveBeenCalledWith(
+      expect(mockServices.userKeyManager.tryGetAndDecryptMasterSecret).toHaveBeenCalledWith(
         testInput.authData
       );
       expect(result).toEqual({

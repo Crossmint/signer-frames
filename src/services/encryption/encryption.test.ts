@@ -1,7 +1,12 @@
 import { expect, describe, it, beforeEach, vi } from 'vitest';
-import { EncryptionService } from './encryption';
-import type { AttestationService } from './attestation';
-import { IDENTITY_STORAGE_KEY } from './encryption-consts';
+import { HPKEService } from './hpke';
+import type { AttestationService } from '../tee/attestation';
+import { mock } from 'vitest-mock-extended';
+import {
+  IDENTITY_STORAGE_KEY,
+  type MasterFrameKeyProvider,
+} from '../encryption-keys/encryption-key-provider';
+import type { PublicKeyProvider } from '@crossmint/client-signers-cryptography';
 
 // Mock types for attestation
 type AttestationDocument = { publicKey: string } & Record<string, unknown>;
@@ -149,6 +154,10 @@ const mockAttestationService: AttestationService = {
   logDebug: vi.fn(),
 } as unknown as AttestationService;
 
+// Mock KeyRepository and TeePublicKeyProvider
+const mockKeyRepository = mock<MasterFrameKeyProvider>();
+const mockTeePublicKeyProvider = mock<PublicKeyProvider>();
+
 // Mock global methods
 vi.stubGlobal(
   'btoa',
@@ -160,10 +169,10 @@ vi.stubGlobal(
 );
 vi.stubGlobal('localStorage', localStorageMock);
 
-// Create a test version of the EncryptionService to avoid initialization issues
-class TestEncryptionService extends EncryptionService {
+// Create a test version of the HPKEService to avoid initialization issues
+class TestHPKEService extends HPKEService {
   constructor() {
-    super(mockAttestationService);
+    super(mockKeyRepository, mockTeePublicKeyProvider);
     // Mock internal methods
     this.log = vi.fn();
     this.logError = vi.fn();
@@ -203,8 +212,8 @@ class TestEncryptionService extends EncryptionService {
   }
 }
 
-describe('EncryptionService', () => {
-  let encryptionService: TestEncryptionService;
+describe('HPKEService', () => {
+  let encryptionService: TestHPKEService;
 
   beforeEach(() => {
     // Clear mock storage
@@ -214,7 +223,7 @@ describe('EncryptionService', () => {
     vi.clearAllMocks();
 
     // Create a new instance for each test
-    encryptionService = new TestEncryptionService();
+    encryptionService = new TestHPKEService();
 
     // Spy on the methods
     vi.spyOn(encryptionService, 'init');

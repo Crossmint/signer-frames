@@ -303,7 +303,7 @@ export default function CrossmintSignerProvider({
     }
   };
 
-  const handleEncryptedOtpEvent = async (encryptedOtp: string, chainLayer: 'solana') => {
+  const handleEncryptedOtpEvent = async (encryptedOtp: string) => {
     assertInitialized();
     if (iframeWindow.current == null || jwt == null || apiKey == null) {
       throw new Error('Failed to create signer. The component has not been initialized');
