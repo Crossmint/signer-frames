@@ -86,7 +86,7 @@ export class UserMasterSecretManager extends CrossmintFrameService {
   private async tryGetFromApi(authData: AuthData): Promise<HashedEncryptedMasterSecret | null> {
     try {
       const encryptedMasterSecret = await this.api.getEncryptedMasterSecret(
-        this.deviceService.getId(),
+        await this.deviceService.getId(),
         authData
       );
       return encryptedMasterSecret;
@@ -123,7 +123,7 @@ export class UserMasterSecretManager extends CrossmintFrameService {
       );
 
       this.verifyHash(new Uint8Array(masterSecret), masterSecretHash);
-      this.verifyDeviceId(deviceId);
+      await this.verifyDeviceId(deviceId);
 
       this.cacheMasterSecret({
         deviceId,
@@ -142,8 +142,8 @@ export class UserMasterSecretManager extends CrossmintFrameService {
     this.cache.set('encryptedMasterSecret', encryptedMasterSecret, 1000 * 60 * 5); // 5 minutes
   }
 
-  private verifyDeviceId(deviceId: string) {
-    if (deviceId !== this.deviceService.getId()) {
+  private async verifyDeviceId(deviceId: string) {
+    if (deviceId !== (await this.deviceService.getId())) {
       throw new Error('Device ID of decrypted master secret does not match');
     }
   }
