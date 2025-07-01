@@ -337,21 +337,27 @@ export class AttestationService extends CrossmintFrameService {
         return true;
       }
 
+      // Validate event name is not empty and contains only valid characters
+      if (!event.event || event.event.trim().length === 0) {
+        return false;
+      }
+
       // Convert event payload from hex to bytes for validation
       let eventPayloadBytes: Uint8Array;
       try {
         eventPayloadBytes = decodeBytes(event.event_payload, 'hex');
       } catch {
-        // If hex decoding fails, treat as UTF-8 string
+        // If hex decoding fails, treat as UTF-8 string (for empty payloads or plain text events)
         eventPayloadBytes = new TextEncoder().encode(event.event_payload);
       }
 
       // Build the validation string: event_type:event_name:event_payload
+      // Event type is encoded as 4-byte little-endian integer (matching DStack reference implementation)
       const eventTypeBytes = new Uint8Array(4);
-      eventTypeBytes[0] = event.event_type & 0xff;
+      eventTypeBytes[0] = event.event_type & 0xff; // LSB (least significant byte)
       eventTypeBytes[1] = (event.event_type >> 8) & 0xff;
       eventTypeBytes[2] = (event.event_type >> 16) & 0xff;
-      eventTypeBytes[3] = (event.event_type >> 24) & 0xff;
+      eventTypeBytes[3] = (event.event_type >> 24) & 0xff; // MSB (most significant byte)
 
       const colonBytes = new TextEncoder().encode(':');
       const eventNameBytes = new TextEncoder().encode(event.event);
@@ -425,7 +431,7 @@ export class AttestationService extends CrossmintFrameService {
           }
 
           try {
-            KeyProviderSchema.parse(appInfo.key_provider);
+            appInfo.key_provider = KeyProviderSchema.parse(appInfo.key_provider);
           } catch (schemaError) {
             if (schemaError instanceof z.ZodError) {
               throw new Error(
@@ -452,7 +458,7 @@ export class AttestationService extends CrossmintFrameService {
    * @throws {Error} When application ID doesn't match expected value
    */
   private validateApplicationInfo(appInfo: ApplicationInfo): void {
-    if (appInfo.app_id !== this.expectedAppId) {
+    if (appInfo.app_id.toLowerCase() !== this.expectedAppId.toLowerCase()) {
       throw new Error(`Invalid app ID: expected ${this.expectedAppId}, got ${appInfo.app_id}`);
     }
   }
