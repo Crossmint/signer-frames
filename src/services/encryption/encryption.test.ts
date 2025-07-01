@@ -1,7 +1,12 @@
 import { expect, describe, it, beforeEach, vi } from 'vitest';
-import { EncryptionService } from './encryption';
-import type { AttestationService } from './attestation';
-import { IDENTITY_STORAGE_KEY } from './encryption-consts';
+import { AsymmetricEncryptionService as EncryptionService } from './encryption';
+import type { AttestationService } from '../tee/attestation';
+import { mock } from 'vitest-mock-extended';
+import {
+  IDENTITY_STORAGE_KEY,
+  type EncryptionKeyProvider,
+} from '../encryption-keys/encryption-key-provider';
+import type { PublicKeyProvider } from './lib/provider';
 
 // Mock types for attestation
 type AttestationDocument = { publicKey: string } & Record<string, unknown>;
@@ -149,6 +154,10 @@ const mockAttestationService: AttestationService = {
   logDebug: vi.fn(),
 } as unknown as AttestationService;
 
+// Mock KeyRepository and TeePublicKeyProvider
+const mockKeyRepository = mock<EncryptionKeyProvider>();
+const mockTeePublicKeyProvider = mock<PublicKeyProvider>();
+
 // Mock global methods
 vi.stubGlobal(
   'btoa',
@@ -163,7 +172,7 @@ vi.stubGlobal('localStorage', localStorageMock);
 // Create a test version of the EncryptionService to avoid initialization issues
 class TestEncryptionService extends EncryptionService {
   constructor() {
-    super(mockAttestationService);
+    super(mockKeyRepository, mockTeePublicKeyProvider);
     // Mock internal methods
     this.log = vi.fn();
     this.logError = vi.fn();
