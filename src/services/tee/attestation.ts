@@ -119,6 +119,7 @@ export class AttestationService extends CrossmintFrameService {
       this.log('Extracting TD report data and RTMR3');
       const { report_data, rt_mr3 } = this.extractTD(validatedReport);
 
+      this.log('Verifying TEE application integrity');
       await this.verifyTEEApplicationIntegrity(attestation.event_log, rt_mr3);
 
       this.log('Verifying relay reported public key');
@@ -421,6 +422,17 @@ export class AttestationService extends CrossmintFrameService {
             } catch {
               throw new Error(`Invalid key_provider JSON format: ${event.event_payload}`);
             }
+          }
+
+          try {
+            KeyProviderSchema.parse(appInfo.key_provider);
+          } catch (schemaError) {
+            if (schemaError instanceof z.ZodError) {
+              throw new Error(
+                `Invalid key_provider: ${schemaError.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`).join(', ')}`
+              );
+            }
+            throw schemaError;
           }
           break;
       }
