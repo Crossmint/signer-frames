@@ -33,30 +33,6 @@ const VALID_PUBLIC_KEY =
   'BMbRE3oZ8rxCzkPYntr/gApxZO2nO1T44HCwLDokZOy/y3/3NW/VhVFLrUSKjohgAQFk6wckzs50HGmn+IAwVEk=';
 const VALID_APP_ID = 'df4f0ec61f92a8eec754593da9ea9cd939985e9c';
 
-// Pre-calculated SHA-384 digests for test events using format: sha384(event_type:event_name:event_payload)
-// These were generated using the same algorithm as AttestationService.validateEvent()
-const PRECALCULATED_TEST_DIGESTS = {
-  // For VALID_APP_ID payload - used in main VALID_EVENT_LOG
-  APP_ID:
-    '8fb0fe5adbb3a5038e382aa1c4f5878ffa22b0671b3fba3ca9181c5a3e3b5fb47a33ed4fc8f63fcaf1a949a53acef0fa',
-
-  // For 'test-hash' payload - used in test cases
-  COMPOSE_HASH:
-    'cd3ed6b58c10eaa47dc17313a480983a9ee654003c0e3c77ea75cb81315b9a62f8089f4d5bafb3e87472cf926207197b',
-
-  // For 'test-instance' payload - used in test cases
-  INSTANCE_ID:
-    '91be2d062b0d544e34b9b279ef4edba811e36a3eb8ae73d16aeebeb624d08bfc646a0c30c21de8f81fc4cfa5e88f0baf',
-
-  // For '{"name":"invalid","id":"test-id"}' payload - used in invalid key_provider test cases
-  INVALID_KEY_PROVIDER:
-    '2bb453dd8d8d5eff4d0e89aec6614292693391e0107aa7d2ee92bbebeb665be228fe394a735af87718fcfbc3787ef1c4',
-
-  // For 'invalid-json' payload - used in malformed key_provider test cases
-  MALFORMED_KEY_PROVIDER:
-    'c3335b94898abee8e48a51fbdcfb7ca1372dfddc43441252fd7dbc390239cf98133077492b23ad806091db07062f0e86',
-} as const;
-
 const VALID_EVENT_LOG = [
   {
     imr: 3,
@@ -69,7 +45,8 @@ const VALID_EVENT_LOG = [
   {
     imr: 3,
     event_type: 134217729,
-    digest: PRECALCULATED_TEST_DIGESTS.APP_ID,
+    digest:
+      '8fb0fe5adbb3a5038e382aa1c4f5878ffa22b0671b3fba3ca9181c5a3e3b5fb47a33ed4fc8f63fcaf1a949a53acef0fa',
     event: 'app-id',
     event_payload: VALID_APP_ID,
   },
