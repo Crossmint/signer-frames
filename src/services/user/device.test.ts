@@ -1,115 +1,78 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DeviceService } from './device';
+import { KeyPairProvider, ECDH_KEY_SPEC } from '@crossmint/client-signers-cryptography';
 
-const TEST_DEVICE_ID = '123e4567-e89b-12d3-a456-426614174000';
-const DEVICE_ID_KEY = 'device-id';
+const IDENTITY_KEY_PERMISSIONS: KeyUsage[] = ['deriveBits', 'deriveKey'];
 
-describe('DeviceService - Security Critical Tests', () => {
+describe('DeviceService - Key Pair Based Device ID Tests', () => {
   let service: DeviceService;
-  let mockLocalStorage: {
-    getItem: ReturnType<typeof vi.fn>;
-    setItem: ReturnType<typeof vi.fn>;
-    removeItem: ReturnType<typeof vi.fn>;
-    clear: ReturnType<typeof vi.fn>;
-    key: ReturnType<typeof vi.fn>;
-    length: number;
-  };
+  let mockKeyProvider: KeyPairProvider;
+  let mockKeyPair1: CryptoKeyPair;
+  let mockKeyPair2: CryptoKeyPair;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.resetAllMocks();
 
-    // Mock browser APIs
-    mockLocalStorage = {
-      getItem: vi.fn(),
-      setItem: vi.fn(),
-      removeItem: vi.fn(),
-      clear: vi.fn(),
-      key: vi.fn(),
-      length: 0,
-    };
+    // Create two different key pairs for testing using the same method as encryption key provider
+    mockKeyPair1 = await crypto.subtle.generateKey(ECDH_KEY_SPEC, true, IDENTITY_KEY_PERMISSIONS);
 
-    vi.stubGlobal('crypto', {
-      randomUUID: vi.fn().mockReturnValue(TEST_DEVICE_ID),
-    });
+    mockKeyPair2 = await crypto.subtle.generateKey(ECDH_KEY_SPEC, true, IDENTITY_KEY_PERMISSIONS);
 
-    vi.stubGlobal('localStorage', mockLocalStorage);
-
-    service = new DeviceService();
+    mockKeyProvider = {
+      getKeyPair: vi.fn(),
+    } as unknown as KeyPairProvider;
 
     // Suppress console output in tests
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'debug').mockImplementation(() => {});
   });
 
-  describe('Device ID Generation - Isolation Foundation', () => {
-    it('Should generate cryptographically random device ID when none exists', () => {
-      mockLocalStorage.getItem.mockReturnValueOnce(null);
+  it('Should generate different device IDs for different key pairs', async () => {
+    // Configure mock to return first key pair
+    vi.mocked(mockKeyProvider.getKeyPair).mockResolvedValueOnce(mockKeyPair1);
+    const service1 = new DeviceService(mockKeyProvider);
+    const deviceId1 = await service1.getId();
 
-      const result = service.getId();
+    // Configure mock to return second key pair
+    vi.mocked(mockKeyProvider.getKeyPair).mockResolvedValueOnce(mockKeyPair2);
+    const service2 = new DeviceService(mockKeyProvider);
+    const deviceId2 = await service2.getId();
 
-      expect(crypto.randomUUID).toHaveBeenCalled();
-      expect(mockLocalStorage.setItem).toHaveBeenCalledWith(DEVICE_ID_KEY, TEST_DEVICE_ID);
-      expect(result).toBe(TEST_DEVICE_ID);
-    });
-
-    it('Should reuse existing device ID to maintain device identity', () => {
-      mockLocalStorage.getItem.mockReturnValueOnce(TEST_DEVICE_ID);
-
-      const result = service.getId();
-
-      expect(crypto.randomUUID).not.toHaveBeenCalled();
-      expect(mockLocalStorage.setItem).not.toHaveBeenCalled();
-      expect(result).toBe(TEST_DEVICE_ID);
-    });
-
-    it('SECURITY: Should generate new device ID each time when none exists in storage', () => {
-      const firstDeviceId = '123e4567-e89b-12d3-a456-426614174001';
-      const secondDeviceId = '123e4567-e89b-12d3-a456-426614174002';
-
-      mockLocalStorage.getItem.mockReturnValue(null);
-      vi.mocked(crypto.randomUUID)
-        .mockReturnValueOnce(firstDeviceId)
-        .mockReturnValueOnce(secondDeviceId);
-
-      const result1 = service.getId();
-      const result2 = service.getId();
-
-      expect(crypto.randomUUID).toHaveBeenCalledTimes(2);
-      expect(result1).toBe(firstDeviceId);
-      expect(result2).toBe(secondDeviceId);
-    });
+    expect(deviceId1).not.toBe(deviceId2);
+    expect(deviceId1).toMatch(/^[a-f0-9]{64}$/); // SHA-256 hex string
+    expect(deviceId2).toMatch(/^[a-f0-9]{64}$/); // SHA-256 hex string
   });
 
-  describe('Device ID Cleanup - Security Operations', () => {
-    it('Should clear device ID from storage for security cleanup', () => {
-      service.clearId();
+  it('Should generate the same device ID for the same key pair', async () => {
+    // Configure mock to return the same key pair for both calls
+    vi.mocked(mockKeyProvider.getKeyPair)
+      .mockResolvedValueOnce(mockKeyPair1)
+      .mockResolvedValueOnce(mockKeyPair1);
 
-      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith(DEVICE_ID_KEY);
-    });
+    const service1 = new DeviceService(mockKeyProvider);
+    const service2 = new DeviceService(mockKeyProvider);
 
-    it('Should handle multiple clear operations safely', () => {
-      // SECURITY PROPERTY: Multiple clears don't cause errors
-      service.clearId();
-      service.clearId();
+    const deviceId1 = await service1.getId();
+    const deviceId2 = await service2.getId();
 
-      expect(mockLocalStorage.removeItem).toHaveBeenCalledTimes(2);
-      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith(DEVICE_ID_KEY);
-    });
+    expect(deviceId1).toBe(deviceId2);
+    expect(deviceId1).toMatch(/^[a-f0-9]{64}$/); // SHA-256 hex string
   });
 
-  describe('Device ID Persistence', () => {
-    it('Should maintain device identity across service instances', () => {
-      mockLocalStorage.getItem.mockReturnValue(TEST_DEVICE_ID);
+  it('Should work with non-extractable keys', async () => {
+    // Create a non-extractable key pair using the same method as encryption key provider
+    const nonExtractableKeyPair = await crypto.subtle.generateKey(
+      ECDH_KEY_SPEC,
+      false, // non-extractable
+      IDENTITY_KEY_PERMISSIONS
+    );
 
-      const service1 = new DeviceService();
-      const service2 = new DeviceService();
+    vi.mocked(mockKeyProvider.getKeyPair).mockResolvedValue(nonExtractableKeyPair);
+    service = new DeviceService(mockKeyProvider);
 
-      const id1 = service1.getId();
-      const id2 = service2.getId();
+    const deviceId = await service.getId();
 
-      expect(id1).toBe(TEST_DEVICE_ID);
-      expect(id2).toBe(TEST_DEVICE_ID);
-      expect(crypto.randomUUID).not.toHaveBeenCalled();
-    });
+    expect(deviceId).toMatch(/^[a-f0-9]{64}$/); // SHA-256 hex string
+    expect(mockKeyProvider.getKeyPair).toHaveBeenCalled();
   });
 });

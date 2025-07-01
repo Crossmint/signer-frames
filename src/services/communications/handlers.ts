@@ -72,7 +72,7 @@ export class StartOnboardingEventHandler extends EventHandler<'start-onboarding'
         encryptionContext: {
           publicKey: await this.services.encryptionKeyProvider.getSerializedPublicKey(),
         },
-        deviceId: this.services.device.getId(),
+        deviceId: await this.services.device.getId(),
       },
       payload.authData
     );
@@ -91,7 +91,7 @@ export class CompleteOnboardingEventHandler extends EventHandler<'complete-onboa
   async handler(
     payload: SignerInputEvent<'complete-onboarding'>
   ): Promise<SuccessfulOutputEvent<'complete-onboarding'>> {
-    const deviceId = this.services.device.getId();
+    const deviceId = await this.services.device.getId();
     const encryptedOtp = payload.data.onboardingAuthentication.encryptedOtp;
     const otp = await this.decryptOtp(encryptedOtp);
     const senderPublicKey = await this.services.encryptionKeyProvider.getSerializedPublicKey();

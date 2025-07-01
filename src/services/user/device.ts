@@ -1,29 +1,26 @@
+import { KeyPairProvider } from '@crossmint/client-signers-cryptography';
 import { CrossmintFrameService } from '../service';
-
-const DEVICE_ID_KEY = 'device-id';
 
 export class DeviceService extends CrossmintFrameService {
   name = 'Device Service';
   log_prefix = '[DeviceService]';
-
-  public getId(): string {
-    this.log('Attempting to get device ID from storage');
-
-    const existing = localStorage.getItem(DEVICE_ID_KEY);
-    if (existing != null) {
-      this.log(`Found existing device ID: ${existing.substring(0, 8)}...`);
-      return existing;
-    }
-
-    this.log('No existing device ID found, generating new one');
-    const deviceId = crypto.randomUUID();
-    localStorage.setItem(DEVICE_ID_KEY, deviceId);
-    this.log(`Successfully stored new device ID: ${deviceId.substring(0, 8)}...`);
-    return deviceId;
+  constructor(private readonly keyProvider: KeyPairProvider) {
+    super();
   }
 
-  public clearId(): void {
-    this.log('Clearing device ID from storage');
-    localStorage.removeItem(DEVICE_ID_KEY);
+  public async getId(): Promise<string> {
+    this.log('Attempting to get device ID from storage');
+
+    const masterKeyPair = await this.keyProvider.getKeyPair();
+    const publicKeyBytes = new Uint8Array(
+      await crypto.subtle.exportKey('spki', masterKeyPair.publicKey)
+    );
+    const deviceId = await crypto.subtle.digest('SHA-256', publicKeyBytes);
+    const deviceIdHex = Array.from(new Uint8Array(deviceId))
+      .map(byte => byte.toString(16).padStart(2, '0'))
+      .join('');
+    this.log(`Device ID: ${deviceIdHex}`);
+
+    return deviceIdHex;
   }
 }
