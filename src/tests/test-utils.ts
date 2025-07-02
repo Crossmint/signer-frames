@@ -3,7 +3,6 @@ import { mock } from 'vitest-mock-extended';
 import type { MockProxy } from 'vitest-mock-extended';
 import type { CrossmintFrameServices } from '../services';
 import type { CrossmintApiService } from '../services/api';
-import type { ShardingService } from '../services/user/sharding';
 import type { AttestationService } from '../services/tee/attestation';
 import type { Ed25519Service } from '../services/crypto/algorithms/ed25519';
 import type { EventsService } from '../services/communications/events';
@@ -13,12 +12,12 @@ import type { Secp256k1Service } from '../services/crypto/algorithms/secp256k1';
 import type { CryptoKeyService } from '../services/crypto/crypto-key';
 import type { DeviceService } from '../services/user/device';
 import { IndexedDBAdapter } from '../services/storage';
+import { KeyManagerService } from '../services/user/key-manager';
 /**
  * Creates mock services for testing with proper typing
  */
 export function createMockServices(): MockProxy<CrossmintFrameServices> & {
   api: MockProxy<CrossmintApiService>;
-  sharding: MockProxy<ShardingService>;
   attestation: MockProxy<AttestationService>;
   ed25519: MockProxy<Ed25519Service>;
   events: MockProxy<EventsService>;
@@ -27,10 +26,11 @@ export function createMockServices(): MockProxy<CrossmintFrameServices> & {
   secp256k1: MockProxy<Secp256k1Service>;
   cryptoKey: MockProxy<CryptoKeyService>;
   device: MockProxy<DeviceService>;
+  storage: MockProxy<IndexedDBAdapter>;
+  keyManager: MockProxy<KeyManagerService>;
 } {
   return {
     api: mock<CrossmintApiService>(),
-    sharding: mock<ShardingService>(),
     attestation: mock<AttestationService>(),
     ed25519: mock<Ed25519Service>(),
     events: mock<EventsService>(),
@@ -40,6 +40,7 @@ export function createMockServices(): MockProxy<CrossmintFrameServices> & {
     cryptoKey: mock<CryptoKeyService>(),
     device: mock<DeviceService>(),
     storage: mock<IndexedDBAdapter>(),
+    keyManager: mock<KeyManagerService>(),
   };
 }
 
