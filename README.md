@@ -3,7 +3,6 @@
 
 # Crossmint Signers
 
-A minimal standalone implementation of the Crossmint signer functionality for Trusted Execution Environment (TEE) communications. This library provides cryptographic utilities supporting Solana and EVM chains.
 Moved to https://github.com/Crossmint/open-signer
 
 ## Features
